@@ -235,30 +235,40 @@ func feedPageVm(feedId int64, db *sqlx.DB, queries *db.Queries, ctx context.Cont
 		return vm, fmt.Errorf("error selecting sidebar data:: %v", err)
 	}
 
-	// theFeed := Feed{}
-	// if err := db.GetContext(ctx, &theFeed,
-	// 	`SELECT * FROM feeds WHERE id = ?`,
-	// 	feedId); err != nil {
-	// 	return vm, fmt.Errorf("can't find feed with id: %v, error: %v", feedId, err)
-	// }
-
 	feed, err := queries.GetAllFromFeedByID(ctx, feedId)
-
-	feedArticles := []Article{}
-
-	err = db.SelectContext(ctx, &feedArticles,
-		SqlUnreadArticlesByFeed, feedId)
 	if err != nil {
-		return vm, fmt.Errorf("error getting articles data: %v", err)
+		return vm, err
 	}
 
-	vm.Articles = feedArticles
+	unreadArticles, err := queries.GetUnreadByFeedID(ctx, feedId)
+	if err != nil {
+		return vm, err
+	}
+
+	articles := []Article{}
+
+	for _, v := range unreadArticles {
+		articles = append(articles, Article{
+			Id:              v.ID,
+			FeedId:          v.FeedID,
+			Title:           v.Title,
+			Link:            v.Link,
+			Published:       v.Published.String(),
+			PublishedParsed: v.Published.String(),
+			// Updated:         v.Updated.Time.String(),
+			// UpdatedParsed:   v.UpdatedParsed,
+			Summary:   v.Summary,
+			Read:      int64ToBool(v.Read),
+			Starred:   int64ToBool(v.Starred),
+			FeedTitle: v.FeedTitle,
+		})
+	}
+
+	vm.Articles = articles
 	vm.SidebarMenu = sidebarData
 	vm.PageTitle = feed.Title
 	vm.FeedId = feed.ID
-
 	return vm, nil
-
 }
 
 func setReadStatusVm(feedId string, articleId string, db *sqlx.DB, queries *db.Queries, ctx context.Context) (ArticleVM, error) {

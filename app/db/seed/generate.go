@@ -114,15 +114,15 @@ func main() {
 		for _, v := range goFeed.Items {
 
 			pubParsed := ""
-			updatedParsed := ""
+			//updatedParsed := ""
 
 			if v.PublishedParsed != nil {
 				pubParsed = v.PublishedParsed.Format("2006-01-02 15:04:05")
 			}
 
-			if v.UpdatedParsed != nil {
-				updatedParsed = v.UpdatedParsed.Format("2006-01-02 15:04:05")
-			}
+			// if v.UpdatedParsed != nil {
+			// 	updatedParsed = v.UpdatedParsed.Format("2006-01-02 15:04:05")
+			// }
 
 			_, err = db.Exec(`
 				INSERT INTO articles (
@@ -144,12 +144,11 @@ func main() {
 				 ?, 
 				 ?
 				 );`,
-				id, v.Title,
+				id,
+				v.Title,
 				v.Link,
 				v.Published,
 				pubParsed,
-				v.Updated,
-				updatedParsed,
 				v.Description,
 				0,
 				0,
