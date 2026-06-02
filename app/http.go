@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -53,9 +54,15 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 			)
 		})
 
-		r.Get("/feed/{feedId}", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/feed/{feedID}", func(w http.ResponseWriter, r *http.Request) {
 
-			feedVm, err := feedPageVm(chi.URLParam(r, "feedId"), dbx, queries, r.Context())
+			feedID, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
+			if ok {
+
+				return
+			}
+
+			feedVm, err := feedPageVm(feedID, dbx, queries, r.Context())
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
@@ -327,6 +334,45 @@ func basicAuthHandler(user string, user_password string) func(http.Handler) http
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		})
 	}
+}
+
+func mustBeNonZeroNumeric(w http.ResponseWriter, r *http.Request, key, value string) (int64, bool) {
+	v, err := strconv.Atoi(value)
+	if err != nil {
+		logAndError(w, r, err.Error(), http.StatusBadRequest)
+		return 0, false
+	}
+
+	v64 := int64(v)
+
+	if v64 == 0 {
+		logAndError(
+			w,
+			r,
+			fmt.Sprintf("key '%v' must be non-zero numeric", key),
+			http.StatusBadRequest,
+		)
+		return 0, false
+	}
+
+	return v64, true
+}
+
+func paramMustBeNonZeroNumeric(w http.ResponseWriter, r *http.Request, key string) (int64, bool) {
+	return mustBeNonZeroNumeric(w, r, key, chi.URLParam(r, key))
+}
+
+// func postMustBeNonZeroNumeric(w http.ResponseWriter, r *http.Request, key string) (int, bool) {
+// 	return mustBeNonZeroNumeric(w, r, key, r.PostFormValue(key))
+// }
+
+func paramMustBeNotEmpty(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
+	v := chi.URLParam(r, key)
+	if v == "" {
+		logAndError(w, r, fmt.Errorf("key '%v' empty string - %v", key, v).Error())
+		return "", false
+	}
+	return v, true
 }
 
 func logAndError(w http.ResponseWriter, _ *http.Request, msg string, statusCode ...int) {

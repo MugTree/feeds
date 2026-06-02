@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 const addToArticleCache = `-- name: AddToArticleCache :exec
@@ -39,14 +40,10 @@ INSERT OR IGNORE INTO articles (
 	link, 
 	published, 
 	published_parsed, 
-	updated, 
-	updated_parsed, 
 	summary, 
 	read, 
 	starred
 ) VALUES (
-	 ?, 
-	 ?, 
 	 ?, 
 	 ?, 
 	 ?, 
@@ -62,13 +59,11 @@ type AddToArticlesParams struct {
 	FeedID          int64
 	Title           string
 	Link            string
-	Published       sql.NullTime
+	Published       time.Time
 	PublishedParsed string
-	Updated         sql.NullTime
-	UpdatedParsed   string
-	Summary         sql.NullString
-	Read            sql.NullInt64
-	Starred         sql.NullInt64
+	Summary         string
+	Read            int64
+	Starred         int64
 }
 
 func (q *Queries) AddToArticles(ctx context.Context, arg AddToArticlesParams) error {
@@ -78,8 +73,6 @@ func (q *Queries) AddToArticles(ctx context.Context, arg AddToArticlesParams) er
 		arg.Link,
 		arg.Published,
 		arg.PublishedParsed,
-		arg.Updated,
-		arg.UpdatedParsed,
 		arg.Summary,
 		arg.Read,
 		arg.Starred,
@@ -145,7 +138,7 @@ func (q *Queries) GetAllFromFeedByID(ctx context.Context, id int64) (Feed, error
 
 const getArticlesByFeedID = `-- name: GetArticlesByFeedID :many
 SELECT 
-	a.id, a.feed_id, a.title, a.link, a.published, a.published_parsed, a.updated, a.updated_parsed, a.summary, a.read, a.starred, 
+	a.id, a.feed_id, a.title, a.link, a.published, a.published_parsed, a.summary, a.read, a.starred, 
 	f.title as feed_title 
 FROM articles a 
 INNER JOIN feeds f 
@@ -159,14 +152,12 @@ type GetArticlesByFeedIDRow struct {
 	FeedID          int64
 	Title           string
 	Link            string
-	Published       sql.NullTime
+	Published       time.Time
 	PublishedParsed string
-	Updated         sql.NullTime
-	UpdatedParsed   string
-	Summary         sql.NullString
-	Read            sql.NullInt64
-	Starred         sql.NullInt64
-	FeedTitle       sql.NullString
+	Summary         string
+	Read            int64
+	Starred         int64
+	FeedTitle       string
 }
 
 func (q *Queries) GetArticlesByFeedID(ctx context.Context, feedID int64) ([]GetArticlesByFeedIDRow, error) {
@@ -185,8 +176,6 @@ func (q *Queries) GetArticlesByFeedID(ctx context.Context, feedID int64) ([]GetA
 			&i.Link,
 			&i.Published,
 			&i.PublishedParsed,
-			&i.Updated,
-			&i.UpdatedParsed,
 			&i.Summary,
 			&i.Read,
 			&i.Starred,
@@ -223,7 +212,7 @@ func (q *Queries) GetCachedByLink(ctx context.Context, link string) (ArticleCach
 
 const getLatest5Articles = `-- name: GetLatest5Articles :many
 SELECT 
-	a.id, a.feed_id, a.title, a.link, a.published, a.published_parsed, a.updated, a.updated_parsed, a.summary, a.read, a.starred, 
+	a.id, a.feed_id, a.title, a.link, a.published, a.published_parsed, a.summary, a.read, a.starred, 
 	f.title as feed_title 
  FROM articles a 
  INNER JOIN feeds f 
@@ -237,14 +226,12 @@ type GetLatest5ArticlesRow struct {
 	FeedID          int64
 	Title           string
 	Link            string
-	Published       sql.NullTime
+	Published       time.Time
 	PublishedParsed string
-	Updated         sql.NullTime
-	UpdatedParsed   string
-	Summary         sql.NullString
-	Read            sql.NullInt64
-	Starred         sql.NullInt64
-	FeedTitle       sql.NullString
+	Summary         string
+	Read            int64
+	Starred         int64
+	FeedTitle       string
 }
 
 func (q *Queries) GetLatest5Articles(ctx context.Context) ([]GetLatest5ArticlesRow, error) {
@@ -263,8 +250,6 @@ func (q *Queries) GetLatest5Articles(ctx context.Context) ([]GetLatest5ArticlesR
 			&i.Link,
 			&i.Published,
 			&i.PublishedParsed,
-			&i.Updated,
-			&i.UpdatedParsed,
 			&i.Summary,
 			&i.Read,
 			&i.Starred,
@@ -306,7 +291,7 @@ type GetOtherArticlesFromFeedByArticleIDRow struct {
 	Link                   string
 	Title                  string
 	FeedID                 int64
-	FeedTitle              sql.NullString
+	FeedTitle              string
 	FeedUrl                string
 	CssSelContainer        sql.NullString
 	CssSelStart            sql.NullString
@@ -361,7 +346,7 @@ ORDER BY feed_title ASC
 `
 
 type GetSidebarDataRow struct {
-	FeedTitle     sql.NullString
+	FeedTitle     string
 	FeedID        int64
 	TotalArticles int64
 	ArticlesRead  int64
@@ -397,7 +382,7 @@ func (q *Queries) GetSidebarData(ctx context.Context) ([]GetSidebarDataRow, erro
 
 const getUnreadByFeedID = `-- name: GetUnreadByFeedID :many
 SELECT 
-	a.id, a.feed_id, a.title, a.link, a.published, a.published_parsed, a.updated, a.updated_parsed, a.summary, a.read, a.starred, 
+	a.id, a.feed_id, a.title, a.link, a.published, a.published_parsed, a.summary, a.read, a.starred, 
 	f.title as feed_title 
 FROM articles a 
 INNER JOIN feeds f 
@@ -411,14 +396,12 @@ type GetUnreadByFeedIDRow struct {
 	FeedID          int64
 	Title           string
 	Link            string
-	Published       sql.NullTime
+	Published       time.Time
 	PublishedParsed string
-	Updated         sql.NullTime
-	UpdatedParsed   string
-	Summary         sql.NullString
-	Read            sql.NullInt64
-	Starred         sql.NullInt64
-	FeedTitle       sql.NullString
+	Summary         string
+	Read            int64
+	Starred         int64
+	FeedTitle       string
 }
 
 func (q *Queries) GetUnreadByFeedID(ctx context.Context, feedID int64) ([]GetUnreadByFeedIDRow, error) {
@@ -437,8 +420,6 @@ func (q *Queries) GetUnreadByFeedID(ctx context.Context, feedID int64) ([]GetUnr
 			&i.Link,
 			&i.Published,
 			&i.PublishedParsed,
-			&i.Updated,
-			&i.UpdatedParsed,
 			&i.Summary,
 			&i.Read,
 			&i.Starred,

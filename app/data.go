@@ -19,11 +19,11 @@ import (
 )
 
 type Feed struct {
-	Id                     int    `json:"id" db:"id"`
+	Id                     int64  `json:"id" db:"id"`
 	Url                    string `json:"url" db:"url"`
 	Title                  string `json:"title" title:"title"`
-	ArticlesRead           int    `json:"articles_read" db:"articles_read"`
-	TotalArticles          int    `json:"total_articles" db:"total_articles"`
+	ArticlesRead           int64  `json:"articles_read" db:"articles_read"`
+	TotalArticles          int64  `json:"total_articles" db:"total_articles"`
 	LastFetched            string `json:"last_fetched" db:"last_fetched"`
 	CSSSelectorContainer   string `json:"css_sel_container" db:"css_sel_container"`
 	CSSSelectorStart       string `json:"css_sel_start" db:"css_sel_start"`
@@ -36,8 +36,8 @@ func (f Feed) LastFetchedDate() string {
 }
 
 type Article struct {
-	Id              int    `json:"id" db:"id"`
-	FeedId          int    `json:"feed_id" db:"feed_id"`
+	Id              int64  `json:"id" db:"id"`
+	FeedId          int64  `json:"feed_id" db:"feed_id"`
 	Title           string `json:"title" db:"title"`
 	Link            string `json:"link" db:"link"`
 	Published       string `json:"published" db:"published"`
@@ -46,7 +46,7 @@ type Article struct {
 	// UpdatedParsed   string `json:"updated_parsed" db:"updated_parsed"`
 	Summary   string `json:"summary" db:"summary"`
 	Read      bool   `json:"read" db:"read"`
-	Starred   int    `json:"starred" db:"starred"`
+	Starred   bool   `json:"starred" db:"starred"`
 	FeedTitle string `json:"feed_title" db:"feed_title"`
 }
 
@@ -86,6 +86,13 @@ type SidebarLink struct {
 	FeedId int
 }
 
+func int64ToBool(i int64) bool {
+	if i == 0 {
+		return false
+	}
+	return true
+}
+
 func sideBarLinks(queries *db.Queries, ctx context.Context) ([]SidebarLink, error) {
 
 	// type SideBarLinkData struct {
@@ -108,7 +115,7 @@ func sideBarLinks(queries *db.Queries, ctx context.Context) ([]SidebarLink, erro
 
 	for _, v := range data {
 		items = append(items, SidebarLink{
-			Name:   v.FeedTitle.String,
+			Name:   v.FeedTitle,
 			Link:   fmt.Sprintf("/feed/%v", v.FeedID),
 			Unread: (v.TotalArticles - v.ArticlesRead),
 		})
@@ -118,7 +125,7 @@ func sideBarLinks(queries *db.Queries, ctx context.Context) ([]SidebarLink, erro
 }
 
 type PageVM struct {
-	FeedId      int
+	FeedId      int64
 	PageTitle   string
 	SidebarMenu []SidebarLink
 	Articles    []Article
@@ -134,7 +141,7 @@ type ArticleVM struct {
 }
 
 type UpdateParms struct {
-	FeedId   int
+	FeedId   int64
 	PageType string
 }
 
@@ -155,7 +162,7 @@ func homepageVm(_ *sqlx.DB, queries *db.Queries, ctx context.Context) (PageVM, e
 		return vm, fmt.Errorf("error selecting sidebar data: %v", err)
 	}
 
-	dbArticles, err := queries.GetLatest5Articles(ctx)
+	data, err := queries.GetLatest5Articles(ctx)
 	if err != nil {
 		return vm, err
 	}
@@ -169,20 +176,20 @@ func homepageVm(_ *sqlx.DB, queries *db.Queries, ctx context.Context) (PageVM, e
 
 	articles := []Article{}
 
-	for _, v := range dbArticles {
+	for _, v := range data {
 		articles = append(articles, Article{
-			Id:              int(v.ID),
-			FeedId:          int(v.FeedID),
+			Id:              v.ID,
+			FeedId:          v.FeedID,
 			Title:           v.Title,
 			Link:            v.Link,
-			Published:       v.Published.Time.String(),
-			PublishedParsed: v.Published.Time.String(),
+			Published:       v.Published.String(),
+			PublishedParsed: v.Published.String(),
 			// Updated:         v.Updated.Time.String(),
 			// UpdatedParsed:   v.UpdatedParsed,
-			Summary: v.Summary.String,
-			//Read:            v.Read.,
-			Starred:   int(v.Starred.Int64),
-			FeedTitle: v.FeedTitle.String,
+			Summary:   v.Summary,
+			Read:      int64ToBool(v.Read),
+			Starred:   int64ToBool(v.Starred),
+			FeedTitle: v.FeedTitle,
 		})
 
 	}
@@ -213,31 +220,29 @@ func validateUpdateParams(pt string, fid string) (UpdateParms, error) {
 		return u, fmt.Errorf("error converting feed id %v", err)
 	}
 
-	u.FeedId = f
+	u.FeedId = int64(f)
 	u.PageType = pt
 	return u, nil
 
 }
 
-func feedPageVm(feedId string, db *sqlx.DB, queries *db.Queries, ctx context.Context) (PageVM, error) {
+func feedPageVm(feedId int64, db *sqlx.DB, queries *db.Queries, ctx context.Context) (PageVM, error) {
 
 	vm := PageVM{}
 
-	if !digitCheck.MatchString(feedId) {
-		return vm, fmt.Errorf("id not numeric %v", 500)
-	}
-
-	sbd, err := sideBarLinks(queries, ctx)
+	sidebarData, err := sideBarLinks(queries, ctx)
 	if err != nil {
 		return vm, fmt.Errorf("error selecting sidebar data:: %v", err)
 	}
 
-	theFeed := Feed{}
-	if err := db.GetContext(ctx, &theFeed,
-		`SELECT * FROM feeds WHERE id = ?`,
-		feedId); err != nil {
-		return vm, fmt.Errorf("can't find feed with id: %v, error: %v", feedId, err)
-	}
+	// theFeed := Feed{}
+	// if err := db.GetContext(ctx, &theFeed,
+	// 	`SELECT * FROM feeds WHERE id = ?`,
+	// 	feedId); err != nil {
+	// 	return vm, fmt.Errorf("can't find feed with id: %v, error: %v", feedId, err)
+	// }
+
+	feed, err := queries.GetAllFromFeedByID(ctx, feedId)
 
 	feedArticles := []Article{}
 
@@ -248,9 +253,9 @@ func feedPageVm(feedId string, db *sqlx.DB, queries *db.Queries, ctx context.Con
 	}
 
 	vm.Articles = feedArticles
-	vm.SidebarMenu = sbd
-	vm.PageTitle = theFeed.Title
-	vm.FeedId = theFeed.Id
+	vm.SidebarMenu = sidebarData
+	vm.PageTitle = feed.Title
+	vm.FeedId = feed.ID
 
 	return vm, nil
 
@@ -420,7 +425,7 @@ func articlePageVm(articleId string, feedId string, db *sqlx.DB, queries *db.Que
 	vm.Articles = unreadArticles
 	vm.Link = ca.Link
 	vm.ArticleId = ca.Id
-	vm.FeedId = ca.FeedId
+	vm.FeedId = int64(ca.FeedId)
 
 	return vm, nil
 

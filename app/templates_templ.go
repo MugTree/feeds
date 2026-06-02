@@ -73,7 +73,7 @@ func PageTemplate(pageTitle string, SideBar templ.Component, Main templ.Componen
 	})
 }
 
-func PageInnerTemplate(pageType string, feedId int) templ.Component {
+func PageInnerTemplate(pageType string, feedId int64) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -953,7 +953,7 @@ func AdminPageInnerTemplate() templ.Component {
 	})
 }
 
-func UpdateFeedButtonTemplate(pageType string, feedId int) templ.Component {
+func UpdateFeedButtonTemplate(pageType string, feedId int64) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -995,7 +995,7 @@ func UpdateFeedButtonTemplate(pageType string, feedId int) templ.Component {
 	})
 }
 
-func UpdatingFeedButtonTemplate(pageType string, feedId int) templ.Component {
+func UpdatingFeedButtonTemplate(pageType string, feedId int64) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {

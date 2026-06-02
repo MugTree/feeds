@@ -84,14 +84,10 @@ INSERT OR IGNORE INTO articles (
 	link, 
 	published, 
 	published_parsed, 
-	updated, 
-	updated_parsed, 
 	summary, 
 	read, 
 	starred
 ) VALUES (
-	 ?, 
-	 ?, 
 	 ?, 
 	 ?, 
 	 ?, 

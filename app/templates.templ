@@ -37,7 +37,7 @@ templ PageTemplate(pageTitle string, SideBar templ.Component, Main templ.Compone
 	</html>
 }
 
-templ PageInnerTemplate(pageType string, feedId int) {
+templ PageInnerTemplate(pageType string, feedId int64) {
 	<div id="content">
 		<header>
 			<button
@@ -221,14 +221,14 @@ templ AdminPageInnerTemplate() {
 	</div>
 }
 
-templ UpdateFeedButtonTemplate(pageType string, feedId int) {
+templ UpdateFeedButtonTemplate(pageType string, feedId int64) {
 	<button id="update-button" class="btn" data-on-click={ datastar.GetSSE(`/update/%v/%v`, pageType, feedId) }>
 		<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path><path d="m21.854 2.147-10.94 10.939"></path></svg>
 		<span>Update</span>
 	</button>
 }
 
-templ UpdatingFeedButtonTemplate(pageType string, feedId int) {
+templ UpdatingFeedButtonTemplate(pageType string, feedId int64) {
 	<button id="update-button" class="btn" data-on-load={ datastar.GetSSE(`/updating/%v/%v`, pageType, feedId) }>
 		<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin"><path d="M12 2v4"></path><path d="m16.2 7.8 2.9-2.9"></path><path d="M18 12h4"></path><path d="m16.2 16.2 2.9 2.9"></path><path d="M12 18v4"></path><path d="m4.9 19.1 2.9-2.9"></path><path d="M2 12h4"></path><path d="m4.9 4.9 2.9 2.9"></path></svg>
 		<span>Updating</span>

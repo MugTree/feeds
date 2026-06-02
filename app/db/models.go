@@ -6,6 +6,7 @@ package db
 
 import (
 	"database/sql"
+	"time"
 )
 
 type Article struct {
@@ -13,27 +14,25 @@ type Article struct {
 	FeedID          int64
 	Title           string
 	Link            string
-	Published       sql.NullTime
+	Published       time.Time
 	PublishedParsed string
-	Updated         sql.NullTime
-	UpdatedParsed   string
-	Summary         sql.NullString
-	Read            sql.NullInt64
-	Starred         sql.NullInt64
+	Summary         string
+	Read            int64
+	Starred         int64
 }
 
 type ArticleCache struct {
 	ID             int64
 	Link           string
 	ArticleContent sql.NullString
-	Created        sql.NullTime
+	Created        time.Time
 }
 
 type Feed struct {
 	ID                     int64
 	Url                    string
-	Title                  sql.NullString
-	LastFetched            sql.NullTime
+	Title                  string
+	LastFetched            time.Time
 	CssSelContainer        sql.NullString
 	CssSelStart            sql.NullString
 	CssSelStop             sql.NullString

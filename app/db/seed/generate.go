@@ -22,6 +22,9 @@ type Feed struct {
 	HTMLExtractionStrategy string
 }
 
+// call this like
+// go run ./app/db/seed/generate.go --urls=./app/db/seed/seed.csv --db=./feeds.db
+
 func main() {
 
 	filePtr := flag.String("urls", "", "the file to get the urls from - needs to be broken over lines")
