@@ -366,14 +366,14 @@ func paramMustBeNonZeroNumeric(w http.ResponseWriter, r *http.Request, key strin
 // 	return mustBeNonZeroNumeric(w, r, key, r.PostFormValue(key))
 // }
 
-func paramMustBeNotEmpty(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
-	v := chi.URLParam(r, key)
-	if v == "" {
-		logAndError(w, r, fmt.Errorf("key '%v' empty string - %v", key, v).Error())
-		return "", false
-	}
-	return v, true
-}
+// func paramMustBeNotEmpty(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
+// 	v := chi.URLParam(r, key)
+// 	if v == "" {
+// 		logAndError(w, r, fmt.Errorf("key '%v' empty string - %v", key, v).Error())
+// 		return "", false
+// 	}
+// 	return v, true
+// }
 
 func logAndError(w http.ResponseWriter, _ *http.Request, msg string, statusCode ...int) {
 	status := 500

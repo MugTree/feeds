@@ -162,35 +162,15 @@ func homepageVm(_ *sqlx.DB, queries *db.Queries, ctx context.Context) (PageVM, e
 		return vm, fmt.Errorf("error selecting sidebar data: %v", err)
 	}
 
-	data, err := queries.GetLatest5Articles(ctx)
+	latest5Articles, err := queries.GetLatest5Articles(ctx)
 	if err != nil {
 		return vm, err
 	}
 
-	// latest5Articles := []Article{}
-	// if err := db.SelectContext(ctx, &latest5Articles,
-	// 	SqlArticlesLatest5,
-	// ); err != nil {
-	// 	return vm, fmt.Errorf("error getting articles data: %v", err)
-	// }
-
 	articles := []Article{}
 
-	for _, v := range data {
-		articles = append(articles, Article{
-			Id:              v.ID,
-			FeedId:          v.FeedID,
-			Title:           v.Title,
-			Link:            v.Link,
-			Published:       v.Published.String(),
-			PublishedParsed: v.Published.String(),
-			// Updated:         v.Updated.Time.String(),
-			// UpdatedParsed:   v.UpdatedParsed,
-			Summary:   v.Summary,
-			Read:      int64ToBool(v.Read),
-			Starred:   int64ToBool(v.Starred),
-			FeedTitle: v.FeedTitle,
-		})
+	for _, v := range latest5Articles {
+		articles = append(articles, articleFromLatest5ArticlesRow(v))
 
 	}
 
@@ -226,7 +206,7 @@ func validateUpdateParams(pt string, fid string) (UpdateParms, error) {
 
 }
 
-func feedPageVm(feedId int64, db *sqlx.DB, queries *db.Queries, ctx context.Context) (PageVM, error) {
+func feedPageVm(feedId int64, _ *sqlx.DB, queries *db.Queries, ctx context.Context) (PageVM, error) {
 
 	vm := PageVM{}
 
@@ -235,7 +215,7 @@ func feedPageVm(feedId int64, db *sqlx.DB, queries *db.Queries, ctx context.Cont
 		return vm, fmt.Errorf("error selecting sidebar data:: %v", err)
 	}
 
-	feed, err := queries.GetAllFromFeedByID(ctx, feedId)
+	feed, err := queries.GetFeedByID(ctx, feedId)
 	if err != nil {
 		return vm, err
 	}
@@ -248,20 +228,7 @@ func feedPageVm(feedId int64, db *sqlx.DB, queries *db.Queries, ctx context.Cont
 	articles := []Article{}
 
 	for _, v := range unreadArticles {
-		articles = append(articles, Article{
-			Id:              v.ID,
-			FeedId:          v.FeedID,
-			Title:           v.Title,
-			Link:            v.Link,
-			Published:       v.Published.String(),
-			PublishedParsed: v.Published.String(),
-			// Updated:         v.Updated.Time.String(),
-			// UpdatedParsed:   v.UpdatedParsed,
-			Summary:   v.Summary,
-			Read:      int64ToBool(v.Read),
-			Starred:   int64ToBool(v.Starred),
-			FeedTitle: v.FeedTitle,
-		})
+		articles = append(articles, articleFromUnreadByFeedIDRow(v))
 	}
 
 	vm.Articles = articles
@@ -632,3 +599,34 @@ const (
 			WHERE feed_id = ? AND a.read = 0
 			ORDER BY a.published_parsed DESC;`
 )
+
+// sqlc mappings to domain
+func articleFromLatest5ArticlesRow(row db.GetLatest5ArticlesRow) Article {
+	return Article{
+		Id:              row.ID,
+		FeedId:          row.FeedID,
+		Title:           row.Title,
+		Link:            row.Link,
+		Published:       row.Published.String(),
+		PublishedParsed: row.Published.String(),
+		Summary:         row.Summary,
+		Read:            int64ToBool(row.Read),
+		Starred:         int64ToBool(row.Starred),
+		FeedTitle:       row.FeedTitle,
+	}
+}
+
+func articleFromUnreadByFeedIDRow(row db.GetUnreadByFeedIDRow) Article {
+	return Article{
+		Id:              row.ID,
+		FeedId:          row.FeedID,
+		Title:           row.Title,
+		Link:            row.Link,
+		Published:       row.Published.String(),
+		PublishedParsed: row.Published.String(),
+		Summary:         row.Summary,
+		Read:            int64ToBool(row.Read),
+		Starred:         int64ToBool(row.Starred),
+		FeedTitle:       row.FeedTitle,
+	}
+}

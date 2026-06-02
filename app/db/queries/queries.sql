@@ -71,10 +71,10 @@ INSERT INTO article_cache (
 CURRENT_TIMESTAMP
 );
 
--- name: GetAllFromFeed :many
+-- name: GetFeeds :many
 SELECT * from feeds;	
 
--- name: GetAllFromFeedByID :one
+-- name: GetFeedByID :one
 SELECT * FROM feeds where id = ?;
 
 -- name: AddToArticles :exec

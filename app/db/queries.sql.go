@@ -80,62 +80,6 @@ func (q *Queries) AddToArticles(ctx context.Context, arg AddToArticlesParams) er
 	return err
 }
 
-const getAllFromFeed = `-- name: GetAllFromFeed :many
-SELECT id, url, title, last_fetched, css_sel_container, css_sel_start, css_sel_stop, html_extraction_strategy from feeds
-`
-
-func (q *Queries) GetAllFromFeed(ctx context.Context) ([]Feed, error) {
-	rows, err := q.db.QueryContext(ctx, getAllFromFeed)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Feed
-	for rows.Next() {
-		var i Feed
-		if err := rows.Scan(
-			&i.ID,
-			&i.Url,
-			&i.Title,
-			&i.LastFetched,
-			&i.CssSelContainer,
-			&i.CssSelStart,
-			&i.CssSelStop,
-			&i.HtmlExtractionStrategy,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getAllFromFeedByID = `-- name: GetAllFromFeedByID :one
-SELECT id, url, title, last_fetched, css_sel_container, css_sel_start, css_sel_stop, html_extraction_strategy FROM feeds where id = ?
-`
-
-func (q *Queries) GetAllFromFeedByID(ctx context.Context, id int64) (Feed, error) {
-	row := q.db.QueryRowContext(ctx, getAllFromFeedByID, id)
-	var i Feed
-	err := row.Scan(
-		&i.ID,
-		&i.Url,
-		&i.Title,
-		&i.LastFetched,
-		&i.CssSelContainer,
-		&i.CssSelStart,
-		&i.CssSelStop,
-		&i.HtmlExtractionStrategy,
-	)
-	return i, err
-}
-
 const getArticlesByFeedID = `-- name: GetArticlesByFeedID :many
 SELECT 
 	a.id, a.feed_id, a.title, a.link, a.published, a.published_parsed, a.summary, a.read, a.starred, 
@@ -208,6 +152,62 @@ func (q *Queries) GetCachedByLink(ctx context.Context, link string) (ArticleCach
 		&i.Created,
 	)
 	return i, err
+}
+
+const getFeedByID = `-- name: GetFeedByID :one
+SELECT id, url, title, last_fetched, css_sel_container, css_sel_start, css_sel_stop, html_extraction_strategy FROM feeds where id = ?
+`
+
+func (q *Queries) GetFeedByID(ctx context.Context, id int64) (Feed, error) {
+	row := q.db.QueryRowContext(ctx, getFeedByID, id)
+	var i Feed
+	err := row.Scan(
+		&i.ID,
+		&i.Url,
+		&i.Title,
+		&i.LastFetched,
+		&i.CssSelContainer,
+		&i.CssSelStart,
+		&i.CssSelStop,
+		&i.HtmlExtractionStrategy,
+	)
+	return i, err
+}
+
+const getFeeds = `-- name: GetFeeds :many
+SELECT id, url, title, last_fetched, css_sel_container, css_sel_start, css_sel_stop, html_extraction_strategy from feeds
+`
+
+func (q *Queries) GetFeeds(ctx context.Context) ([]Feed, error) {
+	rows, err := q.db.QueryContext(ctx, getFeeds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Feed
+	for rows.Next() {
+		var i Feed
+		if err := rows.Scan(
+			&i.ID,
+			&i.Url,
+			&i.Title,
+			&i.LastFetched,
+			&i.CssSelContainer,
+			&i.CssSelStart,
+			&i.CssSelStop,
+			&i.HtmlExtractionStrategy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getLatest5Articles = `-- name: GetLatest5Articles :many
