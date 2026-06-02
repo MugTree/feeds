@@ -29,23 +29,14 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 	r.Group(func(site chi.Router) {
 		site.Use(basicAuthHandler(user, password))
 
-		// r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
-
-		// 	sse := datastar.NewSSE(w, r)
-
-		// 	sse.PatchElements(`<div class="someclass">
-		// 							<div id="sidebar">1</div>
-		// 					</div>`, datastar.WithPatchElementsEventID("sidebar"))
-
-		// })
-
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 
-			homeVm, err := homepageVm(dbx, queries, r.Context())
+			homeVm, err := getHomepageData(queries, r.Context())
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
 			}
+
 			PageTemplate(
 				"Homepage",
 				SideBarTemplate(homeVm.SidebarMenu, r),
@@ -61,7 +52,7 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 				return
 			}
 
-			feedVm, err := feedPageVm(feedID, dbx, queries, r.Context())
+			feedVm, err := getFeedPageData(feedID, queries, r.Context())
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
@@ -87,7 +78,7 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 				return
 			}
 
-			articleVm, err := articlePageVm(articleID, feedID, dbx, queries, r.Context())
+			articleVm, err := getArticlePageData(articleID, feedID, queries, r.Context())
 			if err != nil {
 				if errors.Is(err, context.DeadlineExceeded) {
 					w.WriteHeader(504)
@@ -119,7 +110,7 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 				return
 			}
 
-			readStatusVm, err := setReadStatusVm(feedID, articleID, dbx, queries, r.Context())
+			readStatusVm, err := setReadStatusVm(feedID, articleID, queries, r.Context())
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
@@ -135,27 +126,35 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 			)
 		})
 
-		r.Get("/update/{pageType}/{feedId}", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/update/{pageType}/{feedID}", func(w http.ResponseWriter, r *http.Request) {
 
-			vp, err := validateUpdateParams(r.PathValue("pageType"), r.PathValue("feedId"))
-			if err != nil {
-				logAndError(w, r, err.Error())
+			feedID, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
+			if !ok {
+				return
+			}
+
+			pageType, ok := pageTypeMustBeInRange(w, r, "pageType")
+			if !ok {
 				return
 			}
 
 			sse := datastar.NewSSE(w, r)
-			sse.PatchElementTempl(UpdatingFeedButtonTemplate(vp.PageType, vp.FeedId))
+			sse.PatchElementTempl(UpdatingFeedButtonTemplate(pageType, feedID))
 		})
 
 		r.Get("/updating/{pageType}/{feedId}", func(w http.ResponseWriter, r *http.Request) {
 
-			vp, err := validateUpdateParams(r.PathValue("pageType"), r.PathValue("feedId"))
-			if err != nil {
-				logAndError(w, r, err.Error())
+			feedID, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
+			if !ok {
 				return
 			}
 
-			_, err = GetFeedUpdates(dbx, queries, r.Context())
+			pageType, ok := pageTypeMustBeInRange(w, r, "pageType")
+			if !ok {
+				return
+			}
+
+			_, err := GetFeedUpdates(queries, r.Context())
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
@@ -168,7 +167,7 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 
 			pp := pageParts{}
 
-			sbl, err := sideBarLinks(queries, r.Context())
+			sbl, err := getSideBarLinks(queries, r.Context())
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
@@ -176,39 +175,63 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 
 			pp.SidebarMenu = sbl
 
-			switch vp.PageType {
+			switch pageType {
 			case PageTypeHome:
 
-				latest5Articles := []Article{}
-				if err := dbx.SelectContext(r.Context(), &latest5Articles,
-					SqlArticlesLatest5,
-				); err != nil {
+				// latest5Articles := []Article{}
+				// if err := dbx.SelectContext(r.Context(), &latest5Articles,
+				// 	SqlArticlesLatest5,
+				// ); err != nil {
+				// 	logAndError(w, r, fmt.Errorf("error getting latest 5 articles: %v", err).Error())
+				// 	return
+				// }
+
+				latest5Articles, err := queries.GetLatest5Articles(r.Context())
+				if err != nil {
 					logAndError(w, r, fmt.Errorf("error getting latest 5 articles: %v", err).Error())
 					return
 				}
 
-				pp.Articles = latest5Articles
+				articles := []Article{}
+
+				for _, v := range latest5Articles {
+					articles = append(articles, mapArticleFromLatest5ArticlesRow(v))
+				}
+
+				pp.Articles = articles
 
 			case PageTypeFeed, PageTypeArticle:
 
-				feedArticlesById := []Article{}
-				err = dbx.SelectContext(r.Context(), &feedArticlesById,
-					SqlUnreadArticlesByFeed, vp.FeedId)
+				// feedArticlesById := []Article{}
+				// err = dbx.SelectContext(r.Context(), &feedArticlesById,
+				// 	SqlUnreadArticlesByFeed, vp.FeedId)
+				// if err != nil {
+				// 	logAndError(w, r, fmt.Errorf("error getting unread articles by feed: %v", err).Error())
+				// 	return
+				// }
+
+				feedArticlesByID, err := queries.GetUnreadByFeedID(r.Context(), feedID)
 				if err != nil {
-					logAndError(w, r, fmt.Errorf("error getting unread articles by feed: %v", err).Error())
+					logAndError(w, r, fmt.Errorf("error getting uread articles: %v", err).Error())
 					return
 				}
 
-				pp.Articles = feedArticlesById
+				articles := []Article{}
+
+				for _, v := range feedArticlesByID {
+					articles = append(articles, mapArticleFromUnreadByFeedIDRow(v))
+				}
+
+				pp.Articles = articles
 
 			default:
-				logAndError(w, r, fmt.Errorf("incorrect page type: %v", vp.PageType).Error())
+				logAndError(w, r, fmt.Errorf("incorrect page type: %v", pageType).Error())
 			}
 
 			sse := datastar.NewSSE(w, r)
 			sse.PatchElementTempl(SideBarTemplate(pp.SidebarMenu, r))
 			sse.PatchElementTempl(ToReadTemplate(pp.Articles))
-			sse.PatchElementTempl(UpdateFeedButtonTemplate(vp.PageType, vp.FeedId))
+			sse.PatchElementTempl(UpdateFeedButtonTemplate(pageType, feedID))
 
 		})
 
@@ -238,20 +261,20 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 		})
 
 		// READ - returns text/html
-		r.Get("/admin/feeds/{feedId}", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/admin/feeds/{feedID}", func(w http.ResponseWriter, r *http.Request) {
 
-			feedId := r.PathValue("feedId")
-
-			if !digitCheck.MatchString(feedId) {
-				logAndError(w, r, fmt.Errorf("id not numeric %v", 500).Error())
+			feedID, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
+			if !ok {
 				return
 			}
 
-			f := Feed{}
-			dbx.Get(&f, SqlFeedItem, feedId)
+			f, err := queries.GetFeedByID(r.Context(), feedID)
+			if err != nil {
+				logAndError(w, r, err.Error())
+			}
 
 			vm := feedFormVm{}
-			vm.Feed = f
+			vm.Feed = mapFeedFromDbFeed(f)
 			vm.ButtonText = "Update feed"
 			vm.UrlAction = ""
 
@@ -267,22 +290,18 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 		// UPDATE - returns SSE
 		r.Put("/admin/feeds/{feedId}", func(w http.ResponseWriter, r *http.Request) {
 
-			feedId := r.PathValue("feedId")
-
-			if !digitCheck.MatchString(feedId) {
-				logAndError(w, r, fmt.Errorf("id not numeric %v", 500).Error())
+			_, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
+			if !ok {
 				return
 			}
 
 		})
 
 		// DELETE
-		r.Delete("/admin/feeds/{feedId}", func(w http.ResponseWriter, r *http.Request) {
+		r.Delete("/admin/feeds/{feedID}", func(w http.ResponseWriter, r *http.Request) {
 
-			feedId := r.PathValue("feedId")
-
-			if !digitCheck.MatchString(feedId) {
-				logAndError(w, r, fmt.Errorf("id not numeric %v - %v", feedId, 500).Error())
+			_, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
+			if !ok {
 				return
 			}
 
@@ -377,6 +396,18 @@ func mustBeNonZeroNumeric(w http.ResponseWriter, r *http.Request, key, value str
 
 func paramMustBeNonZeroNumeric(w http.ResponseWriter, r *http.Request, key string) (int64, bool) {
 	return mustBeNonZeroNumeric(w, r, key, chi.URLParam(r, key))
+}
+
+func pageTypeMustBeInRange(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
+
+	pt := r.PathValue(key)
+	if pt != PageTypeFeed && pt != PageTypeHome && pt != PageTypeArticle {
+		logAndError(w, r, fmt.Errorf("wrong page type%v", pt).Error())
+		return "", false
+	}
+
+	return pt, true
+
 }
 
 // func postMustBeNonZeroNumeric(w http.ResponseWriter, r *http.Request, key string) (int, bool) {
