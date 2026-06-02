@@ -1,0 +1,240 @@
+package app
+
+import "fmt"
+import "net/http"
+import "encoding/json"
+import "github.com/starfederation/datastar/sdk/go/datastar"
+
+const (
+	PageTypeHome    string = "home"
+	PageTypeArticle string = "article"
+	PageTypeFeed    string = "feed"
+)
+
+templ PageTemplate(pageTitle string, SideBar templ.Component, Main templ.Component) {
+	<html lang="en">
+		<head>
+			<script type="module" src="/js/datastar.js"></script>
+			<link rel="stylesheet" href="/css/open-props.css"/>
+			<link rel="stylesheet" href="/css/open-props-normalize.css"/>
+			<link rel="stylesheet" href="/css/main.css"/>
+			<title>{ pageTitle }</title>
+		</head>
+		<body>
+			@SideBar
+			@Main
+		</body>
+		<script>
+			function toggleSidebarCookie(value) {
+  				if (value) {
+    				const expires = new Date(Date.now() + 365 * 864e5).toUTCString();
+    				document.cookie = `sideBarClosed=true; expires=${expires}; path=/`;
+  				} else {
+    				document.cookie = `sideBarClosed=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`;
+				}
+			}
+		</script>
+	</html>
+}
+
+templ PageInnerTemplate(pageType string, feedId int) {
+	<div id="content">
+		<header>
+			<button
+				class="toggle-menu-button"
+				type="button"
+				data-on-click="$sideBarClosed=!$sideBarClosed; toggleSidebarCookie($sideBarClosed)"
+			><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M9 3v18"></path></svg></button>
+			@UpdateFeedButtonTemplate(pageType, feedId)
+		</header>
+		<main>
+			{ children... }
+		</main>
+	</div>
+}
+
+templ HomePageMainTemplate(vm PageVM) {
+	@PageInnerTemplate(PageTypeHome, vm.FeedId) {
+		<h2>Latest 5 articles</h2>
+		@ToReadTemplate(vm.Articles)
+	}
+}
+
+templ FeedPageMainTemplate(vm PageVM) {
+	@PageInnerTemplate(PageTypeFeed, vm.FeedId) {
+		<h2>{ vm.PageTitle }</h2>
+		@ToReadTemplate(vm.Articles)
+	}
+}
+
+templ ArticlePageMainTemplate(vm ArticleVM) {
+	@PageInnerTemplate(PageTypeArticle, vm.FeedId) {
+		<ul>
+			<li>{ vm.FeedTitle }</li>
+			<li>{ vm.FeedUrl }</li>
+			<li>{ vm.Link }</li>
+		</ul>
+		<h2>{ vm.PageTitle }</h2>
+		<div>
+			@templ.Raw(vm.PageContent)
+		</div>
+		<div data-on-intersect={ datastar.GetSSE("/set-as-read/%d/%d", vm.FeedId, vm.ArticleId) }>
+			@ToReadTemplate(vm.Articles)
+		</div>
+	}
+}
+
+
+templ FeedAdminListTemplate(feeds []Feed) {
+	<ul>
+	for _, v := range feeds {
+		<li><a href={templ.URL(fmt.Sprintf("/admin/feed/%v", v.Id))}>{v.Title}</a></li>
+	}
+	</ul>
+}
+
+templ FeedAdminFormTemplate(vm feedFormVm) {
+	@FeedFormTextInputTemplate("Title", "FeedName", "Feed Name", "")
+			<div class="grid gap-2">
+				<label for="FeedName">Title</label>
+				<input id="FeedName" placeholder="Feed name" data-bind-feed-name type="text" value={vm.Title} />
+			</div>
+			<div class="grid gap-2">
+				<label for="FeedUrl">Url</label>
+				<input id="FeedUrl" placeholder="Feed url" data-bind-feed-url type="text" value={vm.Url}/>
+			</div>
+			<div class="grid gap-2">
+				<label for="CssContainer">Css Selector Container</label>
+				<input id="CssContainer" placeholder="Css container" data-bind-css-sel-container type="text" value={vm.CSSSelectorContainer}/>
+			</div>
+			<div class="grid gap-2">
+				<label for="CssStart">Css Selector Start</label>
+				<input id="CssStart" placeholder="Css start" data-bind-css-sel-start type="text" value={vm.CSSSelectorStart}/>
+			</div>
+			<div class="grid gap-2">
+				<label for="CssEnd">Css Selector Stop</label>
+				<input id="CssEnd" placeholder="Css end" data-bind-css-sel-end type="text" value={vm.CSSSelectorStop}/>
+			</div>
+			<div>
+				<button data-on-click={datastar.PostSSE("%v", vm.UrlAction)}>{vm.ButtonText}</button>
+			</div>
+}
+
+templ FeedFormTextInputTemplate(title string, id string, placeholder string, value string) {
+		<div class="grid gap-2">
+			<label for={id}>{title}</label>
+			<input id={id} placeholder={placeholder} data-bind-css-sel-end type="text" value={value}/>
+		</div>	
+}
+
+templ AdminPageMainTemplate(innerComp templ.Component) {
+	@AdminPageInnerTemplate() {
+		<div>
+			@innerComp
+		</div>
+	}
+}
+
+templ ToReadTemplate(articles []Article) {
+	<div id="to-read">
+		if (len(articles) > 0) {
+			<h3>To read</h3>
+			<ul>
+				for _, a := range articles {
+					if !(a.Read) {
+						<li><a href={ formatUrl("/article/%v/%v", a.FeedId, a.Id) }>{ a.Title }</a></li>
+					}
+				}
+			</ul>
+		} else {
+			<h3>All caught up....</h3>
+			<p>Back to <a href="/">home</a></p>
+		}
+	</div>
+}
+
+/**
+Components
+-----------------------------------------------------------
+*/
+
+func sideBarIsClosed(r *http.Request) bool {
+
+	_, err := r.Cookie("sideBarClosed")
+	if err != nil {
+		return false
+	}
+
+	return true
+}
+
+type closedParams struct {
+	SideBarClosed bool `json:"sideBarClosed"`
+}
+
+func setSideBarData(v bool) string {
+
+	sbd := closedParams{}
+	sbd.SideBarClosed = v
+
+	val, err := json.Marshal(sbd)
+	if err != nil {
+		return ""
+	}
+
+	return string(val)
+}
+
+templ SideBarTemplate(links []SidebarLink, r *http.Request) {
+	{{ isClosed := sideBarIsClosed(r) }}
+	<div
+		data-signals={ setSideBarData(isClosed) }
+		id="sidebar"
+		data-class-closed="$sideBarClosed"
+		if (isClosed) {
+			class="closed"
+		}
+	>
+		<ul>
+			for _, l := range links {
+				{{ link := templ.URL(l.Link) }}
+				<li>
+					<span><a href={ link }>{ l.Name }</a> { l.Unread }</span>
+				</li>
+			}
+		</ul>
+	</div>
+}
+
+templ AdminPageInnerTemplate() {
+	<div id="content">
+		<header>
+			<button
+				class="toggle-menu-button"
+				type="button"
+				data-on-click="$sideBarClosed=!$sideBarClosed; toggleSidebarCookie($sideBarClosed)"
+			><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M9 3v18"></path></svg></button>
+		</header>
+		<main>
+			{ children... }
+		</main>
+	</div>
+}
+
+templ UpdateFeedButtonTemplate(pageType string, feedId int) {
+	<button id="update-button" class="btn" data-on-click={ datastar.GetSSE(`/update/%v/%v`, pageType, feedId) }>
+		<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path><path d="m21.854 2.147-10.94 10.939"></path></svg>
+		<span>Update</span>
+	</button>
+}
+
+templ UpdatingFeedButtonTemplate(pageType string, feedId int) {
+	<button id="update-button" class="btn" data-on-load={ datastar.GetSSE(`/updating/%v/%v`, pageType, feedId) }>
+		<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin"><path d="M12 2v4"></path><path d="m16.2 7.8 2.9-2.9"></path><path d="M18 12h4"></path><path d="m16.2 16.2 2.9 2.9"></path><path d="M12 18v4"></path><path d="m4.9 19.1 2.9-2.9"></path><path d="M2 12h4"></path><path d="m4.9 4.9 2.9 2.9"></path></svg>
+		<span>Updating</span>
+	</button>
+}
+
+func formatUrl(pattern string, prms ...any) templ.SafeURL {
+	return templ.URL(fmt.Sprintf(pattern, prms...))
+}

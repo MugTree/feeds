@@ -1,0 +1,10 @@
+bin/
+tmp/
+.env
+.env.**
+.DS_Store
+__debug_*
+node_modules
+data/feedreader.db
+data/seed/urls.txt
+_templ.go

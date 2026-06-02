@@ -1,0 +1,13 @@
+// .vscode/settings.json file
+{
+  "cssvar.files": [
+    "./server/public/css/open-props.css",
+    "./server/public/css/open-props-normalize.css"
+  ],
+
+  // Do not ignore node_modules css files, which is ignored by default
+  "cssvar.ignore": [],
+
+  // add support for autocomplete in JS or JS like files
+  "cssvar.extensions": ["css", "postcss", "jsx", "tsx"]
+}
