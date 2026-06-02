@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/jmoiron/sqlx"
 	"github.com/mugtree/feeds/app/db"
 	"github.com/starfederation/datastar/sdk/go/datastar"
 )
@@ -22,7 +21,7 @@ import (
 //go:embed public/js/*.js
 var staticFS embed.FS
 
-func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password string) chi.Router {
+func SetupHttpServer(queries *db.Queries, user string, password string) chi.Router {
 
 	r := chi.NewRouter()
 	r.Handle("/public/*", neuterDirectoryHandler(http.FileServer(http.FS(staticFS))))
@@ -133,7 +132,7 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 				return
 			}
 
-			pageType, ok := pageTypeMustBeInRange(w, r, "pageType")
+			pageType, ok := pageTypeMustBeInSpecifiedRange(w, r, "pageType")
 			if !ok {
 				return
 			}
@@ -149,7 +148,7 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 				return
 			}
 
-			pageType, ok := pageTypeMustBeInRange(w, r, "pageType")
+			pageType, ok := pageTypeMustBeInSpecifiedRange(w, r, "pageType")
 			if !ok {
 				return
 			}
@@ -178,17 +177,9 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 			switch pageType {
 			case PageTypeHome:
 
-				// latest5Articles := []Article{}
-				// if err := dbx.SelectContext(r.Context(), &latest5Articles,
-				// 	SqlArticlesLatest5,
-				// ); err != nil {
-				// 	logAndError(w, r, fmt.Errorf("error getting latest 5 articles: %v", err).Error())
-				// 	return
-				// }
-
 				latest5Articles, err := queries.GetLatest5Articles(r.Context())
 				if err != nil {
-					logAndError(w, r, fmt.Errorf("error getting latest 5 articles: %v", err).Error())
+					logAndError(w, r, err.Error())
 					return
 				}
 
@@ -202,17 +193,9 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 
 			case PageTypeFeed, PageTypeArticle:
 
-				// feedArticlesById := []Article{}
-				// err = dbx.SelectContext(r.Context(), &feedArticlesById,
-				// 	SqlUnreadArticlesByFeed, vp.FeedId)
-				// if err != nil {
-				// 	logAndError(w, r, fmt.Errorf("error getting unread articles by feed: %v", err).Error())
-				// 	return
-				// }
-
 				feedArticlesByID, err := queries.GetUnreadByFeedID(r.Context(), feedID)
 				if err != nil {
-					logAndError(w, r, fmt.Errorf("error getting uread articles: %v", err).Error())
+					logAndError(w, r, err.Error())
 					return
 				}
 
@@ -226,6 +209,7 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 
 			default:
 				logAndError(w, r, fmt.Errorf("incorrect page type: %v", pageType).Error())
+				return
 			}
 
 			sse := datastar.NewSSE(w, r)
@@ -241,9 +225,19 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 
 		// READ ALL - plain old html/text
 		r.Get("/admin/feeds", func(w http.ResponseWriter, r *http.Request) {
-			f := []Feed{}
-			dbx.Select(&f, "SELECT * FROM feeds;")
-			AdminPageMainTemplate(FeedAdminListTemplate(f)).Render(r.Context(), w)
+
+			dbFeeds, err := queries.GetFeeds(r.Context())
+			if err != nil {
+				logAndError(w, r, err.Error())
+				return
+			}
+
+			feeds := []Feed{}
+			for _, v := range dbFeeds {
+				feeds = append(feeds, mapFeedFromDbFeed(v))
+			}
+
+			AdminPageMainTemplate(FeedAdminListTemplate(feeds)).Render(r.Context(), w)
 		})
 
 		// NEW FEED - plain old html/text
@@ -271,6 +265,7 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 			f, err := queries.GetFeedByID(r.Context(), feedID)
 			if err != nil {
 				logAndError(w, r, err.Error())
+				return
 			}
 
 			vm := feedFormVm{}
@@ -398,7 +393,7 @@ func paramMustBeNonZeroNumeric(w http.ResponseWriter, r *http.Request, key strin
 	return mustBeNonZeroNumeric(w, r, key, chi.URLParam(r, key))
 }
 
-func pageTypeMustBeInRange(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
+func pageTypeMustBeInSpecifiedRange(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
 
 	pt := r.PathValue(key)
 	if pt != PageTypeFeed && pt != PageTypeHome && pt != PageTypeArticle {

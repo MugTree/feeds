@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/mugtree/feeds/app"
 	"github.com/mugtree/feeds/app/db"
 
@@ -60,7 +59,7 @@ func run(parent context.Context) error {
 
 	webserver := &http.Server{
 		Addr:    ":" + appPort,
-		Handler: app.SetupHttpServer(sqlx.NewDb(dbHandle, "sqlite3"), queries, appUser, appPassword),
+		Handler: app.SetupHttpServer(queries, appUser, appPassword),
 	}
 
 	application := app.NewApp(dbHandle, queries, webserver)
