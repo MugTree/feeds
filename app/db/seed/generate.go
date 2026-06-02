@@ -11,7 +11,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/mmcdole/gofeed"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Feed struct {
@@ -59,7 +59,7 @@ func main() {
 
 	//godump.Dump(feeds)
 
-	db, err := sqlx.Open("sqlite", *dbPtr)
+	db, err := sqlx.Open("sqlite3", *dbPtr)
 	if err != nil {
 		log.Fatalf("failed to open database: %v", err)
 	}
@@ -128,14 +128,10 @@ func main() {
 				link, 
 				published, 
 				published_parsed, 
-				updated, 
-				updated_parsed, 
 				summary, 
 				read, 
 				starred
 				) VALUES (
-				 ?, 
-				 ?, 
 				 ?, 
 				 ?, 
 				 ?, 

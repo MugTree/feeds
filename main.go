@@ -60,7 +60,7 @@ func run(parent context.Context) error {
 
 	webserver := &http.Server{
 		Addr:    ":" + appPort,
-		Handler: app.SetupHttpServer(sqlx.NewDb(dbHandle, "sqlite3"), appUser, appPassword),
+		Handler: app.SetupHttpServer(sqlx.NewDb(dbHandle, "sqlite3"), queries, appUser, appPassword),
 	}
 
 	application := app.NewApp(dbHandle, queries, webserver)

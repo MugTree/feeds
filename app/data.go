@@ -15,6 +15,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/mmcdole/gofeed"
+	"github.com/mugtree/feeds/app/db"
 )
 
 type Feed struct {
@@ -41,12 +42,12 @@ type Article struct {
 	Link            string `json:"link" db:"link"`
 	Published       string `json:"published" db:"published"`
 	PublishedParsed string `json:"published_parsed" db:"published_parsed"`
-	Updated         string `json:"updated" db:"updated"`
-	UpdatedParsed   string `json:"updated_parsed" db:"updated_parsed"`
-	Summary         string `json:"summary" db:"summary"`
-	Read            bool   `json:"read" db:"read"`
-	Starred         int    `json:"starred" db:"starred"`
-	FeedTitle       string `json:"feed_title" db:"feed_title"`
+	// Updated         string `json:"updated" db:"updated"`
+	// UpdatedParsed   string `json:"updated_parsed" db:"updated_parsed"`
+	Summary   string `json:"summary" db:"summary"`
+	Read      bool   `json:"read" db:"read"`
+	Starred   int    `json:"starred" db:"starred"`
+	FeedTitle string `json:"feed_title" db:"feed_title"`
 }
 
 func (a Article) ScrubbedSummary() template.HTML {
@@ -81,29 +82,34 @@ func (a Article) PublishedDate() string {
 type SidebarLink struct {
 	Name   string
 	Link   string
-	Unread int
+	Unread int64
 	FeedId int
 }
 
-func sideBarLinks(db *sqlx.DB, ctx context.Context) ([]SidebarLink, error) {
+func sideBarLinks(queries *db.Queries, ctx context.Context) ([]SidebarLink, error) {
 
-	type SideBarLinkData struct {
-		FeedId        int    `json:"feed_id" db:"feed_id"`
-		FeedTitle     string `json:"feed_title" db:"feed_title"`
-		ArticlesRead  int    `json:"articles_read" db:"articles_read"`
-		TotalArticles int    `json:"total_articles" db:"total_articles"`
-	}
+	// type SideBarLinkData struct {
+	// 	FeedId        int    `json:"feed_id" db:"feed_id"`
+	// 	FeedTitle     string `json:"feed_title" db:"feed_title"`
+	// 	ArticlesRead  int    `json:"articles_read" db:"articles_read"`
+	// 	TotalArticles int    `json:"total_articles" db:"total_articles"`
+	// }
 
-	sld := []SideBarLinkData{}
+	//sld := []SideBarLinkData{}
+	// if err := db.SelectContext(ctx, &sld, SqlSideBarMenu); err != nil {
+	// 	return items, fmt.Errorf("error getting menu data: %v", err)
+	// }
+
 	items := []SidebarLink{}
-	if err := db.SelectContext(ctx, &sld, SqlSideBarMenu); err != nil {
-		return items, fmt.Errorf("error getting menu data: %v", err)
+	data, err := queries.GetSidebarData(ctx)
+	if err != nil {
+		return items, err
 	}
 
-	for _, v := range sld {
+	for _, v := range data {
 		items = append(items, SidebarLink{
-			Name:   v.FeedTitle,
-			Link:   fmt.Sprintf("/feed/%v", v.FeedId),
+			Name:   v.FeedTitle.String,
+			Link:   fmt.Sprintf("/feed/%v", v.FeedID),
 			Unread: (v.TotalArticles - v.ArticlesRead),
 		})
 	}
@@ -140,23 +146,48 @@ type feedFormVm struct {
 
 // type feedFormErrors = map[string]map[string]string
 
-func homepageVm(db *sqlx.DB, ctx context.Context) (PageVM, error) {
+func homepageVm(_ *sqlx.DB, queries *db.Queries, ctx context.Context) (PageVM, error) {
 
 	vm := PageVM{}
 
-	sbd, err := sideBarLinks(db, ctx)
+	sbd, err := sideBarLinks(queries, ctx)
 	if err != nil {
 		return vm, fmt.Errorf("error selecting sidebar data: %v", err)
 	}
 
-	latest5Articles := []Article{}
-	if err := db.SelectContext(ctx, &latest5Articles,
-		SqlArticlesLatest5,
-	); err != nil {
-		return vm, fmt.Errorf("error getting articles data: %v", err)
+	dbArticles, err := queries.GetLatest5Articles(ctx)
+	if err != nil {
+		return vm, err
 	}
 
-	vm.Articles = latest5Articles
+	// latest5Articles := []Article{}
+	// if err := db.SelectContext(ctx, &latest5Articles,
+	// 	SqlArticlesLatest5,
+	// ); err != nil {
+	// 	return vm, fmt.Errorf("error getting articles data: %v", err)
+	// }
+
+	articles := []Article{}
+
+	for _, v := range dbArticles {
+		articles = append(articles, Article{
+			Id:              int(v.ID),
+			FeedId:          int(v.FeedID),
+			Title:           v.Title,
+			Link:            v.Link,
+			Published:       v.Published.Time.String(),
+			PublishedParsed: v.Published.Time.String(),
+			// Updated:         v.Updated.Time.String(),
+			// UpdatedParsed:   v.UpdatedParsed,
+			Summary: v.Summary.String,
+			//Read:            v.Read.,
+			Starred:   int(v.Starred.Int64),
+			FeedTitle: v.FeedTitle.String,
+		})
+
+	}
+
+	vm.Articles = articles
 	vm.SidebarMenu = sbd
 	vm.PageTitle = "Home"
 	vm.FeedId = 0
@@ -188,7 +219,7 @@ func validateUpdateParams(pt string, fid string) (UpdateParms, error) {
 
 }
 
-func feedPageVm(feedId string, db *sqlx.DB, ctx context.Context) (PageVM, error) {
+func feedPageVm(feedId string, db *sqlx.DB, queries *db.Queries, ctx context.Context) (PageVM, error) {
 
 	vm := PageVM{}
 
@@ -196,7 +227,7 @@ func feedPageVm(feedId string, db *sqlx.DB, ctx context.Context) (PageVM, error)
 		return vm, fmt.Errorf("id not numeric %v", 500)
 	}
 
-	sbd, err := sideBarLinks(db, ctx)
+	sbd, err := sideBarLinks(queries, ctx)
 	if err != nil {
 		return vm, fmt.Errorf("error selecting sidebar data:: %v", err)
 	}
@@ -225,7 +256,7 @@ func feedPageVm(feedId string, db *sqlx.DB, ctx context.Context) (PageVM, error)
 
 }
 
-func setReadStatusVm(feedId string, articleId string, db *sqlx.DB, ctx context.Context) (ArticleVM, error) {
+func setReadStatusVm(feedId string, articleId string, db *sqlx.DB, queries *db.Queries, ctx context.Context) (ArticleVM, error) {
 
 	vm := ArticleVM{}
 
@@ -241,7 +272,7 @@ func setReadStatusVm(feedId string, articleId string, db *sqlx.DB, ctx context.C
 		return vm, fmt.Errorf("record %v doesnt exist", articleId)
 	}
 
-	vm, err := articlePageVm(articleId, feedId, db, ctx)
+	vm, err := articlePageVm(articleId, feedId, db, queries, ctx)
 
 	if err != nil {
 		return vm, err
@@ -251,7 +282,7 @@ func setReadStatusVm(feedId string, articleId string, db *sqlx.DB, ctx context.C
 
 }
 
-func articlePageVm(articleId string, feedId string, db *sqlx.DB, ctx context.Context) (ArticleVM, error) {
+func articlePageVm(articleId string, feedId string, db *sqlx.DB, queries *db.Queries, ctx context.Context) (ArticleVM, error) {
 
 	vm := ArticleVM{}
 
@@ -369,7 +400,7 @@ func articlePageVm(articleId string, feedId string, db *sqlx.DB, ctx context.Con
 
 	// get other page parts
 	// --------------------------------------------------------
-	sbd, err := sideBarLinks(db, ctx)
+	sbd, err := sideBarLinks(queries, ctx)
 	if err != nil {
 		return vm, fmt.Errorf("error getting side data: %v", err)
 	}

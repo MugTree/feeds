@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jmoiron/sqlx"
+	"github.com/mugtree/feeds/app/db"
 	"github.com/starfederation/datastar/sdk/go/datastar"
 )
 
@@ -20,26 +21,26 @@ import (
 //go:embed public/js/*.js
 var staticFS embed.FS
 
-func SetupHttpServer(dbx *sqlx.DB, user string, password string) chi.Router {
+func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password string) chi.Router {
 
 	r := chi.NewRouter()
 	r.Handle("/public/*", neuterDirectoryHandler(http.FileServer(http.FS(staticFS))))
 	r.Group(func(site chi.Router) {
 		site.Use(basicAuthHandler(user, password))
 
-		r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
+		// r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 
-			sse := datastar.NewSSE(w, r)
+		// 	sse := datastar.NewSSE(w, r)
 
-			sse.PatchElements(`<div class="someclass">
-									<div id="sidebar">1</div>
-							</div>`, datastar.WithPatchElementsEventID("sidebar"))
+		// 	sse.PatchElements(`<div class="someclass">
+		// 							<div id="sidebar">1</div>
+		// 					</div>`, datastar.WithPatchElementsEventID("sidebar"))
 
-		})
+		// })
 
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 
-			homeVm, err := homepageVm(dbx, r.Context())
+			homeVm, err := homepageVm(dbx, queries, r.Context())
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
@@ -54,7 +55,7 @@ func SetupHttpServer(dbx *sqlx.DB, user string, password string) chi.Router {
 
 		r.Get("/feed/{feedId}", func(w http.ResponseWriter, r *http.Request) {
 
-			feedVm, err := feedPageVm(chi.URLParam(r, "feedId"), dbx, r.Context())
+			feedVm, err := feedPageVm(chi.URLParam(r, "feedId"), dbx, queries, r.Context())
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
@@ -71,7 +72,7 @@ func SetupHttpServer(dbx *sqlx.DB, user string, password string) chi.Router {
 
 		r.Get("/article/{feedId}/{articleId}", func(w http.ResponseWriter, r *http.Request) {
 
-			articleVm, err := articlePageVm(r.PathValue("articleId"), r.PathValue("feedId"), dbx, r.Context())
+			articleVm, err := articlePageVm(r.PathValue("articleId"), r.PathValue("feedId"), dbx, queries, r.Context())
 			if err != nil {
 				if errors.Is(err, context.DeadlineExceeded) {
 					w.WriteHeader(504)
@@ -94,7 +95,7 @@ func SetupHttpServer(dbx *sqlx.DB, user string, password string) chi.Router {
 
 		r.Get("/set-as-read/{feedId}/{articleId}", func(w http.ResponseWriter, r *http.Request) {
 
-			readStatusVm, err := setReadStatusVm(r.PathValue("feedId"), r.PathValue("articleId"), dbx, r.Context())
+			readStatusVm, err := setReadStatusVm(r.PathValue("feedId"), r.PathValue("articleId"), dbx, queries, r.Context())
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
@@ -143,7 +144,7 @@ func SetupHttpServer(dbx *sqlx.DB, user string, password string) chi.Router {
 
 			pp := pageParts{}
 
-			sbl, err := sideBarLinks(dbx, r.Context())
+			sbl, err := sideBarLinks(queries, r.Context())
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return

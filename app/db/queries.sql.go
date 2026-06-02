@@ -221,6 +221,68 @@ func (q *Queries) GetCachedByLink(ctx context.Context, link string) (ArticleCach
 	return i, err
 }
 
+const getLatest5Articles = `-- name: GetLatest5Articles :many
+SELECT 
+	a.id, a.feed_id, a.title, a.link, a.published, a.published_parsed, a.updated, a.updated_parsed, a.summary, a.read, a.starred, 
+	f.title as feed_title 
+ FROM articles a 
+ INNER JOIN feeds f 
+ ON f.id = a.feed_id 
+ ORDER BY published 
+ DESC LIMIT 0, 5
+`
+
+type GetLatest5ArticlesRow struct {
+	ID              int64
+	FeedID          int64
+	Title           string
+	Link            string
+	Published       sql.NullTime
+	PublishedParsed string
+	Updated         sql.NullTime
+	UpdatedParsed   string
+	Summary         sql.NullString
+	Read            sql.NullInt64
+	Starred         sql.NullInt64
+	FeedTitle       sql.NullString
+}
+
+func (q *Queries) GetLatest5Articles(ctx context.Context) ([]GetLatest5ArticlesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getLatest5Articles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetLatest5ArticlesRow
+	for rows.Next() {
+		var i GetLatest5ArticlesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FeedID,
+			&i.Title,
+			&i.Link,
+			&i.Published,
+			&i.PublishedParsed,
+			&i.Updated,
+			&i.UpdatedParsed,
+			&i.Summary,
+			&i.Read,
+			&i.Starred,
+			&i.FeedTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getOtherArticlesFromFeedByArticleID = `-- name: GetOtherArticlesFromFeedByArticleID :many
 SELECT 
 	a.id,
@@ -286,6 +348,53 @@ func (q *Queries) GetOtherArticlesFromFeedByArticleID(ctx context.Context, id in
 	return items, nil
 }
 
+const getSidebarData = `-- name: GetSidebarData :many
+SELECT
+	f.title AS feed_title,
+	f.id AS feed_id,
+	COUNT(a.id) AS total_articles,
+	COUNT(CASE WHEN a.read <> 0 THEN 1 END) AS articles_read
+FROM feeds f
+LEFT JOIN articles a ON f.id = a.feed_id
+GROUP BY f.id, f.title
+ORDER BY feed_title ASC
+`
+
+type GetSidebarDataRow struct {
+	FeedTitle     sql.NullString
+	FeedID        int64
+	TotalArticles int64
+	ArticlesRead  int64
+}
+
+func (q *Queries) GetSidebarData(ctx context.Context) ([]GetSidebarDataRow, error) {
+	rows, err := q.db.QueryContext(ctx, getSidebarData)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetSidebarDataRow
+	for rows.Next() {
+		var i GetSidebarDataRow
+		if err := rows.Scan(
+			&i.FeedTitle,
+			&i.FeedID,
+			&i.TotalArticles,
+			&i.ArticlesRead,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUnreadByFeedID = `-- name: GetUnreadByFeedID :many
 SELECT 
 	a.id, a.feed_id, a.title, a.link, a.published, a.published_parsed, a.updated, a.updated_parsed, a.summary, a.read, a.starred, 
@@ -321,68 +430,6 @@ func (q *Queries) GetUnreadByFeedID(ctx context.Context, feedID int64) ([]GetUnr
 	var items []GetUnreadByFeedIDRow
 	for rows.Next() {
 		var i GetUnreadByFeedIDRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.FeedID,
-			&i.Title,
-			&i.Link,
-			&i.Published,
-			&i.PublishedParsed,
-			&i.Updated,
-			&i.UpdatedParsed,
-			&i.Summary,
-			&i.Read,
-			&i.Starred,
-			&i.FeedTitle,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const latest5Articles = `-- name: Latest5Articles :many
-SELECT 
-	a.id, a.feed_id, a.title, a.link, a.published, a.published_parsed, a.updated, a.updated_parsed, a.summary, a.read, a.starred, 
-	f.title as feed_title 
- FROM articles a 
- INNER JOIN feeds f 
- ON f.id = a.feed_id 
- ORDER BY published 
- DESC LIMIT 0, 5
-`
-
-type Latest5ArticlesRow struct {
-	ID              int64
-	FeedID          int64
-	Title           string
-	Link            string
-	Published       sql.NullTime
-	PublishedParsed string
-	Updated         sql.NullTime
-	UpdatedParsed   string
-	Summary         sql.NullString
-	Read            sql.NullInt64
-	Starred         sql.NullInt64
-	FeedTitle       sql.NullString
-}
-
-func (q *Queries) Latest5Articles(ctx context.Context) ([]Latest5ArticlesRow, error) {
-	rows, err := q.db.QueryContext(ctx, latest5Articles)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Latest5ArticlesRow
-	for rows.Next() {
-		var i Latest5ArticlesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.FeedID,

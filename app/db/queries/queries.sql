@@ -1,4 +1,4 @@
--- name: Latest5Articles :many
+-- name: GetLatest5Articles :many
 SELECT 
 	a.*, 
 	f.title as feed_title 
@@ -8,8 +8,8 @@ SELECT
  ORDER BY published 
  DESC LIMIT 0, 5;
 
- -- name: GetSidebar :many
- SELECT
+-- name: GetSidebarData :many
+SELECT
 	f.title AS feed_title,
 	f.id AS feed_id,
 	COUNT(a.id) AS total_articles,
