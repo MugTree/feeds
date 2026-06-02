@@ -174,6 +174,55 @@ func (q *Queries) GetFeedByID(ctx context.Context, id int64) (Feed, error) {
 	return i, err
 }
 
+const getFeedDataForArticleByArticleID = `-- name: GetFeedDataForArticleByArticleID :one
+SELECT 
+	a.id,
+	a.link, 
+	a.title,
+	f.id as feed_id, 
+	f.title as feed_title,
+	f.url as feed_url,
+	f.css_sel_container, 
+	f.css_sel_start, 
+	f.css_sel_stop, 
+	f.html_extraction_strategy   
+FROM 
+	articles a 
+INNER JOIN feeds f 
+ON f.id = a.feed_id where a.id = ?
+`
+
+type GetFeedDataForArticleByArticleIDRow struct {
+	ID                     int64
+	Link                   string
+	Title                  string
+	FeedID                 int64
+	FeedTitle              string
+	FeedUrl                string
+	CssSelContainer        sql.NullString
+	CssSelStart            sql.NullString
+	CssSelStop             sql.NullString
+	HtmlExtractionStrategy sql.NullString
+}
+
+func (q *Queries) GetFeedDataForArticleByArticleID(ctx context.Context, id int64) (GetFeedDataForArticleByArticleIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getFeedDataForArticleByArticleID, id)
+	var i GetFeedDataForArticleByArticleIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Link,
+		&i.Title,
+		&i.FeedID,
+		&i.FeedTitle,
+		&i.FeedUrl,
+		&i.CssSelContainer,
+		&i.CssSelStart,
+		&i.CssSelStop,
+		&i.HtmlExtractionStrategy,
+	)
+	return i, err
+}
+
 const getFeeds = `-- name: GetFeeds :many
 SELECT id, url, title, last_fetched, css_sel_container, css_sel_start, css_sel_stop, html_extraction_strategy from feeds
 `
@@ -254,71 +303,6 @@ func (q *Queries) GetLatest5Articles(ctx context.Context) ([]GetLatest5ArticlesR
 			&i.Read,
 			&i.Starred,
 			&i.FeedTitle,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getOtherArticlesFromFeedByArticleID = `-- name: GetOtherArticlesFromFeedByArticleID :many
-SELECT 
-	a.id,
-	a.link, 
-	a.title,
-	f.id as feed_id, 
-	f.title as feed_title,
-	f.url as feed_url,
-	f.css_sel_container, 
-	f.css_sel_start, 
-	f.css_sel_stop, 
-	f.html_extraction_strategy   
-FROM 
-	articles a 
-INNER JOIN feeds f 
-ON f.id = a.feed_id where a.id = ?
-`
-
-type GetOtherArticlesFromFeedByArticleIDRow struct {
-	ID                     int64
-	Link                   string
-	Title                  string
-	FeedID                 int64
-	FeedTitle              string
-	FeedUrl                string
-	CssSelContainer        sql.NullString
-	CssSelStart            sql.NullString
-	CssSelStop             sql.NullString
-	HtmlExtractionStrategy sql.NullString
-}
-
-func (q *Queries) GetOtherArticlesFromFeedByArticleID(ctx context.Context, id int64) ([]GetOtherArticlesFromFeedByArticleIDRow, error) {
-	rows, err := q.db.QueryContext(ctx, getOtherArticlesFromFeedByArticleID, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetOtherArticlesFromFeedByArticleIDRow
-	for rows.Next() {
-		var i GetOtherArticlesFromFeedByArticleIDRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Link,
-			&i.Title,
-			&i.FeedID,
-			&i.FeedTitle,
-			&i.FeedUrl,
-			&i.CssSelContainer,
-			&i.CssSelStart,
-			&i.CssSelStop,
-			&i.HtmlExtractionStrategy,
 		); err != nil {
 			return nil, err
 		}
@@ -436,4 +420,13 @@ func (q *Queries) GetUnreadByFeedID(ctx context.Context, feedID int64) ([]GetUnr
 		return nil, err
 	}
 	return items, nil
+}
+
+const setArticleAsRead = `-- name: SetArticleAsRead :exec
+ UPDATE articles SET read = 1 WHERE id = ?
+`
+
+func (q *Queries) SetArticleAsRead(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, setArticleAsRead, id)
+	return err
 }

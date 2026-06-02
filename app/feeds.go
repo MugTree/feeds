@@ -137,7 +137,7 @@ type ArticleVM struct {
 	FeedUrl     string
 	Link        string
 	PageContent string
-	ArticleId   int
+	ArticleId   int64
 }
 
 type UpdateParms struct {
@@ -238,24 +238,28 @@ func feedPageVm(feedId int64, _ *sqlx.DB, queries *db.Queries, ctx context.Conte
 	return vm, nil
 }
 
-func setReadStatusVm(feedId string, articleId string, db *sqlx.DB, queries *db.Queries, ctx context.Context) (ArticleVM, error) {
+func setReadStatusVm(feedId int64, articleId int64, dbx *sqlx.DB, queries *db.Queries, ctx context.Context) (ArticleVM, error) {
 
 	vm := ArticleVM{}
 
-	if !digitCheck.MatchString(articleId) || !digitCheck.MatchString(feedId) {
-		return vm, fmt.Errorf("id not numeric art:%v feed: %v", articleId, feedId)
+	// if !digitCheck.MatchString(articleId) || !digitCheck.MatchString(feedId) {
+	// 	return vm, fmt.Errorf("id not numeric art:%v feed: %v", articleId, feedId)
+	// }
+
+	err := queries.SetArticleAsRead(ctx, articleId)
+	if err != nil {
+		return vm, err
 	}
 
-	result, _ := db.ExecContext(ctx,
-		`UPDATE articles SET read = 1 WHERE id = ?;`, articleId)
+	// result, _ := db.ExecContext(ctx,
+	// 	`UPDATE articles SET read = 1 WHERE id = ?;string`, articleId)
 
-	re, _ := result.RowsAffected()
-	if re == 0 {
-		return vm, fmt.Errorf("record %v doesnt exist", articleId)
-	}
+	// re, _ := result.RowsAffected()
+	// if re == 0 {
+	// 	return vm, fmt.Errorf("record %v doesnt exist", articleId)
+	// }
 
-	vm, err := articlePageVm(articleId, feedId, db, queries, ctx)
-
+	vm, err = articlePageVm(articleId, feedId, dbx, queries, ctx)
 	if err != nil {
 		return vm, err
 	}
@@ -264,64 +268,61 @@ func setReadStatusVm(feedId string, articleId string, db *sqlx.DB, queries *db.Q
 
 }
 
-func articlePageVm(articleId string, feedId string, db *sqlx.DB, queries *db.Queries, ctx context.Context) (ArticleVM, error) {
+func articlePageVm(articleId int64, feedId int64, _ *sqlx.DB, queries *db.Queries, ctx context.Context) (ArticleVM, error) {
 
 	vm := ArticleVM{}
 
-	if !digitCheck.MatchString(articleId) || !digitCheck.MatchString(feedId) {
-		return vm, fmt.Errorf("id not numeric %c", 500)
-	}
+	// if !digitCheck.MatchString(articleId) || !digitCheck.MatchString(feedId) {
+	// 	return vm, fmt.Errorf("id not numeric %c", 500)
+	// }
 
-	type ArticleFeedJoin = struct {
-		Id                     int    `json:"id" db:"id"`
-		FeedId                 int    `json:"feed_id" db:"feed_id"`
-		Link                   string `json:"link" db:"link"`
-		CSSSelectorContainer   string `json:"css_sel_container" db:"css_sel_container"`
-		CSSSelectorStart       string `json:"css_sel_start" db:"css_sel_start"`
-		CSSSelectorStop        string `json:"css_sel_stop" db:"css_sel_stop"`
-		Title                  string `json:"title" db:"title"`
-		FeedTitle              string `json:"feed_title" db:"feed_title"`
-		FeedUrl                string `json:"feed_url" db:"feed_url"`
-		HTMLExtractionStrategy string `json:"html_extraction_strategy" db:"html_extraction_strategy"`
-	}
+	// type ArticleFeedJoin = struct {
+	// 	Id                     int    `json:"id" db:"id"`
+	// 	FeedId                 int    `json:"feed_id" db:"feed_id"`
+	// 	Link                   string `json:"link" db:"link"`
+	// 	CSSSelectorContainer   string `json:"css_sel_container" db:"css_sel_container"`
+	// 	CSSSelectorStart       string `json:"css_sel_start" db:"css_sel_start"`
+	// 	CSSSelectorStop        string `json:"css_sel_stop" db:"css_sel_stop"`
+	// 	Title                  string `json:"title" db:"title"`
+	// 	FeedTitle              string `json:"feed_title" db:"feed_title"`
+	// 	FeedUrl                string `json:"feed_url" db:"feed_url"`
+	// 	HTMLExtractionStrategy string `json:"html_extraction_strategy" db:"html_extraction_strategy"`
+	// }
 
-	ca := ArticleFeedJoin{}
+	// ca := ArticleFeedJoin{}
 
-	err := db.Get(&ca, `
-				SELECT 
-					a.id,
-					a.link, 
-					a.title,
-					f.id as feed_id, 
-					f.title as feed_title,
-					f.url as feed_url,
-					f.css_sel_container, 
-					f.css_sel_start, 
-					f.css_sel_stop, 
-					f.html_extraction_strategy   
-				FROM 
-					articles a 
-				INNER JOIN feeds f 
-				ON f.id = a.feed_id where a.id = ?`, articleId)
+	// err := db.Get(&ca, `
+	// 			SELECT
+	// 				a.id,
+	// 				a.link,
+	// 				a.title,
+	// 				f.id as feed_id,
+	// 				f.title as feed_title,
+	// 				f.url as feed_url,
+	// 				f.css_sel_container,
+	// 				f.css_sel_start,
+	// 				f.css_sel_stop,
+	// 				f.html_extraction_strategy
+	// 			FROM
+	// 				articles a
+	// 			INNER JOIN feeds f
+	// 			ON f.id = a.feed_id where a.id = ?`, articleId)
 
+	// if err != nil {
+	// 	return vm, fmt.Errorf("error selecting record %v: %v", articleId, err)
+	// }
+
+	ca, err := queries.GetFeedDataForArticleByArticleID(ctx, articleId)
 	if err != nil {
 		return vm, fmt.Errorf("error selecting record %v: %v", articleId, err)
 	}
 
 	var pageHtmlContent = ""
 
-	type LocallyCachedArticle struct {
-		Id             string `db:"id"`
-		Link           string `db:"link"`
-		ArticleContent string `db:"article_content"`
-		Created        string `db:"created"`
-	}
+	lc, err := queries.GetCachedByLink(ctx, ca.Link)
 
-	lc := LocallyCachedArticle{}
-
-	if err := db.Get(&lc, `SELECT * FROM article_cache WHERE link = ?`, ca.Link); err == nil {
-		pageHtmlContent = lc.ArticleContent
-
+	if err == nil {
+		pageHtmlContent = lc.ArticleContent.String
 	} else {
 
 		if err == sql.ErrNoRows {
@@ -333,18 +334,18 @@ func articlePageVm(articleId string, feedId string, db *sqlx.DB, queries *db.Que
 			}
 
 			ep := extractionParams{}
-			ep.Container = ca.CSSSelectorContainer
+			ep.Container = ca.CssSelContainer.String
 
-			switch ca.HTMLExtractionStrategy {
+			switch ca.HtmlExtractionStrategy.String {
 			case "no-clip":
 				break
 			case "clip-start":
-				ep.ClipStartPoint = ca.CSSSelectorStart
+				ep.ClipStartPoint = ca.CssSelStart.String
 			case "clip-end":
-				ep.ClipEndPoint = ca.CSSSelectorStop
+				ep.ClipEndPoint = ca.CssSelStop.String
 			case "clip-between":
-				ep.ClipStartPoint = ca.CSSSelectorStart
-				ep.ClipEndPoint = ca.CSSSelectorStop
+				ep.ClipStartPoint = ca.CssSelStart.String
+				ep.ClipEndPoint = ca.CssSelStop.String
 			}
 
 			//TODO - need to add some timeout values here really
@@ -358,19 +359,25 @@ func articlePageVm(articleId string, feedId string, db *sqlx.DB, queries *db.Que
 				return vm, fmt.Errorf("error using colly to visit page: %v - %v", ca.Link, err)
 			}
 
-			_, insertErr := db.ExecContext(ctx, `
-					INSERT INTO article_cache (
-						link, 
-						article_content, 
-						created
-					) VALUES(
-						?,
-						?, 
-						CURRENT_TIMESTAMP
-					);`,
-				ca.Link,
-				pageHtmlContent,
+			insertErr := queries.AddToArticleCache(ctx,
+				db.AddToArticleCacheParams{
+					Link:           ca.Link,
+					ArticleContent: sql.NullString{String: pageHtmlContent},
+				},
 			)
+			// _, insertErr := db.ExecContext(ctx, `
+			// 		INSERT INTO article_cache (
+			// 			link,
+			// 			article_content,
+			// 			created
+			// 		) VALUES(
+			// 			?,
+			// 			?,
+			// 			CURRENT_TIMESTAMP
+			// 		);`,
+			// 	ca.Link,
+			// 	pageHtmlContent,
+			// )
 
 			if insertErr != nil {
 				return vm, fmt.Errorf("error adding to article cache: %v", insertErr)
@@ -387,12 +394,23 @@ func articlePageVm(articleId string, feedId string, db *sqlx.DB, queries *db.Que
 		return vm, fmt.Errorf("error getting side data: %v", err)
 	}
 
-	unreadArticles := []Article{}
-	err = db.SelectContext(ctx, &unreadArticles,
-		SqlUnreadArticlesByFeed, feedId)
+	unread, err := queries.GetUnreadByFeedID(ctx, feedId)
 	if err != nil {
-		return vm, fmt.Errorf("error getting feed data: %v", err)
+		return vm, err
 	}
+
+	unreadArticles := []Article{}
+
+	for _, v := range unread {
+		unreadArticles = append(unreadArticles, articleFromUnreadByFeedIDRow(v))
+	}
+
+	// unreadArticles := []Article{}
+	// err = db.SelectContext(ctx, &unreadArticles,
+	// 	SqlUnreadArticlesByFeed, feedId)
+	// if err != nil {
+	// 	return vm, fmt.Errorf("error getting feed data: %v", err)
+	// }
 
 	vm.PageContent = pageHtmlContent
 	vm.SidebarMenu = sbd
@@ -401,8 +419,8 @@ func articlePageVm(articleId string, feedId string, db *sqlx.DB, queries *db.Que
 	vm.FeedUrl = ca.FeedUrl
 	vm.Articles = unreadArticles
 	vm.Link = ca.Link
-	vm.ArticleId = ca.Id
-	vm.FeedId = int64(ca.FeedId)
+	vm.ArticleId = ca.ID
+	vm.FeedId = ca.FeedID
 
 	return vm, nil
 
@@ -442,15 +460,20 @@ func ExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelec
 	return strings.Join(chunks, "")
 }
 
-func GetFeedUpdates(db *sqlx.DB, ctx context.Context) (int64, error) {
+func GetFeedUpdates(dbx *sqlx.DB, queries *db.Queries, ctx context.Context) (int64, error) {
 
 	// get all the feed urls, loop through them and pull all the items from the feed
 	// for each item in the feed run an insert of ignore statement
 
-	feeds := []Feed{}
-	err := db.Select(&feeds, "SELECT * from feeds;")
+	// feeds := []Feed{}
+	// err := db.Select(&feeds, "SELECT * from feeds;")
+	// if err != nil {
+	// 	return 0, fmt.Errorf("error selecting feed data for updates: %v", err)
+	// }
+
+	feeds, err := queries.GetFeeds(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("error selecting feed data for updates: %v", err)
+		return 0, err
 	}
 
 	// godump.Dump(feeds)
@@ -458,7 +481,7 @@ func GetFeedUpdates(db *sqlx.DB, ctx context.Context) (int64, error) {
 
 	p := gofeed.NewParser()
 
-	var res sql.Result
+	//var res sql.Result
 
 	// for _, v := range feeds {
 	// 	feed, err := p.ParseURL(v.Url + "/feed/")
@@ -493,52 +516,68 @@ func GetFeedUpdates(db *sqlx.DB, ctx context.Context) (int64, error) {
 			//godump.Dump(i.PublishedParsed)
 
 			pubParsed := ""
-			updatedParsed := ""
+			//updatedParsed := ""
 
 			if i.PublishedParsed != nil {
 				pubParsed = i.PublishedParsed.Format("2006-01-02 15:04:05")
 			}
 
-			if i.UpdatedParsed != nil {
-				updatedParsed = i.UpdatedParsed.Format("2006-01-02 15:04:05")
-			}
+			// if i.UpdatedParsed != nil {
+			// 	updatedParsed = i.UpdatedParsed.Format("2006-01-02 15:04:05")
+			// }
+
+			published, err := time.Parse(time.RFC1123Z, i.Published)
+
+			queries.AddToArticles(
+				ctx,
+				db.AddToArticlesParams{
+					FeedID:          v.ID,
+					Title:           i.Title,
+					Link:            i.Title,
+					Published:       published,
+					PublishedParsed: pubParsed,
+					Summary:         i.Description,
+					Read:            0,
+					Starred:         0,
+				},
+			)
 
 			//i.PublishedParsed
-			res, err = db.Exec(`
-					INSERT OR IGNORE INTO articles (
-					feed_id, 
-					title, 
-					link, 
-					published, 
-					published_parsed, 
-					updated, 
-					updated_parsed, 
-					summary, 
-					read, 
-					starred
-					) VALUES (
-					 ?, 
-					 ?, 
-					 ?, 
-					 ?, 
-					 ?, 
-					 ?, 
-					 ?, 
-					 ?, 
-					 ?, 
-					 ?
-					 );`,
-				v.Id,
-				i.Title,
-				i.Link,
-				i.Published,
-				pubParsed,
-				i.Updated,
-				updatedParsed,
-				i.Description,
-				0,
-				0,
-			)
+			// res, err = dbx.Exec(`
+			// 		INSERT OR IGNORE INTO articles (
+			// 		feed_id,
+			// 		title,
+			// 		link,
+			// 		published,
+			// 		published_parsed,
+			// 		updated,
+			// 		updated_parsed,
+			// 		summary,
+			// 		read,
+			// 		starred
+			// 		) VALUES (
+			// 		 ?,
+			// 		 ?,
+			// 		 ?,
+			// 		 ?,
+			// 		 ?,
+			// 		 ?,
+			// 		 ?,
+			// 		 ?,
+			// 		 ?,
+			// 		 ?
+			// 		 );`,
+			// 	v.ID,
+			// 	i.Title,
+			// 	i.Link,
+			// 	i.Published,
+			// 	pubParsed,
+			// 	i.Updated,
+			// 	updatedParsed,
+			// 	i.Description,
+			// 	0,
+			// 	0,
+			// )
 
 			if err != nil {
 				return 0, fmt.Errorf("error inserting or replacing articles in feed update: %v", err)
@@ -546,12 +585,12 @@ func GetFeedUpdates(db *sqlx.DB, ctx context.Context) (int64, error) {
 		}
 	}
 
-	rowsChanged, err := res.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("error reading affected rows: %v", err)
-	}
+	// rowsChanged, err := res.RowsAffected()
+	// if err != nil {
+	// 	return 0, fmt.Errorf("error reading affected rows: %v", err)
+	// }
 
-	return rowsChanged, nil
+	return 0, nil
 
 }
 

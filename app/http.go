@@ -57,8 +57,7 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 		r.Get("/feed/{feedID}", func(w http.ResponseWriter, r *http.Request) {
 
 			feedID, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
-			if ok {
-
+			if !ok {
 				return
 			}
 
@@ -77,9 +76,18 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 			)
 		})
 
-		r.Get("/article/{feedId}/{articleId}", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/article/{feedID}/{articleID}", func(w http.ResponseWriter, r *http.Request) {
 
-			articleVm, err := articlePageVm(r.PathValue("articleId"), r.PathValue("feedId"), dbx, queries, r.Context())
+			feedID, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
+			if !ok {
+				return
+			}
+			articleID, ok := paramMustBeNonZeroNumeric(w, r, "articleID")
+			if !ok {
+				return
+			}
+
+			articleVm, err := articlePageVm(articleID, feedID, dbx, queries, r.Context())
 			if err != nil {
 				if errors.Is(err, context.DeadlineExceeded) {
 					w.WriteHeader(504)
@@ -100,9 +108,18 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 			)
 		})
 
-		r.Get("/set-as-read/{feedId}/{articleId}", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/set-as-read/{feedID}/{articleID}", func(w http.ResponseWriter, r *http.Request) {
 
-			readStatusVm, err := setReadStatusVm(r.PathValue("feedId"), r.PathValue("articleId"), dbx, queries, r.Context())
+			feedID, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
+			if !ok {
+				return
+			}
+			articleID, ok := paramMustBeNonZeroNumeric(w, r, "articleID")
+			if !ok {
+				return
+			}
+
+			readStatusVm, err := setReadStatusVm(feedID, articleID, dbx, queries, r.Context())
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
@@ -138,7 +155,7 @@ func SetupHttpServer(dbx *sqlx.DB, queries *db.Queries, user string, password st
 				return
 			}
 
-			_, err = GetFeedUpdates(dbx, r.Context())
+			_, err = GetFeedUpdates(dbx, queries, r.Context())
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return

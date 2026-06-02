@@ -39,7 +39,7 @@ ON f.id = a.feed_id
 WHERE feed_id = ? AND a.read = 0
 ORDER BY a.published_parsed DESC;
 
--- name: GetOtherArticlesFromFeedByArticleID :many
+-- name: GetFeedDataForArticleByArticleID :one
 SELECT 
 	a.id,
 	a.link, 
@@ -97,3 +97,6 @@ INSERT OR IGNORE INTO articles (
 	 ?, 
 	 ?
  );
+
+-- name: SetArticleAsRead :exec
+ UPDATE articles SET read = 1 WHERE id = ?;
