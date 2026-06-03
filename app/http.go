@@ -30,7 +30,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 
-			homeVm, err := getHomepageData(queries, r.Context())
+			vm, err := getHomePageData(queries, r.Context())
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
@@ -38,29 +38,29 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 			PageTemplate(
 				"Homepage",
-				SideBarTemplate(homeVm.SidebarData, r),
-				HomePageTemplate(homeVm)).Render(r.Context(),
+				SideBarTemplate(vm.SidebarData, r),
+				HomePageTemplate(vm)).Render(r.Context(),
 				w,
 			)
 		})
 
 		r.Get("/feed/{feedID}", func(w http.ResponseWriter, r *http.Request) {
 
-			feedID, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
+			feedID, ok := requireIDParam(w, r, "feedID")
 			if !ok {
 				return
 			}
 
-			feedVm, err := getFeedPageData(feedID, queries, r.Context())
+			vm, err := getFeedIndexData(feedID, queries, r.Context())
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
 			}
 
 			PageTemplate(
-				feedVm.PageTitle,
-				SideBarTemplate(feedVm.SidebarData, r),
-				FeedPageTemplate(feedVm)).Render(
+				vm.PageTitle,
+				SideBarTemplate(vm.SidebarData, r),
+				FeedPageTemplate(vm)).Render(
 				r.Context(),
 				w,
 			)
@@ -68,16 +68,16 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 		r.Get("/article/{feedID}/{articleID}", func(w http.ResponseWriter, r *http.Request) {
 
-			feedID, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
+			feedID, ok := requireIDParam(w, r, "feedID")
 			if !ok {
 				return
 			}
-			articleID, ok := paramMustBeNonZeroNumeric(w, r, "articleID")
+			articleID, ok := requireIDParam(w, r, "articleID")
 			if !ok {
 				return
 			}
 
-			articleVm, err := getArticlePageData(articleID, feedID, queries, r.Context())
+			vm, err := getArticlePageData(articleID, feedID, queries, r.Context())
 			if err != nil {
 				if errors.Is(err, context.DeadlineExceeded) {
 					w.WriteHeader(504)
@@ -90,9 +90,9 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 			}
 
 			PageTemplate(
-				articleVm.PageTitle,
-				SideBarTemplate(articleVm.SidebarData, r),
-				ArticlePageTemplate(articleVm)).Render(
+				vm.PageTitle,
+				SideBarTemplate(vm.SidebarData, r),
+				ArticlePageTemplate(vm)).Render(
 				r.Context(),
 				w,
 			)
@@ -100,16 +100,16 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 		r.Get("/set-as-read/{feedID}/{articleID}", func(w http.ResponseWriter, r *http.Request) {
 
-			feedID, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
+			feedID, ok := requireIDParam(w, r, "feedID")
 			if !ok {
 				return
 			}
-			articleID, ok := paramMustBeNonZeroNumeric(w, r, "articleID")
+			articleID, ok := requireIDParam(w, r, "articleID")
 			if !ok {
 				return
 			}
 
-			readStatusVm, err := setReadStatusVm(feedID, articleID, queries, r.Context())
+			readStatusVm, err := getReadStatusData(feedID, articleID, queries, r.Context())
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
@@ -127,12 +127,12 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 		r.Get("/update/{pageType}/{feedID}", func(w http.ResponseWriter, r *http.Request) {
 
-			feedID, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
+			feedID, ok := requireIDParam(w, r, "feedID")
 			if !ok {
 				return
 			}
 
-			pageType, ok := pageTypeMustBeInSpecifiedRange(w, r, "pageType")
+			pageType, ok := requirePageType(w, r, "pageType")
 			if !ok {
 				return
 			}
@@ -143,12 +143,12 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 		r.Get("/updating/{pageType}/{feedID}", func(w http.ResponseWriter, r *http.Request) {
 
-			feedID, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
+			feedID, ok := requireIDParam(w, r, "feedID")
 			if !ok {
 				return
 			}
 
-			pageType, ok := pageTypeMustBeInSpecifiedRange(w, r, "pageType")
+			pageType, ok := requirePageType(w, r, "pageType")
 			if !ok {
 				return
 			}
@@ -257,7 +257,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 		// READ - returns text/html
 		r.Get("/admin/feeds/{feedID}", func(w http.ResponseWriter, r *http.Request) {
 
-			feedID, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
+			feedID, ok := requireIDParam(w, r, "feedID")
 			if !ok {
 				return
 			}
@@ -285,7 +285,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 		// UPDATE - returns SSE
 		r.Put("/admin/feeds/{feedId}", func(w http.ResponseWriter, r *http.Request) {
 
-			_, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
+			_, ok := requireIDParam(w, r, "feedID")
 			if !ok {
 				return
 			}
@@ -295,7 +295,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 		// DELETE
 		r.Delete("/admin/feeds/{feedID}", func(w http.ResponseWriter, r *http.Request) {
 
-			_, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
+			_, ok := requireIDParam(w, r, "feedID")
 			if !ok {
 				return
 			}
@@ -367,42 +367,40 @@ func basicAuthHandler(user string, user_password string) func(http.Handler) http
 	}
 }
 
-func mustBeNonZeroNumeric(w http.ResponseWriter, r *http.Request, key, value string) (int64, bool) {
-	v, err := strconv.Atoi(value)
+func requireNonZeroInt64(value string, key string, w http.ResponseWriter, r *http.Request) (int64, bool) {
+	v, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		logAndError(w, r, err.Error(), http.StatusBadRequest)
 		return 0, false
 	}
 
-	v64 := int64(v)
-
-	if v64 == 0 {
+	if v == 0 {
 		logAndError(
 			w,
 			r,
-			fmt.Sprintf("key '%v' must be non-zero numeric", key),
+			fmt.Sprintf("key '%s' must be a non-zero integer", key),
 			http.StatusBadRequest,
 		)
 		return 0, false
 	}
 
-	return v64, true
+	return v, true
 }
 
-func paramMustBeNonZeroNumeric(w http.ResponseWriter, r *http.Request, key string) (int64, bool) {
-	return mustBeNonZeroNumeric(w, r, key, chi.URLParam(r, key))
+func requireIDParam(w http.ResponseWriter, r *http.Request, key string) (int64, bool) {
+	return requireNonZeroInt64(chi.URLParam(r, key), key, w, r)
 }
 
-func pageTypeMustBeInSpecifiedRange(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
-
+func requirePageType(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
 	pt := r.PathValue(key)
-	if pt != PageTypeFeed && pt != PageTypeHome && pt != PageTypeArticle {
-		logAndError(w, r, fmt.Errorf("wrong page type%v", pt).Error())
+
+	switch pt {
+	case PageTypeFeed, PageTypeHome, PageTypeArticle:
+		return pt, true
+	default:
+		logAndError(w, r, fmt.Errorf("invalid page type: %s", pt).Error())
 		return "", false
 	}
-
-	return pt, true
-
 }
 
 // func postMustBeNonZeroNumeric(w http.ResponseWriter, r *http.Request, key string) (int, bool) {

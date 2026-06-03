@@ -30,14 +30,9 @@ func getSidebarData(queries *db.Queries, ctx context.Context) ([]SidebarLink, er
 	return items, nil
 }
 
-func getHomepageData(queries *db.Queries, ctx context.Context) (PageVM, error) {
+func getHomePageData(queries *db.Queries, ctx context.Context) (PageVM, error) {
 
 	vm := PageVM{}
-
-	sidebar, err := getSidebarData(queries, ctx)
-	if err != nil {
-		return vm, err
-	}
 
 	latest5Articles, err := queries.GetLatest5Articles(ctx)
 	if err != nil {
@@ -45,10 +40,14 @@ func getHomepageData(queries *db.Queries, ctx context.Context) (PageVM, error) {
 	}
 
 	articles := []Article{}
-
 	for _, v := range latest5Articles {
 		articles = append(articles, mapArticleFromLatest5ArticlesRow(v))
 
+	}
+
+	sidebar, err := getSidebarData(queries, ctx)
+	if err != nil {
+		return vm, err
 	}
 
 	vm.Articles = articles
@@ -59,14 +58,9 @@ func getHomepageData(queries *db.Queries, ctx context.Context) (PageVM, error) {
 	return vm, nil
 }
 
-func getFeedPageData(feedId int64, queries *db.Queries, ctx context.Context) (PageVM, error) {
+func getFeedIndexData(feedId int64, queries *db.Queries, ctx context.Context) (PageVM, error) {
 
 	vm := PageVM{}
-
-	sidebarData, err := getSidebarData(queries, ctx)
-	if err != nil {
-		return vm, err
-	}
 
 	feed, err := queries.GetFeedByID(ctx, feedId)
 	if err != nil {
@@ -84,6 +78,11 @@ func getFeedPageData(feedId int64, queries *db.Queries, ctx context.Context) (Pa
 		articles = append(articles, mapArticleFromUnreadByFeedIDRow(v))
 	}
 
+	sidebarData, err := getSidebarData(queries, ctx)
+	if err != nil {
+		return vm, err
+	}
+
 	vm.Articles = articles
 	vm.SidebarData = sidebarData
 	vm.PageTitle = feed.Title
@@ -91,7 +90,7 @@ func getFeedPageData(feedId int64, queries *db.Queries, ctx context.Context) (Pa
 	return vm, nil
 }
 
-func setReadStatusVm(feedId int64, articleId int64, queries *db.Queries, ctx context.Context) (ArticleVM, error) {
+func getReadStatusData(feedId int64, articleId int64, queries *db.Queries, ctx context.Context) (ArticleVM, error) {
 
 	vm := ArticleVM{}
 
