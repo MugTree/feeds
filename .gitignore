@@ -5,6 +5,7 @@ tmp/
 .DS_Store
 __debug_*
 node_modules
-data/feedreader.db
+feeds.db
+feeds.db-*
 data/seed/urls.txt
 _templ.go

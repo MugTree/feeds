@@ -118,7 +118,7 @@ func PageInnerTemplate(pageType string, feedId int64) templ.Component {
 	})
 }
 
-func HomePageMainTemplate(vm PageVM) templ.Component {
+func HomePageTemplate(vm PageVM) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -169,7 +169,7 @@ func HomePageMainTemplate(vm PageVM) templ.Component {
 	})
 }
 
-func FeedPageMainTemplate(vm PageVM) templ.Component {
+func FeedPageTemplate(vm PageVM) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -233,7 +233,7 @@ func FeedPageMainTemplate(vm PageVM) templ.Component {
 	})
 }
 
-func ArticlePageMainTemplate(vm ArticleVM) templ.Component {
+func ArticlePageTemplate(vm ArticleVM) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -644,7 +644,7 @@ func FeedFormTextInputTemplate(title string, id string, placeholder string, valu
 	})
 }
 
-func AdminPageMainTemplate(innerComp templ.Component) templ.Component {
+func AdminPageTemplate(innerComp templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {

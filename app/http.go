@@ -38,8 +38,8 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 			PageTemplate(
 				"Homepage",
-				SideBarTemplate(homeVm.SidebarMenu, r),
-				HomePageMainTemplate(homeVm)).Render(r.Context(),
+				SideBarTemplate(homeVm.SidebarData, r),
+				HomePageTemplate(homeVm)).Render(r.Context(),
 				w,
 			)
 		})
@@ -59,8 +59,8 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 			PageTemplate(
 				feedVm.PageTitle,
-				SideBarTemplate(feedVm.SidebarMenu, r),
-				FeedPageMainTemplate(feedVm)).Render(
+				SideBarTemplate(feedVm.SidebarData, r),
+				FeedPageTemplate(feedVm)).Render(
 				r.Context(),
 				w,
 			)
@@ -91,8 +91,8 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 			PageTemplate(
 				articleVm.PageTitle,
-				SideBarTemplate(articleVm.SidebarMenu, r),
-				ArticlePageMainTemplate(articleVm)).Render(
+				SideBarTemplate(articleVm.SidebarData, r),
+				ArticlePageTemplate(articleVm)).Render(
 				r.Context(),
 				w,
 			)
@@ -117,7 +117,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 			sse := datastar.NewSSE(w, r)
 			sse.PatchElementTempl(
-				SideBarTemplate(readStatusVm.SidebarMenu, r),
+				SideBarTemplate(readStatusVm.SidebarData, r),
 			)
 
 			sse.PatchElementTempl(
@@ -141,7 +141,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 			sse.PatchElementTempl(UpdatingFeedButtonTemplate(pageType, feedID))
 		})
 
-		r.Get("/updating/{pageType}/{feedId}", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/updating/{pageType}/{feedID}", func(w http.ResponseWriter, r *http.Request) {
 
 			feedID, ok := paramMustBeNonZeroNumeric(w, r, "feedID")
 			if !ok {
@@ -166,7 +166,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 			pp := pageParts{}
 
-			sbl, err := getSideBarLinks(queries, r.Context())
+			sbl, err := getSidebarData(queries, r.Context())
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
@@ -237,7 +237,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 				feeds = append(feeds, mapFeedFromDbFeed(v))
 			}
 
-			AdminPageMainTemplate(FeedAdminListTemplate(feeds)).Render(r.Context(), w)
+			AdminPageTemplate(FeedAdminListTemplate(feeds)).Render(r.Context(), w)
 		})
 
 		// NEW FEED - plain old html/text
@@ -246,7 +246,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 			vm.ButtonText = "Create new"
 			vm.UrlAction = ""
 			form := FeedAdminFormTemplate(vm)
-			AdminPageMainTemplate(form).Render(r.Context(), w)
+			AdminPageTemplate(form).Render(r.Context(), w)
 		})
 
 		// CREATE - returns SSE
@@ -274,7 +274,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 			vm.UrlAction = ""
 
 			form := FeedAdminFormTemplate(vm)
-			AdminPageMainTemplate(form).Render(r.Context(), w)
+			AdminPageTemplate(form).Render(r.Context(), w)
 		})
 
 		/**

@@ -15,7 +15,7 @@ import (
 	"github.com/mugtree/feeds/app/db"
 )
 
-func getSideBarLinks(queries *db.Queries, ctx context.Context) ([]SidebarLink, error) {
+func getSidebarData(queries *db.Queries, ctx context.Context) ([]SidebarLink, error) {
 
 	items := []SidebarLink{}
 	data, err := queries.GetSidebarData(ctx)
@@ -24,11 +24,7 @@ func getSideBarLinks(queries *db.Queries, ctx context.Context) ([]SidebarLink, e
 	}
 
 	for _, v := range data {
-		items = append(items, SidebarLink{
-			Name:   v.FeedTitle,
-			Link:   fmt.Sprintf("/feed/%v", v.FeedID),
-			Unread: (v.TotalArticles - v.ArticlesRead),
-		})
+		items = append(items, mapSidebarLinkFromSidebarDataRow(v))
 	}
 
 	return items, nil
@@ -38,7 +34,7 @@ func getHomepageData(queries *db.Queries, ctx context.Context) (PageVM, error) {
 
 	vm := PageVM{}
 
-	sbd, err := getSideBarLinks(queries, ctx)
+	sidebar, err := getSidebarData(queries, ctx)
 	if err != nil {
 		return vm, err
 	}
@@ -56,7 +52,7 @@ func getHomepageData(queries *db.Queries, ctx context.Context) (PageVM, error) {
 	}
 
 	vm.Articles = articles
-	vm.SidebarMenu = sbd
+	vm.SidebarData = sidebar
 	vm.PageTitle = "Home"
 	vm.FeedId = 0
 
@@ -67,7 +63,7 @@ func getFeedPageData(feedId int64, queries *db.Queries, ctx context.Context) (Pa
 
 	vm := PageVM{}
 
-	sidebarData, err := getSideBarLinks(queries, ctx)
+	sidebarData, err := getSidebarData(queries, ctx)
 	if err != nil {
 		return vm, err
 	}
@@ -89,7 +85,7 @@ func getFeedPageData(feedId int64, queries *db.Queries, ctx context.Context) (Pa
 	}
 
 	vm.Articles = articles
-	vm.SidebarMenu = sidebarData
+	vm.SidebarData = sidebarData
 	vm.PageTitle = feed.Title
 	vm.FeedId = feed.ID
 	return vm, nil
@@ -181,7 +177,7 @@ func getArticlePageData(articleId int64, feedId int64, queries *db.Queries, ctx 
 
 	// get other page parts
 	// --------------------------------------------------------
-	sbd, err := getSideBarLinks(queries, ctx)
+	sbd, err := getSidebarData(queries, ctx)
 	if err != nil {
 		return vm, fmt.Errorf("error getting side data: %v", err)
 	}
@@ -198,7 +194,7 @@ func getArticlePageData(articleId int64, feedId int64, queries *db.Queries, ctx 
 	}
 
 	vm.PageContent = pageHtmlContent
-	vm.SidebarMenu = sbd
+	vm.SidebarData = sbd
 	vm.PageTitle = fd.Title
 	vm.FeedTitle = fd.FeedTitle
 	vm.FeedUrl = fd.FeedUrl
@@ -318,7 +314,7 @@ func GetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 				db.AddToArticlesParams{
 					FeedID:          v.ID,
 					Title:           i.Title,
-					Link:            i.Title,
+					Link:            i.Link,
 					Published:       published,
 					PublishedParsed: pubParsed,
 					Summary:         i.Description,
@@ -383,6 +379,14 @@ func mapFeedFromDbFeed(row db.Feed) Feed {
 		CSSSelectorStart:       row.CssSelStart.String,
 		CSSSelectorStop:        row.CssSelStop.String,
 		HTMLExtractionStrategy: row.HtmlExtractionStrategy.String,
+	}
+}
+
+func mapSidebarLinkFromSidebarDataRow(row db.GetSidebarDataRow) SidebarLink {
+	return SidebarLink{
+		Name:   row.FeedTitle,
+		Link:   fmt.Sprintf("/feed/%v", row.FeedID),
+		Unread: (row.TotalArticles - row.ArticlesRead),
 	}
 }
 
@@ -464,7 +468,7 @@ func int64ToBool(i int64) bool {
 type PageVM struct {
 	FeedId      int64
 	PageTitle   string
-	SidebarMenu []SidebarLink
+	SidebarData []SidebarLink
 	Articles    []Article
 }
 

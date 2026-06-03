@@ -50,21 +50,21 @@ templ PageInnerTemplate(pageType string, feedId int64) {
 	</div>
 }
 
-templ HomePageMainTemplate(vm PageVM) {
+templ HomePageTemplate(vm PageVM) {
 	@PageInnerTemplate(PageTypeHome, vm.FeedId) {
 		<h2>Latest 5 articles</h2>
 		@ToReadTemplate(vm.Articles)
 	}
 }
 
-templ FeedPageMainTemplate(vm PageVM) {
+templ FeedPageTemplate(vm PageVM) {
 	@PageInnerTemplate(PageTypeFeed, vm.FeedId) {
 		<h2>{ vm.PageTitle }</h2>
 		@ToReadTemplate(vm.Articles)
 	}
 }
 
-templ ArticlePageMainTemplate(vm ArticleVM) {
+templ ArticlePageTemplate(vm ArticleVM) {
 	@PageInnerTemplate(PageTypeArticle, vm.FeedId) {
 		<ul>
 			<li>{ vm.FeedTitle }</li>
@@ -124,7 +124,7 @@ templ FeedFormTextInputTemplate(title string, id string, placeholder string, val
 		</div>	
 }
 
-templ AdminPageMainTemplate(innerComp templ.Component) {
+templ AdminPageTemplate(innerComp templ.Component) {
 	@AdminPageInnerTemplate() {
 		<div>
 			@innerComp
