@@ -66,92 +66,72 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 			)
 		})
 
-		r.Get("/article/{feedID}/{articleID}", func(w http.ResponseWriter, r *http.Request) {
+		r.Route("/article/{feedID}/{articleID}", func(article chi.Router) {
 
-			feedID, ok := requireIDParam(w, r, "feedID")
-			if !ok {
-				return
-			}
-			articleID, ok := requireIDParam(w, r, "articleID")
-			if !ok {
-				return
-			}
+			article.Get("/view", func(w http.ResponseWriter, r *http.Request) {
 
-			vm, err := getArticlePageData(articleID, feedID, queries, r.Context())
-			if err != nil {
-				if errors.Is(err, context.DeadlineExceeded) {
-					w.WriteHeader(504)
-					w.Write([]byte("taking too long to run service"))
+				feedID, ok := requireIDParam(w, r, "feedID")
+				if !ok {
+					return
+				}
+				articleID, ok := requireIDParam(w, r, "articleID")
+				if !ok {
+					return
+				}
 
-				} else {
+				vm, err := getArticleData(articleID, feedID, queries, r.Context())
+				if err != nil {
+					if errors.Is(err, context.DeadlineExceeded) {
+						w.WriteHeader(504)
+						w.Write([]byte("taking too long to run service"))
+
+					} else {
+						logAndError(w, r, err.Error())
+						return
+					}
+				}
+
+				PageTemplate(
+					vm.PageTitle,
+					SideBarTemplate(vm.SidebarData, r),
+					ArticlePageTemplate(vm)).Render(
+					r.Context(),
+					w,
+				)
+
+			})
+
+			article.Get("/set-read", func(w http.ResponseWriter, r *http.Request) {
+
+				feedID, ok := requireIDParam(w, r, "feedID")
+				if !ok {
+					return
+				}
+				articleID, ok := requireIDParam(w, r, "articleID")
+				if !ok {
+					return
+				}
+
+				err := queries.SetArticleAsRead(r.Context(), articleID)
+				if err != nil {
 					logAndError(w, r, err.Error())
 					return
 				}
-			}
 
-			PageTemplate(
-				vm.PageTitle,
-				SideBarTemplate(vm.SidebarData, r),
-				ArticlePageTemplate(vm)).Render(
-				r.Context(),
-				w,
-			)
+				vm, err := getArticleData(articleID, feedID, queries, r.Context())
+				sse := datastar.NewSSE(w, r)
+				sse.PatchElementTempl(
+					SideBarTemplate(vm.SidebarData, r),
+				)
+
+				sse.PatchElementTempl(
+					ToReadTemplate(vm.Articles),
+				)
+			})
+
 		})
 
-		r.Get("/set-as-read/{feedID}/{articleID}", func(w http.ResponseWriter, r *http.Request) {
-
-			feedID, ok := requireIDParam(w, r, "feedID")
-			if !ok {
-				return
-			}
-			articleID, ok := requireIDParam(w, r, "articleID")
-			if !ok {
-				return
-			}
-
-			readStatusVm, err := getReadStatusData(feedID, articleID, queries, r.Context())
-			if err != nil {
-				logAndError(w, r, err.Error())
-				return
-			}
-
-			sse := datastar.NewSSE(w, r)
-			sse.PatchElementTempl(
-				SideBarTemplate(readStatusVm.SidebarData, r),
-			)
-
-			sse.PatchElementTempl(
-				ToReadTemplate(readStatusVm.Articles),
-			)
-		})
-
-		r.Get("/update/{pageType}/{feedID}", func(w http.ResponseWriter, r *http.Request) {
-
-			feedID, ok := requireIDParam(w, r, "feedID")
-			if !ok {
-				return
-			}
-
-			pageType, ok := requirePageType(w, r, "pageType")
-			if !ok {
-				return
-			}
-
-			sse := datastar.NewSSE(w, r)
-			sse.PatchElementTempl(UpdatingFeedButtonTemplate(pageType, feedID))
-		})
-
-		r.Get("/updating/{pageType}/{feedID}", func(w http.ResponseWriter, r *http.Request) {
-
-			feedID, ok := requireIDParam(w, r, "feedID")
-			if !ok {
-				return
-			}
-
-			pageType, ok := requirePageType(w, r, "pageType")
-			if !ok {
-				return
-			}
+		r.Get("/update-reader", func(w http.ResponseWriter, r *http.Request) {
 
 			_, err := GetFeedUpdates(queries, r.Context())
 			if err != nil {
@@ -159,68 +139,9 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 				return
 			}
 
-			type pageParts struct {
-				SidebarMenu []SidebarLink
-				Articles    []Article
-			}
-
-			pp := pageParts{}
-
-			sbl, err := getSidebarData(queries, r.Context())
-			if err != nil {
-				logAndError(w, r, err.Error())
-				return
-			}
-
-			pp.SidebarMenu = sbl
-
-			switch pageType {
-			case PageTypeHome:
-
-				latest5Articles, err := queries.GetLatest5Articles(r.Context())
-				if err != nil {
-					logAndError(w, r, err.Error())
-					return
-				}
-
-				articles := []Article{}
-
-				for _, v := range latest5Articles {
-					articles = append(articles, mapArticleFromLatest5ArticlesRow(v))
-				}
-
-				pp.Articles = articles
-
-			case PageTypeFeed, PageTypeArticle:
-
-				feedArticlesByID, err := queries.GetUnreadByFeedID(r.Context(), feedID)
-				if err != nil {
-					logAndError(w, r, err.Error())
-					return
-				}
-
-				articles := []Article{}
-
-				for _, v := range feedArticlesByID {
-					articles = append(articles, mapArticleFromUnreadByFeedIDRow(v))
-				}
-
-				pp.Articles = articles
-
-			default:
-				logAndError(w, r, fmt.Errorf("incorrect page type: %v", pageType).Error())
-				return
-			}
-
 			sse := datastar.NewSSE(w, r)
-			sse.PatchElementTempl(SideBarTemplate(pp.SidebarMenu, r))
-			sse.PatchElementTempl(ToReadTemplate(pp.Articles))
-			sse.PatchElementTempl(UpdateFeedButtonTemplate(pageType, feedID))
+			sse.PatchElementTempl(RefreshTemplate(), datastar.WithModeAppend(), datastar.WithSelector("body"))
 
-		})
-
-		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("<!DOCTYPE html><html><head><title>health</title></head><body></body></html>"))
 		})
 
 		// READ ALL - plain old html/text
@@ -391,29 +312,16 @@ func requireIDParam(w http.ResponseWriter, r *http.Request, key string) (int64, 
 	return requireNonZeroInt64(chi.URLParam(r, key), key, w, r)
 }
 
-func requirePageType(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
-	pt := r.PathValue(key)
+// func requirePageType(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
+// 	pt := r.PathValue(key)
 
-	switch pt {
-	case PageTypeFeed, PageTypeHome, PageTypeArticle:
-		return pt, true
-	default:
-		logAndError(w, r, fmt.Errorf("invalid page type: %s", pt).Error())
-		return "", false
-	}
-}
-
-// func postMustBeNonZeroNumeric(w http.ResponseWriter, r *http.Request, key string) (int, bool) {
-// 	return mustBeNonZeroNumeric(w, r, key, r.PostFormValue(key))
-// }
-
-// func paramMustBeNotEmpty(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
-// 	v := chi.URLParam(r, key)
-// 	if v == "" {
-// 		logAndError(w, r, fmt.Errorf("key '%v' empty string - %v", key, v).Error())
+// 	switch pt {
+// 	case PageTypeFeed, PageTypeHome, PageTypeArticle:
+// 		return pt, true
+// 	default:
+// 		logAndError(w, r, fmt.Errorf("invalid page type: %s", pt).Error())
 // 		return "", false
 // 	}
-// 	return v, true
 // }
 
 func logAndError(w http.ResponseWriter, _ *http.Request, msg string, statusCode ...int) {

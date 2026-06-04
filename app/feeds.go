@@ -90,25 +90,7 @@ func getFeedIndexData(feedId int64, queries *db.Queries, ctx context.Context) (P
 	return vm, nil
 }
 
-func getReadStatusData(feedId int64, articleId int64, queries *db.Queries, ctx context.Context) (ArticleVM, error) {
-
-	vm := ArticleVM{}
-
-	err := queries.SetArticleAsRead(ctx, articleId)
-	if err != nil {
-		return vm, err
-	}
-
-	vm, err = getArticlePageData(articleId, feedId, queries, ctx)
-	if err != nil {
-		return vm, err
-	}
-
-	return vm, nil
-
-}
-
-func getArticlePageData(articleId int64, feedId int64, queries *db.Queries, ctx context.Context) (ArticleVM, error) {
+func getArticleData(articleId int64, feedId int64, queries *db.Queries, ctx context.Context) (ArticleVM, error) {
 
 	vm := ArticleVM{}
 
@@ -120,8 +102,10 @@ func getArticlePageData(articleId int64, feedId int64, queries *db.Queries, ctx 
 	var pageHtmlContent = ""
 
 	lc, err := queries.GetCachedByLink(ctx, fd.Link)
+	isCached := false
 
 	if err == nil {
+		isCached = true
 		pageHtmlContent = lc.ArticleContent.String
 	} else {
 
@@ -162,7 +146,7 @@ func getArticlePageData(articleId int64, feedId int64, queries *db.Queries, ctx 
 			insertErr := queries.AddToArticleCache(ctx,
 				db.AddToArticleCacheParams{
 					Link:           fd.Link,
-					ArticleContent: sql.NullString{String: pageHtmlContent},
+					ArticleContent: sql.NullString{String: pageHtmlContent, Valid: true},
 				},
 			)
 
@@ -192,6 +176,7 @@ func getArticlePageData(articleId int64, feedId int64, queries *db.Queries, ctx 
 		unreadArticles = append(unreadArticles, mapArticleFromUnreadByFeedIDRow(v))
 	}
 
+	vm.IsCache = isCached
 	vm.PageContent = pageHtmlContent
 	vm.SidebarData = sbd
 	vm.PageTitle = fd.Title
@@ -478,6 +463,7 @@ type ArticleVM struct {
 	Link        string
 	PageContent string
 	ArticleId   int64
+	IsCache     bool
 }
 
 type UpdateParms struct {
