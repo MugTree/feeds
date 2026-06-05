@@ -179,6 +179,7 @@ SELECT
 	a.id,
 	a.link, 
 	a.title,
+	a.starred,
 	f.id as feed_id, 
 	f.title as feed_title,
 	f.url as feed_url,
@@ -196,6 +197,7 @@ type GetFeedDataForArticleByArticleIDRow struct {
 	ID                     int64
 	Link                   string
 	Title                  string
+	Starred                int64
 	FeedID                 int64
 	FeedTitle              string
 	FeedUrl                string
@@ -212,6 +214,7 @@ func (q *Queries) GetFeedDataForArticleByArticleID(ctx context.Context, id int64
 		&i.ID,
 		&i.Link,
 		&i.Title,
+		&i.Starred,
 		&i.FeedID,
 		&i.FeedTitle,
 		&i.FeedUrl,
@@ -423,10 +426,24 @@ func (q *Queries) GetUnreadByFeedID(ctx context.Context, feedID int64) ([]GetUnr
 }
 
 const setArticleAsRead = `-- name: SetArticleAsRead :exec
- UPDATE articles SET read = 1 WHERE id = ?
+UPDATE articles SET read = 1 WHERE id = ?
 `
 
 func (q *Queries) SetArticleAsRead(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, setArticleAsRead, id)
+	return err
+}
+
+const setArticleStarredValue = `-- name: SetArticleStarredValue :exec
+UPDATE articles SET starred = ? WHERE id = ?
+`
+
+type SetArticleStarredValueParams struct {
+	Starred int64
+	ID      int64
+}
+
+func (q *Queries) SetArticleStarredValue(ctx context.Context, arg SetArticleStarredValueParams) error {
+	_, err := q.db.ExecContext(ctx, setArticleStarredValue, arg.Starred, arg.ID)
 	return err
 }

@@ -101,7 +101,8 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 			})
 
-			article.Get("/set-read", func(w http.ResponseWriter, r *http.Request) {
+			// needs to be a put
+			article.Put("/set-read", func(w http.ResponseWriter, r *http.Request) {
 
 				feedID, ok := requireIDParam(w, r, "feedID")
 				if !ok {
@@ -127,6 +128,45 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 				sse.PatchElementTempl(
 					ToReadTemplate(vm.Articles),
 				)
+			})
+
+			article.Put("/set-star/{starredValue}", func(w http.ResponseWriter, r *http.Request) {
+
+				ctx := r.Context()
+
+				feedID, ok := requireIDParam(w, r, "feedID")
+				if !ok {
+					return
+				}
+				articleID, ok := requireIDParam(w, r, "articleID")
+				if !ok {
+					return
+				}
+
+				starredValue := r.PathValue("starredValue")
+				var flippedValue int64 = 0
+
+				if starredValue != "0" && starredValue != "1" {
+					logAndError(w, r, fmt.Sprintf("incorrect starred value: %v, needs to be 0 or 1", starredValue))
+					return
+				}
+
+				if starredValue == "0" {
+					flippedValue = 1
+				}
+
+				err := queries.SetArticleStarredValue(ctx,
+					db.SetArticleStarredValueParams{
+						Starred: flippedValue,
+						ID:      articleID},
+				)
+				if err != nil {
+					logAndError(w, r, err.Error())
+					return
+				}
+
+				sse := datastar.NewSSE(w, r)
+				sse.PatchElementTempl(StarredTemplate(feedID, articleID, flippedValue))
 			})
 
 		})

@@ -186,6 +186,7 @@ func getArticleData(articleId int64, feedId int64, queries *db.Queries, ctx cont
 	vm.Link = fd.Link
 	vm.ArticleId = fd.ID
 	vm.FeedId = fd.FeedID
+	vm.IsStarred = fd.Starred
 
 	return vm, nil
 
@@ -464,6 +465,7 @@ type ArticleVM struct {
 	PageContent string
 	ArticleId   int64
 	IsCache     bool
+	IsStarred   int64
 }
 
 type UpdateParms struct {

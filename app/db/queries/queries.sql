@@ -44,6 +44,7 @@ SELECT
 	a.id,
 	a.link, 
 	a.title,
+	a.starred,
 	f.id as feed_id, 
 	f.title as feed_title,
 	f.url as feed_url,
@@ -99,4 +100,7 @@ INSERT OR IGNORE INTO articles (
  );
 
 -- name: SetArticleAsRead :exec
- UPDATE articles SET read = 1 WHERE id = ?;
+UPDATE articles SET read = 1 WHERE id = ?;
+
+-- name: SetArticleStarredValue :exec
+UPDATE articles SET starred = ? WHERE id = ?;
