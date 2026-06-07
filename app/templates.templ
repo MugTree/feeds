@@ -50,17 +50,17 @@ templ PageInnerTemplate() {
 	</div>
 }
 
-templ HomePageTemplate(vm HomePageTemplateData) {
+templ HomePageTemplate(articles []Article) {
 	@PageInnerTemplate() {
 		<h2>Latest 5 articles</h2>
-		@ToReadTemplate(vm.Articles)
+		@ToReadTemplate(articles)
 	}
 }
 
-templ FeedPageTemplate(vm FeedPageTemplateData) {
+templ FeedPageTemplate(pageTitle string, articles []Article) {
 	@PageInnerTemplate() {
-		<h2>{ vm.PageTitle }</h2>
-		@ToReadTemplate(vm.Articles)
+		<h2>{ pageTitle }</h2>
+		@ToReadTemplate(articles)
 	}
 }
 

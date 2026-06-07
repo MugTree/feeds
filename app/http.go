@@ -31,27 +31,23 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 
 			ctx := r.Context()
-			td := HomePageTemplateData{}
 
 			articles, err := getHomepageArticles(queries, ctx)
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
 			}
-			td.Articles = articles
 
 			sidebar, err := getSidebarData(queries, ctx)
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
 			}
-			td.SidebarData = sidebar
 
-			td.PageTitle = "Home"
 			PageTemplate(
 				"Homepage",
-				SideBarTemplate(td.SidebarData, r),
-				HomePageTemplate(td)).Render(ctx,
+				SideBarTemplate(sidebar, r),
+				HomePageTemplate(articles)).Render(ctx,
 				w,
 			)
 		})
@@ -64,27 +60,24 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 			}
 
 			ctx := r.Context()
-			td := FeedPageTemplateData{FeedId: feedID}
-
-			articles, err := getUnreadArticles(queries, feedID, ctx)
+			articles, err := getUnreadArticlesByFeed(queries, feedID, ctx)
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
 			}
-			td.Articles = articles
-			td.PageTitle = articles[0].FeedTitle
 
-			sidebarData, err := getSidebarData(queries, ctx)
+			sidebar, err := getSidebarData(queries, ctx)
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
 			}
-			td.SidebarData = sidebarData
+
+			pageTitle := articles[0].FeedTitle
 
 			PageTemplate(
-				td.PageTitle,
-				SideBarTemplate(td.SidebarData, r),
-				FeedPageTemplate(td)).Render(
+				pageTitle,
+				SideBarTemplate(sidebar, r),
+				FeedPageTemplate(pageTitle, articles)).Render(
 				r.Context(),
 				w,
 			)
@@ -104,20 +97,22 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 				}
 
 				ctx := r.Context()
-				td := ArticlePageTemplateData{}
 
-				af, err := getArticleAndFeed(queries, articleID, ctx)
+				af, err := getArticlePlusRelatedFeed(queries, articleID, ctx)
 				if err != nil {
 					logAndError(w, r, err.Error())
 					return
 				}
-				td.PageTitle = af.ArticleTitle
-				td.FeedTitle = af.FeedTitle
-				td.FeedUrl = af.FeedUrl
-				td.Link = af.ArticleLink
-				td.ArticleId = af.ArticleID
-				td.FeedId = af.FeedID
-				td.IsStarred = af.ArticleStarred
+
+				td := ArticlePageTemplateData{
+					PageTitle: af.ArticleTitle,
+					FeedTitle: af.FeedTitle,
+					FeedUrl:   af.FeedUrl,
+					Link:      af.ArticleLink,
+					ArticleId: af.ArticleID,
+					FeedId:    af.FeedID,
+					IsStarred: af.ArticleStarred,
+				}
 
 				hasContent, cachedContent, err := hasCachedContent(queries, af.ArticleLink, ctx)
 				if err != nil {
@@ -142,18 +137,18 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 					td.PageContent = newContent
 				}
 
-				sidebar, err := getSidebarData(queries, ctx)
-				if err != nil {
-					logAndError(w, r, err.Error())
-					return
-				}
-
-				unreadArticles, err := getUnreadArticles(queries, feedID, ctx)
+				unreadArticles, err := getUnreadArticlesByFeed(queries, feedID, ctx)
 				if err != nil {
 					logAndError(w, r, err.Error())
 					return
 				}
 				td.Articles = unreadArticles
+
+				sidebar, err := getSidebarData(queries, ctx)
+				if err != nil {
+					logAndError(w, r, err.Error())
+					return
+				}
 
 				PageTemplate(
 					td.PageTitle,
@@ -189,7 +184,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 					return
 				}
 
-				unreadArticles, err := getUnreadArticles(queries, feedID, ctx)
+				unreadArticles, err := getUnreadArticlesByFeed(queries, feedID, ctx)
 				if err != nil {
 					logAndError(w, r, err.Error())
 					return

@@ -111,7 +111,7 @@ func getHomepageArticles(queries *db.Queries, ctx context.Context) ([]Article, e
 
 }
 
-func getUnreadArticles(queries *db.Queries, feedID int64, ctx context.Context) ([]Article, error) {
+func getUnreadArticlesByFeed(queries *db.Queries, feedID int64, ctx context.Context) ([]Article, error) {
 
 	articles := []Article{}
 	unreadArticles, err := queries.GetUnreadByFeedID(ctx, feedID)
@@ -137,16 +137,16 @@ func getUnreadArticles(queries *db.Queries, feedID int64, ctx context.Context) (
 	return articles, nil
 }
 
-func getArticleAndFeed(queries *db.Queries, articleID int64, ctx context.Context) (ArticleAndFeed, error) {
+func getArticlePlusRelatedFeed(queries *db.Queries, articleID int64, ctx context.Context) (ArticlePlusFeed, error) {
 
-	afd := ArticleAndFeed{}
+	afd := ArticlePlusFeed{}
 
 	row, err := queries.GetFeedDataForArticleByArticleID(ctx, articleID)
 	if err != nil {
 		return afd, err
 	}
 
-	afd = ArticleAndFeed{
+	afd = ArticlePlusFeed{
 		ArticleID:              row.ID,
 		ArticleLink:            row.Link,
 		ArticleTitle:           row.Title,
@@ -176,7 +176,7 @@ func hasCachedContent(queries *db.Queries, articleLink string, ctx context.Conte
 
 }
 
-func getArticleFromWeb(queries *db.Queries, afd ArticleAndFeed, ctx context.Context) (string, error) {
+func getArticleFromWeb(queries *db.Queries, afd ArticlePlusFeed, ctx context.Context) (string, error) {
 
 	pageHtmlContent := ""
 
@@ -205,7 +205,7 @@ func getArticleFromWeb(queries *db.Queries, afd ArticleAndFeed, ctx context.Cont
 	c := colly.NewCollector()
 
 	c.OnHTML(ep.Container, func(h *colly.HTMLElement) {
-		pageHtmlContent = ExtractHTMLRangeFlat(h.DOM, ep.ClipStartPoint, ep.ClipEndPoint)
+		pageHtmlContent = extractHTMLRangeFlat(h.DOM, ep.ClipStartPoint, ep.ClipEndPoint)
 	})
 
 	if err := c.Visit(afd.ArticleLink); err != nil {
@@ -226,7 +226,7 @@ func getArticleFromWeb(queries *db.Queries, afd ArticleAndFeed, ctx context.Cont
 	return pageHtmlContent, nil
 }
 
-func ExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelector string) string {
+func extractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelector string) string {
 
 	var chunks []string
 	started := startSelector == ""
@@ -402,7 +402,7 @@ type Article struct {
 	FeedTitle string `json:"feed_title" db:"feed_title"`
 }
 
-type ArticleAndFeed struct {
+type ArticlePlusFeed struct {
 	ArticleID              int64
 	ArticleLink            string
 	ArticleTitle           string
@@ -459,23 +459,9 @@ func int64ToBool(i int64) bool {
 	return true
 }
 
-type HomePageTemplateData struct {
-	PageTitle   string
-	SidebarData []SidebarLink
-	Articles    []Article
-}
-
-type FeedPageTemplateData struct {
-	FeedId      int64
-	PageTitle   string
-	SidebarData []SidebarLink
-	Articles    []Article
-}
-
 type ArticlePageTemplateData struct {
 	FeedId      int64
 	PageTitle   string
-	SidebarData []SidebarLink
 	Articles    []Article
 	FeedTitle   string
 	FeedUrl     string
