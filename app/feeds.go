@@ -15,6 +15,36 @@ import (
 	"github.com/mugtree/feeds/app/db"
 )
 
+func getAllFeeds(queries *db.Queries, ctx context.Context) ([]Feed, error) {
+
+	feeds := []Feed{}
+	dbFeeds, err := queries.GetFeeds(ctx)
+	if err != nil {
+		return feeds, err
+	}
+
+	for _, v := range dbFeeds {
+		feeds = append(feeds, mapFeedFromDbFeed(v))
+	}
+
+	return feeds, nil
+
+}
+
+func getFeed(queries *db.Queries, feedID int64, ctx context.Context) (Feed, error) {
+
+	feed := Feed{}
+	f, err := queries.GetFeedByID(ctx, feedID)
+	if err != nil {
+		return feed, err
+	}
+
+	feed = mapFeedFromDbFeed(f)
+
+	return feed, nil
+
+}
+
 func getSidebarData(queries *db.Queries, ctx context.Context) ([]SidebarLink, error) {
 
 	items := []SidebarLink{}
@@ -23,11 +53,35 @@ func getSidebarData(queries *db.Queries, ctx context.Context) ([]SidebarLink, er
 		return items, err
 	}
 
-	for _, v := range data {
-		items = append(items, mapSidebarLinkFromSidebarDataRow(v))
+	for _, row := range data {
+		items = append(items, SidebarLink{
+			Name:   row.FeedTitle,
+			Link:   fmt.Sprintf("/feed/%v", row.FeedID),
+			Unread: (row.TotalArticles - row.ArticlesRead),
+		})
 	}
 
 	return items, nil
+}
+
+func setStarredValue(queries *db.Queries, starredValue string, articleID int64, ctx context.Context) (int64, error) {
+
+	var flippedValue int64 = 0
+
+	if starredValue == "0" {
+		flippedValue = 1
+	}
+
+	err := queries.SetArticleStarredValue(ctx,
+		db.SetArticleStarredValueParams{
+			Starred: flippedValue,
+			ID:      articleID},
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	return flippedValue, nil
 }
 
 func getHomepageArticles(queries *db.Queries, ctx context.Context) ([]Article, error) {
@@ -38,8 +92,19 @@ func getHomepageArticles(queries *db.Queries, ctx context.Context) ([]Article, e
 		return articles, err
 	}
 
-	for _, v := range latest5Articles {
-		articles = append(articles, mapArticleFromLatest5ArticlesRow(v))
+	for _, row := range latest5Articles {
+		articles = append(articles, Article{
+			Id:              row.ID,
+			FeedId:          row.FeedID,
+			Title:           row.Title,
+			Link:            row.Link,
+			Published:       row.Published.String(),
+			PublishedParsed: row.Published.String(),
+			Summary:         row.Summary,
+			Read:            int64ToBool(row.Read),
+			Starred:         int64ToBool(row.Starred),
+			FeedTitle:       row.FeedTitle,
+		})
 	}
 
 	return articles, err
@@ -54,8 +119,19 @@ func getUnreadArticles(queries *db.Queries, feedID int64, ctx context.Context) (
 		return articles, err
 	}
 
-	for _, v := range unreadArticles {
-		articles = append(articles, mapArticleFromUnreadByFeedIDRow(v))
+	for _, row := range unreadArticles {
+		articles = append(articles, Article{
+			Id:              row.ID,
+			FeedId:          row.FeedID,
+			Title:           row.Title,
+			Link:            row.Link,
+			Published:       row.Published.String(),
+			PublishedParsed: row.Published.String(),
+			Summary:         row.Summary,
+			Read:            int64ToBool(row.Read),
+			Starred:         int64ToBool(row.Starred),
+			FeedTitle:       row.FeedTitle,
+		})
 	}
 
 	return articles, nil
@@ -65,12 +141,23 @@ func getArticleAndFeed(queries *db.Queries, articleID int64, ctx context.Context
 
 	afd := ArticleAndFeed{}
 
-	fd, err := queries.GetFeedDataForArticleByArticleID(ctx, articleID)
+	row, err := queries.GetFeedDataForArticleByArticleID(ctx, articleID)
 	if err != nil {
 		return afd, err
 	}
 
-	afd = mapArticleWithFeedDataFromArticleByArticleIDRow(fd)
+	afd = ArticleAndFeed{
+		ArticleID:              row.ID,
+		ArticleLink:            row.Link,
+		ArticleTitle:           row.Title,
+		ArticleStarred:         row.Starred,
+		FeedID:                 row.FeedID,
+		FeedTitle:              row.FeedTitle,
+		CssSelContainer:        row.CssSelContainer,
+		CssSelStart:            row.CssSelStart,
+		CssSelStop:             row.CssSelStop,
+		HtmlExtractionStrategy: row.HtmlExtractionStrategy,
+	}
 	return afd, nil
 
 }
@@ -139,110 +226,6 @@ func getArticleFromWeb(queries *db.Queries, afd ArticleAndFeed, ctx context.Cont
 	return pageHtmlContent, nil
 }
 
-// func getFeedIndexData(feedId int64, queries *db.Queries, ctx context.Context) (FeedPageVM, error) {
-
-// func getArticleData(articleId int64, feedId int64, queries *db.Queries, ctx context.Context) (ArticlePageVM, error) {
-
-// 	vm := ArticlePageVM{}
-
-// 	afd, err := getArticleWithFeedData(queries, articleId, ctx)
-// 	if err != nil {
-// 		return vm, err
-// 	}
-
-// 	var pageHtmlContent = ""
-
-// 	lc, err := queries.GetCachedByLink(ctx, afd.ArticleLink)
-// 	isCached := false
-
-// 	if err == nil {
-// 		isCached = true
-// 		pageHtmlContent = lc.ArticleContent.String
-// 	} else {
-
-// 		if err == sql.ErrNoRows {
-
-// 			type extractionParams struct {
-// 				Container      string
-// 				ClipStartPoint string
-// 				ClipEndPoint   string
-// 			}
-
-// 			ep := extractionParams{}
-// 			ep.Container = afd.CssSelContainer.String
-
-// 			switch afd.HtmlExtractionStrategy.String {
-// 			case "no-clip":
-// 				break
-// 			case "clip-start":
-// 				ep.ClipStartPoint = afd.CssSelStart.String
-// 			case "clip-end":
-// 				ep.ClipEndPoint = afd.CssSelStop.String
-// 			case "clip-between":
-// 				ep.ClipStartPoint = afd.CssSelStart.String
-// 				ep.ClipEndPoint = afd.CssSelStop.String
-// 			}
-
-// 			//TODO - need to add some timeout values here really
-// 			c := colly.NewCollector()
-
-// 			c.OnHTML(ep.Container, func(h *colly.HTMLElement) {
-// 				pageHtmlContent = ExtractHTMLRangeFlat(h.DOM, ep.ClipStartPoint, ep.ClipEndPoint)
-// 			})
-
-// 			if err := c.Visit(afd.ArticleLink); err != nil {
-// 				return vm, fmt.Errorf("error using colly to visit page: %v - %v", afd.ArticleLink, err)
-// 			}
-
-// 			insertErr := queries.AddToArticleCache(ctx,
-// 				db.AddToArticleCacheParams{
-// 					Link:           afd.ArticleLink,
-// 					ArticleContent: sql.NullString{String: pageHtmlContent, Valid: true},
-// 				},
-// 			)
-
-// 			if insertErr != nil {
-// 				return vm, fmt.Errorf("error adding to article cache: %v", insertErr)
-// 			}
-// 		} else {
-// 			return vm, fmt.Errorf("error querying article cache: %v", err)
-// 		}
-// 	}
-
-// 	// get other page parts
-// 	// --------------------------------------------------------
-// 	sbd, err := getSidebarData(queries, ctx)
-// 	if err != nil {
-// 		return vm, fmt.Errorf("error getting side data: %v", err)
-// 	}
-
-// 	unread, err := queries.GetUnreadByFeedID(ctx, feedId)
-// 	if err != nil {
-// 		return vm, err
-// 	}
-
-// 	unreadArticles := []Article{}
-
-// 	for _, v := range unread {
-// 		unreadArticles = append(unreadArticles, mapArticleFromUnreadByFeedIDRow(v))
-// 	}
-
-// 	vm.IsCache = isCached
-// 	vm.PageContent = pageHtmlContent
-// 	vm.SidebarData = sbd
-// 	vm.PageTitle = afd.ArticleTitle
-// 	vm.FeedTitle = afd.FeedTitle
-// 	vm.FeedUrl = afd.FeedUrl
-// 	vm.Articles = unreadArticles
-// 	vm.Link = afd.ArticleLink
-// 	vm.ArticleId = afd.ArticleID
-// 	vm.FeedId = afd.FeedID
-// 	vm.IsStarred = afd.ArticleStarred
-
-// 	return vm, nil
-
-// }
-
 func ExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelector string) string {
 
 	var chunks []string
@@ -277,7 +260,7 @@ func ExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelec
 	return strings.Join(chunks, "")
 }
 
-func GetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
+func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
 	// get all the feed urls, loop through them and pull all the items from the feed
 	// for each item in the feed run an insert of ignore statement
@@ -374,37 +357,6 @@ func GetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
 }
 
-// sqlc mappings to domain
-func mapArticleFromLatest5ArticlesRow(row db.GetLatest5ArticlesRow) Article {
-	return Article{
-		Id:              row.ID,
-		FeedId:          row.FeedID,
-		Title:           row.Title,
-		Link:            row.Link,
-		Published:       row.Published.String(),
-		PublishedParsed: row.Published.String(),
-		Summary:         row.Summary,
-		Read:            int64ToBool(row.Read),
-		Starred:         int64ToBool(row.Starred),
-		FeedTitle:       row.FeedTitle,
-	}
-}
-
-func mapArticleFromUnreadByFeedIDRow(row db.GetUnreadByFeedIDRow) Article {
-	return Article{
-		Id:              row.ID,
-		FeedId:          row.FeedID,
-		Title:           row.Title,
-		Link:            row.Link,
-		Published:       row.Published.String(),
-		PublishedParsed: row.Published.String(),
-		Summary:         row.Summary,
-		Read:            int64ToBool(row.Read),
-		Starred:         int64ToBool(row.Starred),
-		FeedTitle:       row.FeedTitle,
-	}
-}
-
 func mapFeedFromDbFeed(row db.Feed) Feed {
 	return Feed{
 		Id:                     row.ID,
@@ -415,29 +367,6 @@ func mapFeedFromDbFeed(row db.Feed) Feed {
 		CSSSelectorStart:       row.CssSelStart.String,
 		CSSSelectorStop:        row.CssSelStop.String,
 		HTMLExtractionStrategy: row.HtmlExtractionStrategy.String,
-	}
-}
-
-func mapArticleWithFeedDataFromArticleByArticleIDRow(row db.GetFeedDataForArticleByArticleIDRow) ArticleAndFeed {
-	return ArticleAndFeed{
-		ArticleID:              row.ID,
-		ArticleLink:            row.Link,
-		ArticleTitle:           row.Title,
-		ArticleStarred:         row.Starred,
-		FeedID:                 row.FeedID,
-		FeedTitle:              row.FeedTitle,
-		CssSelContainer:        row.CssSelContainer,
-		CssSelStart:            row.CssSelStart,
-		CssSelStop:             row.CssSelStop,
-		HtmlExtractionStrategy: row.HtmlExtractionStrategy,
-	}
-}
-
-func mapSidebarLinkFromSidebarDataRow(row db.GetSidebarDataRow) SidebarLink {
-	return SidebarLink{
-		Name:   row.FeedTitle,
-		Link:   fmt.Sprintf("/feed/%v", row.FeedID),
-		Unread: (row.TotalArticles - row.ArticlesRead),
 	}
 }
 
@@ -530,20 +459,20 @@ func int64ToBool(i int64) bool {
 	return true
 }
 
-type HomepagePageVM struct {
+type HomePageTemplateData struct {
 	PageTitle   string
 	SidebarData []SidebarLink
 	Articles    []Article
 }
 
-type FeedPageVM struct {
+type FeedPageTemplateData struct {
 	FeedId      int64
 	PageTitle   string
 	SidebarData []SidebarLink
 	Articles    []Article
 }
 
-type ArticlePageVM struct {
+type ArticlePageTemplateData struct {
 	FeedId      int64
 	PageTitle   string
 	SidebarData []SidebarLink
@@ -562,8 +491,8 @@ type UpdateParms struct {
 	PageType string
 }
 
-type feedFormVm struct {
+type FeedFormTemplateData struct {
 	ButtonText string
 	UrlAction  string
-	Feed
+	Feed       Feed
 }

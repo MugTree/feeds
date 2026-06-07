@@ -50,21 +50,21 @@ templ PageInnerTemplate() {
 	</div>
 }
 
-templ HomePageTemplate(vm HomepagePageVM) {
+templ HomePageTemplate(vm HomePageTemplateData) {
 	@PageInnerTemplate() {
 		<h2>Latest 5 articles</h2>
 		@ToReadTemplate(vm.Articles)
 	}
 }
 
-templ FeedPageTemplate(vm FeedPageVM) {
+templ FeedPageTemplate(vm FeedPageTemplateData) {
 	@PageInnerTemplate() {
 		<h2>{ vm.PageTitle }</h2>
 		@ToReadTemplate(vm.Articles)
 	}
 }
 
-templ ArticlePageTemplate(vm ArticlePageVM) {
+templ ArticlePageTemplate(vm ArticlePageTemplateData) {
 	@PageInnerTemplate() {
 		<ul>
 			<li>{ vm.FeedTitle }</li>
@@ -93,27 +93,27 @@ templ FeedAdminListTemplate(feeds []Feed) {
 	</ul>
 }
 
-templ FeedAdminFormTemplate(vm feedFormVm) {
+templ FeedAdminFormTemplate(vm FeedFormTemplateData) {
 	@FeedFormTextInputTemplate("Title", "FeedName", "Feed Name", "")
 	<div class="grid gap-2">
 		<label for="FeedName">Title</label>
-		<input id="FeedName" placeholder="Feed name" data-bind-feed-name type="text" value={ vm.Title }/>
+		<input id="FeedName" placeholder="Feed name" data-bind-feed-name type="text" value={ vm.Feed.Title }/>
 	</div>
 	<div class="grid gap-2">
 		<label for="FeedUrl">Url</label>
-		<input id="FeedUrl" placeholder="Feed url" data-bind-feed-url type="text" value={ vm.Url }/>
+		<input id="FeedUrl" placeholder="Feed url" data-bind-feed-url type="text" value={ vm.Feed.Url }/>
 	</div>
 	<div class="grid gap-2">
 		<label for="CssContainer">Css Selector Container</label>
-		<input id="CssContainer" placeholder="Css container" data-bind-css-sel-container type="text" value={ vm.CSSSelectorContainer }/>
+		<input id="CssContainer" placeholder="Css container" data-bind-css-sel-container type="text" value={ vm.Feed.CSSSelectorContainer }/>
 	</div>
 	<div class="grid gap-2">
 		<label for="CssStart">Css Selector Start</label>
-		<input id="CssStart" placeholder="Css start" data-bind-css-sel-start type="text" value={ vm.CSSSelectorStart }/>
+		<input id="CssStart" placeholder="Css start" data-bind-css-sel-start type="text" value={ vm.Feed.CSSSelectorStart }/>
 	</div>
 	<div class="grid gap-2">
 		<label for="CssEnd">Css Selector Stop</label>
-		<input id="CssEnd" placeholder="Css end" data-bind-css-sel-end type="text" value={ vm.CSSSelectorStop }/>
+		<input id="CssEnd" placeholder="Css end" data-bind-css-sel-end type="text" value={ vm.Feed.CSSSelectorStop }/>
 	</div>
 	<div>
 		<button data-on-click={ datastar.PostSSE("%v", vm.UrlAction) }>{ vm.ButtonText }</button>
