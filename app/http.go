@@ -30,32 +30,56 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 
-			vm, err := getHomePageData(queries, r.Context())
+			ctx := r.Context()
+			vm := HomepagePageVM{}
+
+			articles, err := getHomepageArticles(queries, ctx)
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
 			}
+			vm.Articles = articles
 
+			sidebar, err := getSidebarData(queries, ctx)
+			if err != nil {
+				logAndError(w, r, err.Error())
+				return
+			}
+			vm.SidebarData = sidebar
+
+			vm.PageTitle = "Home"
 			PageTemplate(
 				"Homepage",
 				SideBarTemplate(vm.SidebarData, r),
-				HomePageTemplate(vm)).Render(r.Context(),
+				HomePageTemplate(vm)).Render(ctx,
 				w,
 			)
 		})
 
 		r.Get("/feed/{feedID}", func(w http.ResponseWriter, r *http.Request) {
 
+			ctx := r.Context()
 			feedID, ok := requireIDParam(w, r, "feedID")
 			if !ok {
 				return
 			}
 
-			vm, err := getFeedIndexData(feedID, queries, r.Context())
+			vm := FeedPageVM{FeedId: feedID}
+
+			articles, err := getUnreadArticles(queries, feedID, ctx)
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
 			}
+			vm.Articles = articles
+			vm.PageTitle = articles[0].FeedTitle
+
+			sidebarData, err := getSidebarData(queries, ctx)
+			if err != nil {
+				logAndError(w, r, err.Error())
+				return
+			}
+			vm.SidebarData = sidebarData
 
 			PageTemplate(
 				vm.PageTitle,
@@ -79,16 +103,57 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 					return
 				}
 
-				vm, err := getArticleData(articleID, feedID, queries, r.Context())
-				if err != nil {
-					if errors.Is(err, context.DeadlineExceeded) {
-						w.WriteHeader(504)
-						w.Write([]byte("taking too long to run service"))
+				ctx := r.Context()
+				vm := ArticlePageVM{}
 
-					} else {
+				sidebar, err := getSidebarData(queries, ctx)
+				if err != nil {
+					logAndError(w, r, err.Error())
+					return
+				}
+				vm.SidebarData = sidebar
+
+				unreadArticles, err := getUnreadArticles(queries, feedID, ctx)
+				if err != nil {
+					logAndError(w, r, err.Error())
+					return
+				}
+				vm.Articles = unreadArticles
+
+				afd, err := getArticleAndFeed(queries, articleID, ctx)
+				if err != nil {
+					logAndError(w, r, err.Error())
+					return
+				}
+				vm.PageTitle = afd.ArticleTitle
+				vm.FeedTitle = afd.FeedTitle
+				vm.FeedUrl = afd.FeedUrl
+				vm.Link = afd.ArticleLink
+				vm.ArticleId = afd.ArticleID
+				vm.FeedId = afd.FeedID
+				vm.IsStarred = afd.ArticleStarred
+
+				hasContent, cachedContent, err := hasCachedContent(queries, afd.ArticleLink, ctx)
+				if err != nil {
+					logAndError(w, r, err.Error())
+					return
+				}
+
+				if hasContent {
+					vm.PageContent = cachedContent
+					vm.IsCache = true
+				} else {
+
+					newContent, err := getArticleFromWeb(queries, afd, ctx)
+					if err != nil {
+						if errors.Is(err, context.DeadlineExceeded) {
+							logAndError(w, r, "taking too long to run service", 504)
+							return
+						}
 						logAndError(w, r, err.Error())
 						return
 					}
+					vm.PageContent = newContent
 				}
 
 				PageTemplate(
@@ -98,10 +163,8 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 					r.Context(),
 					w,
 				)
-
 			})
 
-			// needs to be a put
 			article.Put("/set-read", func(w http.ResponseWriter, r *http.Request) {
 
 				feedID, ok := requireIDParam(w, r, "feedID")
@@ -113,20 +176,33 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 					return
 				}
 
-				err := queries.SetArticleAsRead(r.Context(), articleID)
+				ctx := r.Context()
+
+				err := queries.SetArticleAsRead(ctx, articleID)
 				if err != nil {
 					logAndError(w, r, err.Error())
 					return
 				}
 
-				vm, err := getArticleData(articleID, feedID, queries, r.Context())
+				sidebar, err := getSidebarData(queries, ctx)
+				if err != nil {
+					logAndError(w, r, err.Error())
+					return
+				}
+
+				unreadArticles, err := getUnreadArticles(queries, feedID, ctx)
+				if err != nil {
+					logAndError(w, r, err.Error())
+					return
+				}
+
 				sse := datastar.NewSSE(w, r)
 				sse.PatchElementTempl(
-					SideBarTemplate(vm.SidebarData, r),
+					SideBarTemplate(sidebar, r),
 				)
 
 				sse.PatchElementTempl(
-					ToReadTemplate(vm.Articles),
+					ToReadTemplate(unreadArticles),
 				)
 			})
 

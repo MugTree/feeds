@@ -30,167 +30,218 @@ func getSidebarData(queries *db.Queries, ctx context.Context) ([]SidebarLink, er
 	return items, nil
 }
 
-func getHomePageData(queries *db.Queries, ctx context.Context) (PageVM, error) {
+func getHomepageArticles(queries *db.Queries, ctx context.Context) ([]Article, error) {
 
-	vm := PageVM{}
-
+	articles := []Article{}
 	latest5Articles, err := queries.GetLatest5Articles(ctx)
 	if err != nil {
-		return vm, err
+		return articles, err
 	}
 
-	articles := []Article{}
 	for _, v := range latest5Articles {
 		articles = append(articles, mapArticleFromLatest5ArticlesRow(v))
-
 	}
 
-	sidebar, err := getSidebarData(queries, ctx)
-	if err != nil {
-		return vm, err
-	}
+	return articles, err
 
-	vm.Articles = articles
-	vm.SidebarData = sidebar
-	vm.PageTitle = "Home"
-	vm.FeedId = 0
-
-	return vm, nil
 }
 
-func getFeedIndexData(feedId int64, queries *db.Queries, ctx context.Context) (PageVM, error) {
-
-	vm := PageVM{}
-
-	feed, err := queries.GetFeedByID(ctx, feedId)
-	if err != nil {
-		return vm, err
-	}
-
-	unreadArticles, err := queries.GetUnreadByFeedID(ctx, feedId)
-	if err != nil {
-		return vm, err
-	}
+func getUnreadArticles(queries *db.Queries, feedID int64, ctx context.Context) ([]Article, error) {
 
 	articles := []Article{}
+	unreadArticles, err := queries.GetUnreadByFeedID(ctx, feedID)
+	if err != nil {
+		return articles, err
+	}
 
 	for _, v := range unreadArticles {
 		articles = append(articles, mapArticleFromUnreadByFeedIDRow(v))
 	}
 
-	sidebarData, err := getSidebarData(queries, ctx)
-	if err != nil {
-		return vm, err
-	}
-
-	vm.Articles = articles
-	vm.SidebarData = sidebarData
-	vm.PageTitle = feed.Title
-	vm.FeedId = feed.ID
-	return vm, nil
+	return articles, nil
 }
 
-func getArticleData(articleId int64, feedId int64, queries *db.Queries, ctx context.Context) (ArticleVM, error) {
+func getArticleAndFeed(queries *db.Queries, articleID int64, ctx context.Context) (ArticleAndFeed, error) {
 
-	vm := ArticleVM{}
+	afd := ArticleAndFeed{}
 
-	fd, err := queries.GetFeedDataForArticleByArticleID(ctx, articleId)
+	fd, err := queries.GetFeedDataForArticleByArticleID(ctx, articleID)
 	if err != nil {
-		return vm, err
+		return afd, err
 	}
 
-	var pageHtmlContent = ""
+	afd = mapArticleWithFeedDataFromArticleByArticleIDRow(fd)
+	return afd, nil
 
-	lc, err := queries.GetCachedByLink(ctx, fd.Link)
-	isCached := false
+}
 
+func hasCachedContent(queries *db.Queries, articleLink string, ctx context.Context) (bool, string, error) {
+
+	lc, err := queries.GetCachedByLink(ctx, articleLink)
 	if err == nil {
-		isCached = true
-		pageHtmlContent = lc.ArticleContent.String
-	} else {
-
-		if err == sql.ErrNoRows {
-
-			type extractionParams struct {
-				Container      string
-				ClipStartPoint string
-				ClipEndPoint   string
-			}
-
-			ep := extractionParams{}
-			ep.Container = fd.CssSelContainer.String
-
-			switch fd.HtmlExtractionStrategy.String {
-			case "no-clip":
-				break
-			case "clip-start":
-				ep.ClipStartPoint = fd.CssSelStart.String
-			case "clip-end":
-				ep.ClipEndPoint = fd.CssSelStop.String
-			case "clip-between":
-				ep.ClipStartPoint = fd.CssSelStart.String
-				ep.ClipEndPoint = fd.CssSelStop.String
-			}
-
-			//TODO - need to add some timeout values here really
-			c := colly.NewCollector()
-
-			c.OnHTML(ep.Container, func(h *colly.HTMLElement) {
-				pageHtmlContent = ExtractHTMLRangeFlat(h.DOM, ep.ClipStartPoint, ep.ClipEndPoint)
-			})
-
-			if err := c.Visit(fd.Link); err != nil {
-				return vm, fmt.Errorf("error using colly to visit page: %v - %v", fd.Link, err)
-			}
-
-			insertErr := queries.AddToArticleCache(ctx,
-				db.AddToArticleCacheParams{
-					Link:           fd.Link,
-					ArticleContent: sql.NullString{String: pageHtmlContent, Valid: true},
-				},
-			)
-
-			if insertErr != nil {
-				return vm, fmt.Errorf("error adding to article cache: %v", insertErr)
-			}
-		} else {
-			return vm, fmt.Errorf("error querying article cache: %v", err)
-		}
+		return true, lc.ArticleContent.String, nil
+	}
+	if err == sql.ErrNoRows {
+		return false, "", nil
 	}
 
-	// get other page parts
-	// --------------------------------------------------------
-	sbd, err := getSidebarData(queries, ctx)
-	if err != nil {
-		return vm, fmt.Errorf("error getting side data: %v", err)
-	}
-
-	unread, err := queries.GetUnreadByFeedID(ctx, feedId)
-	if err != nil {
-		return vm, err
-	}
-
-	unreadArticles := []Article{}
-
-	for _, v := range unread {
-		unreadArticles = append(unreadArticles, mapArticleFromUnreadByFeedIDRow(v))
-	}
-
-	vm.IsCache = isCached
-	vm.PageContent = pageHtmlContent
-	vm.SidebarData = sbd
-	vm.PageTitle = fd.Title
-	vm.FeedTitle = fd.FeedTitle
-	vm.FeedUrl = fd.FeedUrl
-	vm.Articles = unreadArticles
-	vm.Link = fd.Link
-	vm.ArticleId = fd.ID
-	vm.FeedId = fd.FeedID
-	vm.IsStarred = fd.Starred
-
-	return vm, nil
+	return false, "", err
 
 }
+
+func getArticleFromWeb(queries *db.Queries, afd ArticleAndFeed, ctx context.Context) (string, error) {
+
+	pageHtmlContent := ""
+
+	type extractionParams struct {
+		Container      string
+		ClipStartPoint string
+		ClipEndPoint   string
+	}
+
+	ep := extractionParams{}
+	ep.Container = afd.CssSelContainer.String
+
+	switch afd.HtmlExtractionStrategy.String {
+	case "no-clip":
+		break
+	case "clip-start":
+		ep.ClipStartPoint = afd.CssSelStart.String
+	case "clip-end":
+		ep.ClipEndPoint = afd.CssSelStop.String
+	case "clip-between":
+		ep.ClipStartPoint = afd.CssSelStart.String
+		ep.ClipEndPoint = afd.CssSelStop.String
+	}
+
+	//TODO - need to add some timeout values here really
+	c := colly.NewCollector()
+
+	c.OnHTML(ep.Container, func(h *colly.HTMLElement) {
+		pageHtmlContent = ExtractHTMLRangeFlat(h.DOM, ep.ClipStartPoint, ep.ClipEndPoint)
+	})
+
+	if err := c.Visit(afd.ArticleLink); err != nil {
+		return "", fmt.Errorf("error using colly to visit page: %v - %v", afd.ArticleLink, err)
+	}
+
+	insertErr := queries.AddToArticleCache(ctx,
+		db.AddToArticleCacheParams{
+			Link:           afd.ArticleLink,
+			ArticleContent: sql.NullString{String: pageHtmlContent, Valid: true},
+		},
+	)
+
+	if insertErr != nil {
+		return "", fmt.Errorf("error adding to article cache: %v", insertErr)
+	}
+
+	return pageHtmlContent, nil
+}
+
+// func getFeedIndexData(feedId int64, queries *db.Queries, ctx context.Context) (FeedPageVM, error) {
+
+// func getArticleData(articleId int64, feedId int64, queries *db.Queries, ctx context.Context) (ArticlePageVM, error) {
+
+// 	vm := ArticlePageVM{}
+
+// 	afd, err := getArticleWithFeedData(queries, articleId, ctx)
+// 	if err != nil {
+// 		return vm, err
+// 	}
+
+// 	var pageHtmlContent = ""
+
+// 	lc, err := queries.GetCachedByLink(ctx, afd.ArticleLink)
+// 	isCached := false
+
+// 	if err == nil {
+// 		isCached = true
+// 		pageHtmlContent = lc.ArticleContent.String
+// 	} else {
+
+// 		if err == sql.ErrNoRows {
+
+// 			type extractionParams struct {
+// 				Container      string
+// 				ClipStartPoint string
+// 				ClipEndPoint   string
+// 			}
+
+// 			ep := extractionParams{}
+// 			ep.Container = afd.CssSelContainer.String
+
+// 			switch afd.HtmlExtractionStrategy.String {
+// 			case "no-clip":
+// 				break
+// 			case "clip-start":
+// 				ep.ClipStartPoint = afd.CssSelStart.String
+// 			case "clip-end":
+// 				ep.ClipEndPoint = afd.CssSelStop.String
+// 			case "clip-between":
+// 				ep.ClipStartPoint = afd.CssSelStart.String
+// 				ep.ClipEndPoint = afd.CssSelStop.String
+// 			}
+
+// 			//TODO - need to add some timeout values here really
+// 			c := colly.NewCollector()
+
+// 			c.OnHTML(ep.Container, func(h *colly.HTMLElement) {
+// 				pageHtmlContent = ExtractHTMLRangeFlat(h.DOM, ep.ClipStartPoint, ep.ClipEndPoint)
+// 			})
+
+// 			if err := c.Visit(afd.ArticleLink); err != nil {
+// 				return vm, fmt.Errorf("error using colly to visit page: %v - %v", afd.ArticleLink, err)
+// 			}
+
+// 			insertErr := queries.AddToArticleCache(ctx,
+// 				db.AddToArticleCacheParams{
+// 					Link:           afd.ArticleLink,
+// 					ArticleContent: sql.NullString{String: pageHtmlContent, Valid: true},
+// 				},
+// 			)
+
+// 			if insertErr != nil {
+// 				return vm, fmt.Errorf("error adding to article cache: %v", insertErr)
+// 			}
+// 		} else {
+// 			return vm, fmt.Errorf("error querying article cache: %v", err)
+// 		}
+// 	}
+
+// 	// get other page parts
+// 	// --------------------------------------------------------
+// 	sbd, err := getSidebarData(queries, ctx)
+// 	if err != nil {
+// 		return vm, fmt.Errorf("error getting side data: %v", err)
+// 	}
+
+// 	unread, err := queries.GetUnreadByFeedID(ctx, feedId)
+// 	if err != nil {
+// 		return vm, err
+// 	}
+
+// 	unreadArticles := []Article{}
+
+// 	for _, v := range unread {
+// 		unreadArticles = append(unreadArticles, mapArticleFromUnreadByFeedIDRow(v))
+// 	}
+
+// 	vm.IsCache = isCached
+// 	vm.PageContent = pageHtmlContent
+// 	vm.SidebarData = sbd
+// 	vm.PageTitle = afd.ArticleTitle
+// 	vm.FeedTitle = afd.FeedTitle
+// 	vm.FeedUrl = afd.FeedUrl
+// 	vm.Articles = unreadArticles
+// 	vm.Link = afd.ArticleLink
+// 	vm.ArticleId = afd.ArticleID
+// 	vm.FeedId = afd.FeedID
+// 	vm.IsStarred = afd.ArticleStarred
+
+// 	return vm, nil
+
+// }
 
 func ExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelector string) string {
 
@@ -367,6 +418,21 @@ func mapFeedFromDbFeed(row db.Feed) Feed {
 	}
 }
 
+func mapArticleWithFeedDataFromArticleByArticleIDRow(row db.GetFeedDataForArticleByArticleIDRow) ArticleAndFeed {
+	return ArticleAndFeed{
+		ArticleID:              row.ID,
+		ArticleLink:            row.Link,
+		ArticleTitle:           row.Title,
+		ArticleStarred:         row.Starred,
+		FeedID:                 row.FeedID,
+		FeedTitle:              row.FeedTitle,
+		CssSelContainer:        row.CssSelContainer,
+		CssSelStart:            row.CssSelStart,
+		CssSelStop:             row.CssSelStop,
+		HtmlExtractionStrategy: row.HtmlExtractionStrategy,
+	}
+}
+
 func mapSidebarLinkFromSidebarDataRow(row db.GetSidebarDataRow) SidebarLink {
 	return SidebarLink{
 		Name:   row.FeedTitle,
@@ -405,6 +471,20 @@ type Article struct {
 	Read      bool   `json:"read" db:"read"`
 	Starred   bool   `json:"starred" db:"starred"`
 	FeedTitle string `json:"feed_title" db:"feed_title"`
+}
+
+type ArticleAndFeed struct {
+	ArticleID              int64
+	ArticleLink            string
+	ArticleTitle           string
+	ArticleStarred         int64
+	FeedID                 int64
+	FeedTitle              string
+	FeedUrl                string
+	CssSelContainer        sql.NullString
+	CssSelStart            sql.NullString
+	CssSelStop             sql.NullString
+	HtmlExtractionStrategy sql.NullString
 }
 
 func (a Article) ScrubbedSummary() template.HTML {
@@ -450,15 +530,24 @@ func int64ToBool(i int64) bool {
 	return true
 }
 
-type PageVM struct {
+type HomepagePageVM struct {
+	PageTitle   string
+	SidebarData []SidebarLink
+	Articles    []Article
+}
+
+type FeedPageVM struct {
 	FeedId      int64
 	PageTitle   string
 	SidebarData []SidebarLink
 	Articles    []Article
 }
 
-type ArticleVM struct {
-	PageVM
+type ArticlePageVM struct {
+	FeedId      int64
+	PageTitle   string
+	SidebarData []SidebarLink
+	Articles    []Article
 	FeedTitle   string
 	FeedUrl     string
 	Link        string
