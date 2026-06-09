@@ -153,6 +153,7 @@ func getArticlePlusRelatedFeed(queries *db.Queries, articleID int64, ctx context
 		ArticleStarred:         row.Starred,
 		FeedID:                 row.FeedID,
 		FeedTitle:              row.FeedTitle,
+		FeedUrl:                row.FeedUrl,
 		CssSelContainer:        row.CssSelContainer,
 		CssSelStart:            row.CssSelStart,
 		CssSelStop:             row.CssSelStop,

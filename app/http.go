@@ -220,14 +220,14 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 					return
 				}
 
-				newValue, err := setStarredValue(queries, starredValue, articleID, ctx)
+				updatedValue, err := setStarredValue(queries, starredValue, articleID, ctx)
 				if err != nil {
 					logAndError(w, r, err.Error())
 					return
 				}
 
 				sse := datastar.NewSSE(w, r)
-				sse.PatchElementTempl(StarredTemplate(feedID, articleID, newValue))
+				sse.PatchElementTempl(StarredTemplate(feedID, articleID, updatedValue))
 			})
 
 		})

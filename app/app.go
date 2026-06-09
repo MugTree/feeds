@@ -8,12 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/mugtree/feeds/app/db"
 )
 
 type App struct {
-	dbx     *sqlx.DB
+	//dbx     *sqlx.DB
 	db      *sql.DB
 	queries *db.Queries
 	server  *http.Server
@@ -29,10 +28,10 @@ func NewApp(db *sql.DB, queries *db.Queries, server *http.Server) *App {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	dbx := sqlx.NewDb(db, "sqlite3")
+	//dbx := sqlx.NewDb(db, "sqlite3")
 
 	return &App{
-		dbx:     dbx,
+		//dbx:     dbx,
 		db:      db, // lifescyle only
 		queries: queries,
 		server:  server,
