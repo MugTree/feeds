@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"html/template"
 	"strings"
@@ -14,6 +15,62 @@ import (
 	"github.com/mmcdole/gofeed"
 	"github.com/mugtree/feeds/app/db"
 )
+
+func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageTemplateData, error) {
+
+	td := ArticlePageTemplateData{}
+
+	sidebar, err := getSidebarData(queries, ctx)
+	if err != nil {
+		return td, err
+	}
+	td.Sidebar = sidebar
+
+	af, err := getArticlePlusRelatedFeed(queries, articleID, ctx)
+	if err != nil {
+		return td, err
+	}
+	td.PageTitle = af.ArticleTitle
+	td.FeedTitle = af.FeedTitle
+	td.FeedUrl = af.FeedUrl
+	td.Link = af.ArticleLink
+	td.ArticleId = af.ArticleID
+	td.FeedId = af.FeedID
+	td.IsStarred = af.ArticleStarred
+
+	alreadyRead, toRead, err := getArticlesByFeed(queries, feedID, ctx)
+	if err != nil {
+		return td, err
+	}
+	td.AlreadyRead = alreadyRead
+	td.ToRead = toRead
+
+	hasContent, cachedContent, err := hasCachedContent(queries, af.ArticleLink, ctx)
+	if err != nil {
+		return td, err
+	}
+
+	if hasContent {
+		td.PageContent = cachedContent
+		td.IsCache = true
+	} else {
+
+		newContent, err := getArticleFromWeb(queries, af, ctx)
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return td, err
+			}
+			return td, err
+		}
+		td.PageContent = newContent
+	}
+
+	// fmt.Printf("FeedTitle: %v\n", td.FeedTitle)
+	// fmt.Printf("AlreadyRead: %v\n", len(td.AlreadyRead))
+	// fmt.Printf("ToRead: %v\n", len(td.ToRead))
+
+	return td, nil
+}
 
 func getAllFeeds(queries *db.Queries, ctx context.Context) ([]Feed, error) {
 
@@ -56,7 +113,7 @@ func getSidebarData(queries *db.Queries, ctx context.Context) ([]SidebarLink, er
 	for _, row := range data {
 		items = append(items, SidebarLink{
 			Name:   row.FeedTitle,
-			Link:   fmt.Sprintf("/feed/%v", row.FeedID),
+			Link:   fmt.Sprintf("/feed/%v/view", row.FeedID),
 			Unread: (row.TotalArticles - row.ArticlesRead),
 		})
 	}
@@ -111,16 +168,16 @@ func getHomepageArticles(queries *db.Queries, ctx context.Context) ([]Article, e
 
 }
 
-func getUnreadArticlesByFeed(queries *db.Queries, feedID int64, ctx context.Context) ([]Article, error) {
+func getArticlesByFeed(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []Article, toRead []Article, err error) {
 
-	articles := []Article{}
-	unreadArticles, err := queries.GetUnreadByFeedID(ctx, feedID)
+	allArticles, err := queries.GetArticlesByFeedID(ctx, feedID)
 	if err != nil {
-		return articles, err
+		return alreadyRead, toRead, err
 	}
 
-	for _, row := range unreadArticles {
-		articles = append(articles, Article{
+	for _, row := range allArticles {
+
+		a := Article{
 			Id:              row.ID,
 			FeedId:          row.FeedID,
 			Title:           row.Title,
@@ -131,10 +188,17 @@ func getUnreadArticlesByFeed(queries *db.Queries, feedID int64, ctx context.Cont
 			Read:            int64ToBool(row.Read),
 			Starred:         int64ToBool(row.Starred),
 			FeedTitle:       row.FeedTitle,
-		})
+		}
+
+		if a.Read {
+			alreadyRead = append(alreadyRead, a)
+			continue
+		}
+
+		toRead = append(toRead, a)
 	}
 
-	return articles, nil
+	return alreadyRead, toRead, nil
 }
 
 func getArticlePlusRelatedFeed(queries *db.Queries, articleID int64, ctx context.Context) (ArticlePlusFeed, error) {
@@ -463,7 +527,8 @@ func int64ToBool(i int64) bool {
 type ArticlePageTemplateData struct {
 	FeedId      int64
 	PageTitle   string
-	Articles    []Article
+	AlreadyRead []Article
+	ToRead      []Article
 	FeedTitle   string
 	FeedUrl     string
 	Link        string
@@ -471,6 +536,7 @@ type ArticlePageTemplateData struct {
 	ArticleId   int64
 	IsCache     bool
 	IsStarred   int64
+	Sidebar     []SidebarLink
 }
 
 type UpdateParms struct {

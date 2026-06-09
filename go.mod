@@ -53,6 +53,7 @@ require (
 
 require (
 	github.com/go-chi/chi/v5 v5.2.2
+	github.com/goforj/godump v1.9.1
 	github.com/jmoiron/sqlx v1.4.0
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	modernc.org/sqlite v1.38.0
