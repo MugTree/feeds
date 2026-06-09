@@ -11,6 +11,26 @@ const (
 	PageTypeFeed    string = "feed"
 )
 
+templ TestTemplate() {
+	<html lang="en">
+		<head>
+			<script type="module" src="/public/js/datastar.js"></script>
+			<title>Test</title>
+		</head>
+		<body>
+			<h1>Test page</h1>
+			<button
+				data-on:click="@get('/test-data')"
+				data-indicator:fetching
+				data-attr:disabled="$fetching"
+			>Some button</button>
+			<div data-show="$fetching">Loading...</div>
+			<hr/>
+			<div id="data">Original data</div>
+		</body>
+	</html>
+}
+
 templ PageTemplate(pageTitle string, SideBar templ.Component, Main templ.Component) {
 	<html lang="en">
 		<head>
@@ -37,12 +57,10 @@ templ PageTemplate(pageTitle string, SideBar templ.Component, Main templ.Compone
 templ PageInnerTemplate() {
 	<div id="content">
 		<header>
-			<button
-				class="toggle-menu-button"
-				type="button"
-				data-on-click="$sideBarClosed=!$sideBarClosed; toggleSidebarCookie($sideBarClosed)"
-			><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M9 3v18"></path></svg></button>
-			@UpdateReaderButtonTemplate()
+			<button id="update-button" data-indicator:fetching data-attr:disabled="$fetching" data-on:click={ datastar.GetSSE(`/update-reader`) }>
+				<span>Update</span>
+			</button>
+			<div data-show="$fetching">Loading...</div>
 		</header>
 		<main>
 			{ children... }
