@@ -320,6 +320,65 @@ func (q *Queries) GetLatest5Articles(ctx context.Context) ([]GetLatest5ArticlesR
 	return items, nil
 }
 
+const getLatest5StarredArticles = `-- name: GetLatest5StarredArticles :many
+SELECT 
+	a.id, a.feed_id, a.title, a.link, a.published, a.published_parsed, a.summary, a.read, a.starred, 
+	f.title as feed_title 
+ FROM articles a 
+ INNER JOIN feeds f 
+ ON f.id = a.feed_id 
+ WHERE a.starred = 1
+ ORDER BY published 
+ DESC LIMIT 0, 5
+`
+
+type GetLatest5StarredArticlesRow struct {
+	ID              int64
+	FeedID          int64
+	Title           string
+	Link            string
+	Published       time.Time
+	PublishedParsed string
+	Summary         string
+	Read            int64
+	Starred         int64
+	FeedTitle       string
+}
+
+func (q *Queries) GetLatest5StarredArticles(ctx context.Context) ([]GetLatest5StarredArticlesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getLatest5StarredArticles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetLatest5StarredArticlesRow
+	for rows.Next() {
+		var i GetLatest5StarredArticlesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FeedID,
+			&i.Title,
+			&i.Link,
+			&i.Published,
+			&i.PublishedParsed,
+			&i.Summary,
+			&i.Read,
+			&i.Starred,
+			&i.FeedTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getSidebarData = `-- name: GetSidebarData :many
 SELECT
 	f.title AS feed_title,

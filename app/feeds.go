@@ -26,10 +26,27 @@ func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID 
 	}
 	td.Sidebar = sidebar
 
-	af, err := getArticlePlusRelatedFeed(queries, articleID, ctx)
+	af := ArticlePlusFeed{}
+
+	row, err := queries.GetFeedDataForArticleByArticleID(ctx, articleID)
 	if err != nil {
 		return td, err
 	}
+
+	af = ArticlePlusFeed{
+		ArticleID:              row.ID,
+		ArticleLink:            row.Link,
+		ArticleTitle:           row.Title,
+		ArticleStarred:         row.Starred,
+		FeedID:                 row.FeedID,
+		FeedTitle:              row.FeedTitle,
+		FeedUrl:                row.FeedUrl,
+		CssSelContainer:        row.CssSelContainer,
+		CssSelStart:            row.CssSelStart,
+		CssSelStop:             row.CssSelStop,
+		HtmlExtractionStrategy: row.HtmlExtractionStrategy,
+	}
+
 	td.PageTitle = af.ArticleTitle
 	td.FeedTitle = af.FeedTitle
 	td.FeedUrl = af.FeedUrl
@@ -141,16 +158,15 @@ func setStarredValue(queries *db.Queries, starredValue string, articleID int64, 
 	return flippedValue, nil
 }
 
-func getHomepageArticles(queries *db.Queries, ctx context.Context) ([]Article, error) {
+func getHomepageArticles(queries *db.Queries, ctx context.Context) (latest []Article, starred []Article, err error) {
 
-	articles := []Article{}
 	latest5Articles, err := queries.GetLatest5Articles(ctx)
 	if err != nil {
-		return articles, err
+		return latest, starred, err
 	}
 
 	for _, row := range latest5Articles {
-		articles = append(articles, Article{
+		latest = append(latest, Article{
 			Id:              row.ID,
 			FeedId:          row.FeedID,
 			Title:           row.Title,
@@ -164,7 +180,26 @@ func getHomepageArticles(queries *db.Queries, ctx context.Context) ([]Article, e
 		})
 	}
 
-	return articles, err
+	starredArticles, err := queries.GetLatest5StarredArticles(ctx)
+
+	for _, row := range starredArticles {
+		starred = append(starred, Article{
+			Id:              row.ID,
+			FeedId:          row.FeedID,
+			Title:           row.Title,
+			Link:            row.Link,
+			Published:       row.Published.String(),
+			PublishedParsed: row.Published.String(),
+			Summary:         row.Summary,
+			Read:            int64ToBool(row.Read),
+			Starred:         int64ToBool(row.Starred),
+			FeedTitle:       row.FeedTitle,
+		})
+	}
+
+	fmt.Printf("starred: %v", len(starred))
+
+	return latest, starred, err
 
 }
 
@@ -199,32 +234,6 @@ func getArticlesByFeed(queries *db.Queries, feedID int64, ctx context.Context) (
 	}
 
 	return alreadyRead, toRead, nil
-}
-
-func getArticlePlusRelatedFeed(queries *db.Queries, articleID int64, ctx context.Context) (ArticlePlusFeed, error) {
-
-	afd := ArticlePlusFeed{}
-
-	row, err := queries.GetFeedDataForArticleByArticleID(ctx, articleID)
-	if err != nil {
-		return afd, err
-	}
-
-	afd = ArticlePlusFeed{
-		ArticleID:              row.ID,
-		ArticleLink:            row.Link,
-		ArticleTitle:           row.Title,
-		ArticleStarred:         row.Starred,
-		FeedID:                 row.FeedID,
-		FeedTitle:              row.FeedTitle,
-		FeedUrl:                row.FeedUrl,
-		CssSelContainer:        row.CssSelContainer,
-		CssSelStart:            row.CssSelStart,
-		CssSelStop:             row.CssSelStop,
-		HtmlExtractionStrategy: row.HtmlExtractionStrategy,
-	}
-	return afd, nil
-
 }
 
 func hasCachedContent(queries *db.Queries, articleLink string, ctx context.Context) (bool, string, error) {
@@ -465,6 +474,10 @@ type Article struct {
 	Read      bool   `json:"read" db:"read"`
 	Starred   bool   `json:"starred" db:"starred"`
 	FeedTitle string `json:"feed_title" db:"feed_title"`
+}
+
+func (a Article) FullName() string {
+	return a.FeedTitle + " - " + a.Title
 }
 
 type ArticlePlusFeed struct {

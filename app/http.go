@@ -31,7 +31,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 			ctx := r.Context()
 
-			articles, err := getHomepageArticles(queries, ctx)
+			latest, starred, err := getHomepageArticles(queries, ctx)
 			if err != nil {
 				logAndError(w, r, err.Error())
 				return
@@ -46,7 +46,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 			PageTemplate(
 				"Homepage",
 				SideBarTemplate(sidebar, r),
-				HomePageTemplate(articles)).Render(ctx,
+				HomePageTemplate(latest, starred)).Render(ctx,
 				w,
 			)
 		})
@@ -61,6 +61,13 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 				}
 
 				ctx := r.Context()
+
+				feed, err := getFeed(queries, feedID, ctx)
+				if err != nil {
+					logAndError(w, r, err.Error())
+					return
+				}
+
 				alreadyRead, toRead, err := getArticlesByFeed(queries, feedID, ctx)
 				if err != nil {
 					logAndError(w, r, err.Error())
@@ -73,7 +80,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 					return
 				}
 
-				pageTitle := alreadyRead[0].FeedTitle
+				pageTitle := feed.Title
 
 				PageTemplate(
 					pageTitle,
@@ -142,8 +149,14 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 				}
 
 				sse := datastar.NewSSE(w, r)
-				sse.PatchElementTempl(SideBarTemplate(td.Sidebar, r))
-				sse.PatchElementTempl(ArticlePageTemplate(td))
+				sse.PatchElementTempl(
+					PageTemplate(
+						td.PageTitle,
+						SideBarTemplate(td.Sidebar, r),
+						ArticlePageTemplate(td),
+					),
+				)
+
 			})
 
 			article.Put("/set-star/{starredValue}", func(w http.ResponseWriter, r *http.Request) {
@@ -166,21 +179,21 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 					return
 				}
 
-				updatedValue, err := setStarredValue(queries, starredValue, articleID, ctx)
+				_, err := setStarredValue(queries, starredValue, articleID, ctx)
 				if err != nil {
 					logAndError(w, r, err.Error())
 					return
 				}
 
-				alreadyRead, toRead, err := getArticlesByFeed(queries, feedID, ctx)
+				td, err := getArticleTemplateData(queries, ctx, articleID, feedID)
 				if err != nil {
 					logAndError(w, r, err.Error())
+					return
 				}
 
 				sse := datastar.NewSSE(w, r)
-				sse.PatchElementTempl(StarredTemplate(feedID, articleID, updatedValue))
-				sse.PatchElementTempl(ToReadTemplate(toRead))
-				sse.PatchElementTempl(AlreadyReadTemplate(alreadyRead))
+				sse.PatchElementTempl(PageTemplate(td.PageTitle, SideBarTemplate(td.Sidebar, r), ArticlePageTemplate(td)))
+
 			})
 
 		})
@@ -194,7 +207,11 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 			}
 
 			sse := datastar.NewSSE(w, r)
-			sse.PatchElementTempl(RefreshTemplate(), datastar.WithModeAppend(), datastar.WithSelector("body"))
+			sse.PatchElementTempl(
+				RefreshTemplate(),
+				datastar.WithModeAppend(),
+				datastar.WithSelector("body"),
+			)
 
 		})
 

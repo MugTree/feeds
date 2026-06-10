@@ -18,11 +18,29 @@ templ PageTemplate(pageTitle string, SideBar templ.Component, Main templ.Compone
 			<title>{ pageTitle }</title>
 		</head>
 		<body>
-			@SideBar
-			@Main
+			<div id="content">
+				<header>
+					<button
+						class="toggle-menu-button"
+						type="button"
+						data-on:click="$sideBarClosed=!$sideBarClosed; toggleSidebarCookie($sideBarClosed)"
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M9 3v18"></path></svg>
+					</button>
+					<button id="update-button" data-indicator:fetching data-attr:disabled="$fetching" data-on:click={ datastar.GetSSE(`/update-reader`) }>
+						<span>Update</span>
+					</button>
+					<div data-show="$fetching">Loading...</div>
+				</header>
+				<main>
+					@SideBar
+					@Main
+				</main>
+			</div>
 		</body>
 		<script>
 			function toggleSidebarCookie(value) {
+				console.log(value)
 				if (value) {
 					const expires = new Date(Date.now() + 365 * 864e5).toUTCString();
 					document.cookie = `sideBarClosed=true; expires=${expires}; path=/`;
@@ -34,60 +52,41 @@ templ PageTemplate(pageTitle string, SideBar templ.Component, Main templ.Compone
 	</html>
 }
 
-templ PageInnerTemplate() {
-	<div id="content">
-		<header>
-			<button
-				class="toggle-menu-button"
-				type="button"
-				data-on-click="$sideBarClosed=!$sideBarClosed; toggleSidebarCookie($sideBarClosed)"
-			><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M9 3v18"></path></svg></button>
-			<button id="update-button" data-indicator:fetching data-attr:disabled="$fetching" data-on:click={ datastar.GetSSE(`/update-reader`) }>
-				<span>Update</span>
-			</button>
-			<div data-show="$fetching">Loading...</div>
-		</header>
-		<main>
-			{ children... }
-		</main>
-	</div>
-}
-
-templ HomePageTemplate(articles []Article) {
-	@PageInnerTemplate() {
-		<h2>Latest 5 articles</h2>
-		@ToReadTemplate(articles)
-	}
+templ HomePageTemplate(latest []Article, starred []Article) {
+	<h2>Latest 5 articles</h2>
+	@ToReadTemplate(latest)
+	<h2>Starred articles</h2>
+	@StarredArticlesTemplate(starred)
 }
 
 templ FeedPageTemplate(pageTitle string, alreadyRead []Article, toRead []Article) {
-	@PageInnerTemplate() {
-		<h2>{ pageTitle }</h2>
-		@ToReadTemplate(toRead)
-		@AlreadyReadTemplate(alreadyRead)
-	}
+	<h2>{ pageTitle }</h2>
+	<h3>To read</h3>
+	@ToReadTemplate(toRead)
+	<h3>Already read</h3>
+	@AlreadyReadTemplate(alreadyRead)
 }
 
-templ ArticlePageTemplate(vm ArticlePageTemplateData) {
-	@PageInnerTemplate() {
-		<ul>
-			<li>{ vm.FeedTitle }</li>
-			<li>{ vm.FeedUrl }</li>
-			<li>{ vm.Link }</li>
-			<li>{ vm.IsCache }</li>
-			<li>
-				@StarredTemplate(vm.FeedId, vm.ArticleId, vm.IsStarred)
-			</li>
-		</ul>
-		<h2>{ vm.PageTitle }</h2>
-		<div>
-			@templ.Raw(vm.PageContent)
-		</div>
-		<div data-on-intersect={ datastar.PutSSE("/article/%d/%d/set-read", vm.FeedId, vm.ArticleId) }>
-			@ToReadTemplate(vm.ToRead)
-			@AlreadyReadTemplate(vm.AlreadyRead)
-		</div>
-	}
+templ ArticlePageTemplate(td ArticlePageTemplateData) {
+	<ul>
+		<li>{ td.FeedTitle }</li>
+		<li>{ td.FeedUrl }</li>
+		<li>{ td.Link }</li>
+		<li>{ td.IsCache }</li>
+		<li>
+			@StarredTemplate(td.FeedId, td.ArticleId, td.IsStarred)
+		</li>
+	</ul>
+	<h2>{ td.FeedTitle } - { td.PageTitle }</h2>
+	<div>
+		@templ.Raw(td.PageContent)
+	</div>
+	<div data-on-intersect={ datastar.PutSSE("/article/%d/%d/set-read", td.FeedId, td.ArticleId) }>
+		<h3>To read</h3>
+		@ToReadTemplate(td.ToRead)
+		<h3>Older articles</h3>
+		@AlreadyReadTemplate(td.AlreadyRead)
+	</div>
 }
 
 templ FeedAdminListTemplate(feeds []Feed) {
@@ -98,30 +97,30 @@ templ FeedAdminListTemplate(feeds []Feed) {
 	</ul>
 }
 
-templ FeedAdminFormTemplate(vm FeedFormTemplateData) {
+templ FeedAdminFormTemplate(td FeedFormTemplateData) {
 	@FeedFormTextInputTemplate("Title", "FeedName", "Feed Name", "")
 	<div class="grid gap-2">
 		<label for="FeedName">Title</label>
-		<input id="FeedName" placeholder="Feed name" data-bind-feed-name type="text" value={ vm.Feed.Title }/>
+		<input id="FeedName" placeholder="Feed name" data-bind-feed-name type="text" value={ td.Feed.Title }/>
 	</div>
 	<div class="grid gap-2">
 		<label for="FeedUrl">Url</label>
-		<input id="FeedUrl" placeholder="Feed url" data-bind-feed-url type="text" value={ vm.Feed.Url }/>
+		<input id="FeedUrl" placeholder="Feed url" data-bind-feed-url type="text" value={ td.Feed.Url }/>
 	</div>
 	<div class="grid gap-2">
 		<label for="CssContainer">Css Selector Container</label>
-		<input id="CssContainer" placeholder="Css container" data-bind-css-sel-container type="text" value={ vm.Feed.CSSSelectorContainer }/>
+		<input id="CssContainer" placeholder="Css container" data-bind-css-sel-container type="text" value={ td.Feed.CSSSelectorContainer }/>
 	</div>
 	<div class="grid gap-2">
 		<label for="CssStart">Css Selector Start</label>
-		<input id="CssStart" placeholder="Css start" data-bind-css-sel-start type="text" value={ vm.Feed.CSSSelectorStart }/>
+		<input id="CssStart" placeholder="Css start" data-bind-css-sel-start type="text" value={ td.Feed.CSSSelectorStart }/>
 	</div>
 	<div class="grid gap-2">
 		<label for="CssEnd">Css Selector Stop</label>
-		<input id="CssEnd" placeholder="Css end" data-bind-css-sel-end type="text" value={ vm.Feed.CSSSelectorStop }/>
+		<input id="CssEnd" placeholder="Css end" data-bind-css-sel-end type="text" value={ td.Feed.CSSSelectorStop }/>
 	</div>
 	<div>
-		<button data-on-click={ datastar.PostSSE("%v", vm.UrlAction) }>{ vm.ButtonText }</button>
+		<button data-on-click={ datastar.PostSSE("%v", td.UrlAction) }>{ td.ButtonText }</button>
 	</div>
 }
 
@@ -143,7 +142,6 @@ templ AdminPageTemplate(innerComp templ.Component) {
 templ ToReadTemplate(toRead []Article) {
 	<div id="to-read">
 		if (len(toRead) > 0) {
-			<h3>To read</h3>
 			<ul>
 				for _, a := range toRead {
 					if !(a.Read) {
@@ -163,10 +161,28 @@ templ ToReadTemplate(toRead []Article) {
 	</div>
 }
 
+templ StarredArticlesTemplate(starred []Article) {
+	<div id="starred-articles">
+		if (len(starred) > 0) {
+			<ul>
+				for _, a := range starred {
+					<li>
+						if a.Starred {
+							<span>*</span>
+						}
+						<a href={ formatUrl("/article/%v/%v/view", a.FeedId, a.Id) }>{ a.FullName() }</a>
+					</li>
+				}
+			</ul>
+		} else {
+			<p>Nothing starred yet</p>
+		}
+	</div>
+}
+
 templ AlreadyReadTemplate(alreadyRead []Article) {
 	<div id="already-read">
 		if (len(alreadyRead) > 0) {
-			<h3>Older Articles</h3>
 			<ul>
 				for _, a := range alreadyRead {
 					<li>
@@ -218,7 +234,7 @@ templ SideBarTemplate(links []SidebarLink, r *http.Request) {
 	<div
 		data-signals={ setSideBarData(isClosed) }
 		id="sidebar"
-		data-class-closed="$sideBarClosed"
+		data-class:closed="$sideBarClosed"
 		if (isClosed) {
 			class="closed"
 		}

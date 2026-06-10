@@ -8,6 +8,17 @@ SELECT
  ORDER BY published 
  DESC LIMIT 0, 5;
 
+-- name: GetLatest5StarredArticles :many
+SELECT 
+	a.*, 
+	f.title as feed_title 
+ FROM articles a 
+ INNER JOIN feeds f 
+ ON f.id = a.feed_id 
+ WHERE a.starred = 1
+ ORDER BY published 
+ DESC LIMIT 0, 5;
+
 -- name: GetSidebarData :many
 SELECT
 	f.title AS feed_title,
