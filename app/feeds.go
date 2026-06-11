@@ -359,15 +359,17 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 			default:
 			}
 
+			now := time.Now()
+
 			err := queries.AddToArticles(ctx, db.AddToArticlesParams{
 				FeedID:    feed.ID,
 				Title:     item.Title,
 				Link:      item.Link,
 				Published: feedItemDate(item),
-
-				Summary: item.Description,
-				Read:    0,
-				Starred: 0,
+				DateFound: &now,
+				Summary:   item.Description,
+				Read:      0,
+				Starred:   0,
 			})
 			if err != nil {
 				return 0, fmt.Errorf("insert article: %w", err)
