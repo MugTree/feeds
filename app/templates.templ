@@ -5,12 +5,6 @@ import "net/http"
 import "encoding/json"
 import "github.com/starfederation/datastar/sdk/go/datastar"
 
-const (
-	PageTypeHome    string = "home"
-	PageTypeArticle string = "article"
-	PageTypeFeed    string = "feed"
-)
-
 templ PageTemplate(pageTitle string, SideBar templ.Component, Main templ.Component) {
 	<html lang="en">
 		<head>
@@ -30,7 +24,7 @@ templ PageTemplate(pageTitle string, SideBar templ.Component, Main templ.Compone
 					<button id="update-button" data-indicator:fetching data-attr:disabled="$fetching" data-on:click={ datastar.GetSSE(`/update-reader`) }>
 						<span>Update</span>
 					</button>
-					<div data-show="$fetching">Loading...</div>
+					<div data-show="$fetching" style="display: none;">Loading...</div>
 				</header>
 				<main>
 					@SideBar
@@ -74,14 +68,14 @@ templ ArticlePageTemplate(td ArticlePageTemplateData) {
 		<li>{ td.Link }</li>
 		<li>{ td.IsCache }</li>
 		<li>
-			@LikeArticleTemplate(td.FeedId, td.ArticleId, td.IsStarred)
+			@LikeArticleTemplate(td.FeedID, td.ArticleId, td.IsStarred)
 		</li>
 	</ul>
 	<h2>{ td.FeedTitle } - { td.PageTitle }</h2>
 	<div>
 		@templ.Raw(td.PageContent)
 	</div>
-	<div data-on-intersect={ datastar.PutSSE("/article/%d/%d/set-read", td.FeedId, td.ArticleId) }>
+	<div data-on-intersect={ datastar.PutSSE("/article/%d/%d/set-read", td.FeedID, td.ArticleId) }>
 		<h3>To read</h3>
 		@ToReadTemplate(td.ArticlesToRead)
 		<h3>Older articles</h3>

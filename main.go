@@ -48,8 +48,10 @@ func run(parent context.Context) error {
 	if err != nil {
 		return err
 	}
+	dbHandle.SetMaxOpenConns(1)
+	dbHandle.SetMaxIdleConns(1)
 
-	_, _ = dbHandle.Exec(`PRAGMA journal_mode=WAL;`)
+	_, _ = dbHandle.Exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;`)
 
 	if err := dbHandle.Ping(); err != nil {
 		return err

@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -14,6 +16,7 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/mmcdole/gofeed"
 	"github.com/mugtree/feeds/app/db"
+	"golang.org/x/sync/errgroup"
 )
 
 func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageTemplateData, error) {
@@ -36,11 +39,8 @@ func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID 
 	td.FeedUrl = row.FeedUrl
 	td.Link = row.ArticleLink
 	td.ArticleId = row.ArticleID
-	td.FeedId = row.FeedID
+	td.FeedID = row.FeedID
 	td.IsStarred = row.ArticleStarred
-
-	fmt.Println(row.ArticleTitle, "\n", row.ArticlePublished)
-
 	td.ArticlePublished = row.ArticlePublished.Format(layoutISO)
 
 	alreadyRead, toRead, err := getArticlesByFeed(queries, feedID, ctx)
@@ -324,77 +324,94 @@ func extractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelec
 	return strings.Join(chunks, "")
 }
 
+/*
+-----------------------------------------
+fetch RSS feeds concurrently
+write articles sequentially (or very low concurrency)
+-----------------------------------------
+*/
 func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
-
-	// get all the feed urls, loop through them and pull all the items from the feed
-	// for each item in the feed run an insert of ignore statement
-
-	// feeds := []Feed{}
-	// err := db.Select(&feeds, "SELECT * from feeds;")
-	// if err != nil {
-	// 	return 0, fmt.Errorf("error selecting feed data for updates: %v", err)
-	// }
 
 	feeds, err := queries.GetFeeds(ctx)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("get feeds: %w", err)
 	}
 
-	// godump.Dump(feeds)
-	//return 0, nil
+	var writeMu sync.Mutex
 
-	p := gofeed.NewParser()
+	// this is run conccurently
+	getArticleData := func(feed db.Feed) error {
+		parser := gofeed.NewParser()
 
-	//var res sql.Result
-
-	// for _, v := range feeds {
-	// 	feed, err := p.ParseURL(v.Url + "/feed/")
-	// 	if err != nil {
-	// 		return 0, fmt.Errorf("error parsing feed %v", err)
-	// 	}
-	// 	for _, i := range feed.Items {
-	// 		godump.Dump(i)
-	// 	}
-
-	// }
-
-	// return 0, errors.New("testing")
-
-	for _, v := range feeds {
-		feed, err := p.ParseURL(v.Url + "/feed/")
-		if err != nil {
-			return 0, fmt.Errorf("error parsing feed %v", err)
+		parser.Client = &http.Client{
+			Timeout: 10 * time.Second,
 		}
-		// godump.Dump(feed.Items)
-		for _, i := range feed.Items {
 
-			publishedDate := feedItemDate(i)
+		goFeed, err := parser.ParseURL(
+			fmt.Sprintf("%s/feed/", feed.Url),
+		)
+		if err != nil {
+			return fmt.Errorf(
+				"parse feed %s: %w",
+				feed.Url,
+				err,
+			)
+		}
+
+		for _, item := range goFeed.Items {
+
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
+			writeMu.Lock()
 
 			err := queries.AddToArticles(
 				ctx,
 				db.AddToArticlesParams{
-					FeedID:    v.ID,
-					Title:     i.Title,
-					Link:      i.Link,
-					Published: publishedDate,
-					Summary:   i.Description,
+					FeedID:    feed.ID,
+					Title:     item.Title,
+					Link:      item.Link,
+					Published: feedItemDate(item),
+					Summary:   item.Description,
 					Read:      0,
 					Starred:   0,
 				},
 			)
 
+			writeMu.Unlock()
+
 			if err != nil {
-				return 0, fmt.Errorf("error inserting or replacing articles in feed update: %v", err)
+				return fmt.Errorf(
+					"insert article for %s: %w",
+					feed.Url,
+					err,
+				)
 			}
 		}
+
+		return nil
 	}
 
-	// rowsChanged, err := res.RowsAffected()
-	// if err != nil {
-	// 	return 0, fmt.Errorf("error reading affected rows: %v", err)
-	// }
+	g, ctx := errgroup.WithContext(ctx)
 
-	return 0, nil
+	g.SetLimit(10)
+
+	for _, feed := range feeds {
+		feed := feed
+
+		g.Go(func() error {
+			return getArticleData(feed)
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return 0, err
+	}
+
+	return int64(len(feeds)), nil
 
 }
 
@@ -517,7 +534,7 @@ func int64ToBool(i int64) bool {
 }
 
 type ArticlePageTemplateData struct {
-	FeedId           int64
+	FeedID           int64
 	PageTitle        string
 	ArticlesRead     []Article
 	ArticlesToRead   []Article
