@@ -38,7 +38,6 @@ templ HomePageTemplate(latest []Article, starred []Article) {
 
 templ FeedPageTemplate(pageTitle string, alreadyRead []Article, toRead []Article) {
 	<h2>{ pageTitle }</h2>
-	<h3>To read</h3>
 	@ToReadTemplate(toRead)
 	<h3>Already read</h3>
 	@AlreadyReadTemplate(alreadyRead)
@@ -57,8 +56,8 @@ templ ArticlePageTemplate(td ArticlePageTemplateData) {
 	<div>
 		@templ.Raw(td.PageContent)
 	</div>
+	@LikeArticleTemplate(td.FeedID, td.ArticleId, td.IsStarred)
 	<div data-on-intersect={ datastar.PutSSE("/article/%d/%d/set-read", td.FeedID, td.ArticleId) }>
-		<h3>To read</h3>
 		@ToReadTemplate(td.ArticlesToRead)
 		<h3>Older articles</h3>
 		@AlreadyReadTemplate(td.ArticlesRead)
@@ -121,6 +120,7 @@ templ AdminPageTemplate(innerComp templ.Component) {
 templ ToReadTemplate(toRead []Article) {
 	<div id="to-read">
 		if (len(toRead) > 0) {
+			<h3>To read</h3>
 			<ul>
 				for _, a := range toRead {
 					if !(a.Read) {
@@ -133,9 +133,6 @@ templ ToReadTemplate(toRead []Article) {
 					}
 				}
 			</ul>
-		} else {
-			<h3>All caught up....</h3>
-			<p>Back to <a href="/">home</a></p>
 		}
 	</div>
 }
