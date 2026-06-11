@@ -45,7 +45,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 			PageTemplate(
 				"Homepage",
-				SideBarTemplate(sidebar, r),
+				NavTemplate(sidebar),
 				HomePageTemplate(latest, starred)).Render(ctx,
 				w,
 			)
@@ -83,7 +83,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 				PageTemplate(
 					pageTitle,
-					SideBarTemplate(sidebar, r),
+					NavTemplate(sidebar),
 					FeedPageTemplate(pageTitle, alreadyRead, toRead)).Render(
 					r.Context(),
 					w,
@@ -115,7 +115,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 				PageTemplate(
 					td.PageTitle,
-					SideBarTemplate(td.Sidebar, r),
+					NavTemplate(td.Sidebar),
 					ArticlePageTemplate(td)).Render(
 					r.Context(),
 					w,
@@ -151,7 +151,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 				sse.PatchElementTempl(
 					PageTemplate(
 						td.PageTitle,
-						SideBarTemplate(td.Sidebar, r),
+						NavTemplate(td.Sidebar),
 						ArticlePageTemplate(td),
 					),
 				)
@@ -194,7 +194,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 				sse.PatchElementTempl(
 					PageTemplate(
 						td.PageTitle,
-						SideBarTemplate(td.Sidebar, r),
+						NavTemplate(td.Sidebar),
 						ArticlePageTemplate(td),
 					),
 				)
