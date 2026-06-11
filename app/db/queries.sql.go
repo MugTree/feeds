@@ -39,6 +39,7 @@ INSERT OR IGNORE INTO articles (
 	title, 
 	link, 
 	published, 
+	date_found,
 	summary, 
 	read, 
 	starred
@@ -47,6 +48,7 @@ INSERT OR IGNORE INTO articles (
 	 ?, 
 	 ?, 
 	 ?, 
+	 ?,
 	 ?, 
 	 ?, 
 	 ?
@@ -58,6 +60,7 @@ type AddToArticlesParams struct {
 	Title     string
 	Link      string
 	Published *time.Time
+	DateFound *time.Time
 	Summary   string
 	Read      int64
 	Starred   int64
@@ -69,6 +72,7 @@ func (q *Queries) AddToArticles(ctx context.Context, arg AddToArticlesParams) er
 		arg.Title,
 		arg.Link,
 		arg.Published,
+		arg.DateFound,
 		arg.Summary,
 		arg.Read,
 		arg.Starred,

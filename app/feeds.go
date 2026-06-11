@@ -8,7 +8,6 @@ import (
 	"html/template"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -16,7 +15,6 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/mmcdole/gofeed"
 	"github.com/mugtree/feeds/app/db"
-	"golang.org/x/sync/errgroup"
 )
 
 func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageTemplateData, error) {
@@ -337,82 +335,47 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 		return 0, fmt.Errorf("get feeds: %w", err)
 	}
 
-	var writeMu sync.Mutex
+	parser := gofeed.NewParser()
+	parser.Client = &http.Client{
+		Timeout: 10 * time.Second,
+	}
 
-	// this is run conccurently
-	getArticleData := func(feed db.Feed) error {
-		parser := gofeed.NewParser()
+	for _, feed := range feeds {
 
-		parser.Client = &http.Client{
-			Timeout: 10 * time.Second,
+		goFeed, err := parser.ParseURL(fmt.Sprintf("%s/feed/", feed.Url))
+		if err != nil {
+			return 0, fmt.Errorf("parse feed %s: %w", feed.Url, err)
 		}
 
-		goFeed, err := parser.ParseURL(
-			fmt.Sprintf("%s/feed/", feed.Url),
-		)
-		if err != nil {
-			return fmt.Errorf(
-				"parse feed %s: %w",
-				feed.Url,
-				err,
-			)
+		if goFeed == nil {
+			continue
 		}
 
 		for _, item := range goFeed.Items {
 
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return 0, ctx.Err()
 			default:
 			}
 
-			writeMu.Lock()
+			err := queries.AddToArticles(ctx, db.AddToArticlesParams{
+				FeedID:    feed.ID,
+				Title:     item.Title,
+				Link:      item.Link,
+				Published: feedItemDate(item),
 
-			err := queries.AddToArticles(
-				ctx,
-				db.AddToArticlesParams{
-					FeedID:    feed.ID,
-					Title:     item.Title,
-					Link:      item.Link,
-					Published: feedItemDate(item),
-					Summary:   item.Description,
-					Read:      0,
-					Starred:   0,
-				},
-			)
-
-			writeMu.Unlock()
-
+				Summary: item.Description,
+				Read:    0,
+				Starred: 0,
+			})
 			if err != nil {
-				return fmt.Errorf(
-					"insert article for %s: %w",
-					feed.Url,
-					err,
-				)
+				return 0, fmt.Errorf("insert article: %w", err)
 			}
 		}
-
-		return nil
-	}
-
-	g, ctx := errgroup.WithContext(ctx)
-
-	g.SetLimit(10)
-
-	for _, feed := range feeds {
-		feed := feed
-
-		g.Go(func() error {
-			return getArticleData(feed)
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		return 0, err
 	}
 
 	return int64(len(feeds)), nil
-
 }
 
 func feedItemDate(item *gofeed.Item) *time.Time {

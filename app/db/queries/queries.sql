@@ -96,6 +96,7 @@ INSERT OR IGNORE INTO articles (
 	title, 
 	link, 
 	published, 
+	date_found,
 	summary, 
 	read, 
 	starred
@@ -104,6 +105,7 @@ INSERT OR IGNORE INTO articles (
 	 ?, 
 	 ?, 
 	 ?, 
+	 ?,
 	 ?, 
 	 ?, 
 	 ?
