@@ -15,6 +15,7 @@ type Article struct {
 	Title     string
 	Link      string
 	Published *time.Time
+	DateFound *time.Time
 	Summary   string
 	Read      int64
 	Starred   int64

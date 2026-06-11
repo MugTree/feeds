@@ -41,7 +41,7 @@ func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID 
 
 	fmt.Println(row.ArticleTitle, "\n", row.ArticlePublished)
 
-	td.DatePublished = row.ArticlePublished.String()
+	td.ArticlePublished = row.ArticlePublished.Format(layoutISO)
 
 	alreadyRead, toRead, err := getArticlesByFeed(queries, feedID, ctx)
 	if err != nil {
@@ -146,6 +146,8 @@ func setArticleLikeValue(queries *db.Queries, starredValue string, articleID int
 	return nil
 }
 
+const layoutISO = "2006-01-02"
+
 func getHomepageArticles(queries *db.Queries, ctx context.Context) (latest []Article, starred []Article, err error) {
 
 	latest5Articles, err := queries.GetLatest5Articles(ctx)
@@ -159,7 +161,8 @@ func getHomepageArticles(queries *db.Queries, ctx context.Context) (latest []Art
 			FeedId:    row.FeedID,
 			Title:     row.Title,
 			Link:      row.Link,
-			Published: row.Published.String(),
+			Published: row.Published.Format(layoutISO),
+			DateFound: row.DateFound.Format(layoutISO),
 			Summary:   row.Summary,
 			Read:      int64ToBool(row.Read),
 			Liked:     int64ToBool(row.Starred),
@@ -175,7 +178,8 @@ func getHomepageArticles(queries *db.Queries, ctx context.Context) (latest []Art
 			FeedId:    row.FeedID,
 			Title:     row.Title,
 			Link:      row.Link,
-			Published: row.Published.String(),
+			Published: row.Published.Format(layoutISO),
+			DateFound: row.Published.Format(layoutISO),
 			Summary:   row.Summary,
 			Read:      int64ToBool(row.Read),
 			Liked:     int64ToBool(row.Starred),
@@ -203,7 +207,8 @@ func getArticlesByFeed(queries *db.Queries, feedID int64, ctx context.Context) (
 			FeedId:    row.FeedID,
 			Title:     row.Title,
 			Link:      row.Link,
-			Published: row.Published.String(),
+			Published: row.Published.Format(layoutISO),
+			DateFound: row.DateFound.Format(layoutISO),
 			Summary:   row.Summary,
 			Read:      int64ToBool(row.Read),
 			Liked:     int64ToBool(row.Starred),
@@ -410,7 +415,7 @@ func mapFeedFromDbFeed(row db.Feed) Feed {
 		Id:                     row.ID,
 		Url:                    row.Url,
 		Title:                  row.Title,
-		LastFetched:            row.LastFetched.String(),
+		LastFetched:            row.LastFetched.Format(layoutISO),
 		CSSSelectorContainer:   row.CssSelContainer.String,
 		CSSSelectorStart:       row.CssSelStart.String,
 		CSSSelectorStop:        row.CssSelStop.String,
@@ -512,19 +517,19 @@ func int64ToBool(i int64) bool {
 }
 
 type ArticlePageTemplateData struct {
-	FeedId         int64
-	PageTitle      string
-	ArticlesRead   []Article
-	ArticlesToRead []Article
-	FeedTitle      string
-	FeedUrl        string
-	Link           string
-	PageContent    string
-	ArticleId      int64
-	IsCache        bool
-	IsStarred      int64
-	Sidebar        []SidebarLink
-	DatePublished  string
+	FeedId           int64
+	PageTitle        string
+	ArticlesRead     []Article
+	ArticlesToRead   []Article
+	FeedTitle        string
+	FeedUrl          string
+	Link             string
+	PageContent      string
+	ArticleId        int64
+	IsCache          bool
+	IsStarred        int64
+	Sidebar          []SidebarLink
+	ArticlePublished string
 }
 
 type UpdateParms struct {

@@ -5,7 +5,7 @@ SELECT
  FROM articles a 
  INNER JOIN feeds f 
  ON f.id = a.feed_id 
- ORDER BY published 
+ ORDER BY COALESCE(a.published, a.date_found) 
  DESC LIMIT 0, 5;
 
 -- name: GetLatest5StarredArticles :many
@@ -16,7 +16,7 @@ SELECT
  INNER JOIN feeds f 
  ON f.id = a.feed_id 
  WHERE a.starred = 1
- ORDER BY published 
+ ORDER BY COALESCE(a.published, a.date_found) 
  DESC LIMIT 0, 5;
 
 -- name: GetSidebarData :many
@@ -38,7 +38,7 @@ FROM articles a
 INNER JOIN feeds f 
 ON f.id = a.feed_id 
 WHERE feed_id = ? 
-ORDER BY a.published DESC;
+ORDER BY COALESCE(a.published, a.date_found) DESC;
 
 -- name: GetUnreadByFeedID :many
 SELECT 
@@ -48,7 +48,7 @@ FROM articles a
 INNER JOIN feeds f 
 ON f.id = a.feed_id 
 WHERE feed_id = ? AND a.read = 0
-ORDER BY a.published DESC;
+ORDER BY COALESCE(a.published, a.date_found) DESC;
 
 -- name: GetFeedAndArticleByArticleID :one
 SELECT 

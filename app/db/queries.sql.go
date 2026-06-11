@@ -78,13 +78,13 @@ func (q *Queries) AddToArticles(ctx context.Context, arg AddToArticlesParams) er
 
 const getArticlesByFeedID = `-- name: GetArticlesByFeedID :many
 SELECT 
-	a.id, a.feed_id, a.title, a.link, a.published, a.summary, a.read, a.starred, 
+	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
 	f.title as feed_title 
 FROM articles a 
 INNER JOIN feeds f 
 ON f.id = a.feed_id 
 WHERE feed_id = ? 
-ORDER BY a.published DESC
+ORDER BY COALESCE(a.published, a.date_found) DESC
 `
 
 type GetArticlesByFeedIDRow struct {
@@ -93,6 +93,7 @@ type GetArticlesByFeedIDRow struct {
 	Title     string
 	Link      string
 	Published *time.Time
+	DateFound *time.Time
 	Summary   string
 	Read      int64
 	Starred   int64
@@ -114,6 +115,7 @@ func (q *Queries) GetArticlesByFeedID(ctx context.Context, feedID int64) ([]GetA
 			&i.Title,
 			&i.Link,
 			&i.Published,
+			&i.DateFound,
 			&i.Summary,
 			&i.Read,
 			&i.Starred,
@@ -261,12 +263,12 @@ func (q *Queries) GetFeeds(ctx context.Context) ([]Feed, error) {
 
 const getLatest5Articles = `-- name: GetLatest5Articles :many
 SELECT 
-	a.id, a.feed_id, a.title, a.link, a.published, a.summary, a.read, a.starred, 
+	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
 	f.title as feed_title 
  FROM articles a 
  INNER JOIN feeds f 
  ON f.id = a.feed_id 
- ORDER BY published 
+ ORDER BY COALESCE(a.published, a.date_found) 
  DESC LIMIT 0, 5
 `
 
@@ -276,6 +278,7 @@ type GetLatest5ArticlesRow struct {
 	Title     string
 	Link      string
 	Published *time.Time
+	DateFound *time.Time
 	Summary   string
 	Read      int64
 	Starred   int64
@@ -297,6 +300,7 @@ func (q *Queries) GetLatest5Articles(ctx context.Context) ([]GetLatest5ArticlesR
 			&i.Title,
 			&i.Link,
 			&i.Published,
+			&i.DateFound,
 			&i.Summary,
 			&i.Read,
 			&i.Starred,
@@ -317,13 +321,13 @@ func (q *Queries) GetLatest5Articles(ctx context.Context) ([]GetLatest5ArticlesR
 
 const getLatest5StarredArticles = `-- name: GetLatest5StarredArticles :many
 SELECT 
-	a.id, a.feed_id, a.title, a.link, a.published, a.summary, a.read, a.starred, 
+	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
 	f.title as feed_title 
  FROM articles a 
  INNER JOIN feeds f 
  ON f.id = a.feed_id 
  WHERE a.starred = 1
- ORDER BY published 
+ ORDER BY COALESCE(a.published, a.date_found) 
  DESC LIMIT 0, 5
 `
 
@@ -333,6 +337,7 @@ type GetLatest5StarredArticlesRow struct {
 	Title     string
 	Link      string
 	Published *time.Time
+	DateFound *time.Time
 	Summary   string
 	Read      int64
 	Starred   int64
@@ -354,6 +359,7 @@ func (q *Queries) GetLatest5StarredArticles(ctx context.Context) ([]GetLatest5St
 			&i.Title,
 			&i.Link,
 			&i.Published,
+			&i.DateFound,
 			&i.Summary,
 			&i.Read,
 			&i.Starred,
@@ -421,13 +427,13 @@ func (q *Queries) GetSidebarData(ctx context.Context) ([]GetSidebarDataRow, erro
 
 const getUnreadByFeedID = `-- name: GetUnreadByFeedID :many
 SELECT 
-	a.id, a.feed_id, a.title, a.link, a.published, a.summary, a.read, a.starred, 
+	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
 	f.title as feed_title 
 FROM articles a 
 INNER JOIN feeds f 
 ON f.id = a.feed_id 
 WHERE feed_id = ? AND a.read = 0
-ORDER BY a.published DESC
+ORDER BY COALESCE(a.published, a.date_found) DESC
 `
 
 type GetUnreadByFeedIDRow struct {
@@ -436,6 +442,7 @@ type GetUnreadByFeedIDRow struct {
 	Title     string
 	Link      string
 	Published *time.Time
+	DateFound *time.Time
 	Summary   string
 	Read      int64
 	Starred   int64
@@ -457,6 +464,7 @@ func (q *Queries) GetUnreadByFeedID(ctx context.Context, feedID int64) ([]GetUnr
 			&i.Title,
 			&i.Link,
 			&i.Published,
+			&i.DateFound,
 			&i.Summary,
 			&i.Read,
 			&i.Starred,
