@@ -7,3 +7,12 @@ sql:
       go:
         package: "db"
         out: "./app/db"
+        overrides:
+          - column: articles.published
+            go_type:
+              type: time.Time
+              pointer: true
+          - column: articles.date_found
+            go_type:
+              type: time.Time
+              pointer: true

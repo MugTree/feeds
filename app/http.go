@@ -55,18 +55,19 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 			feed.Get("/view", func(w http.ResponseWriter, r *http.Request) {
 
+				ctx := r.Context()
+
 				feedID, ok := requireIDParam(w, r, "feedID")
 				if !ok {
 					return
 				}
-
-				ctx := r.Context()
 
 				feed, err := getFeed(queries, feedID, ctx)
 				if err != nil {
 					logAndError(w, r, err.Error())
 					return
 				}
+				pageTitle := feed.Title
 
 				alreadyRead, toRead, err := getArticlesByFeed(queries, feedID, ctx)
 				if err != nil {
@@ -79,8 +80,6 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 					logAndError(w, r, err.Error())
 					return
 				}
-
-				pageTitle := feed.Title
 
 				PageTemplate(
 					pageTitle,
@@ -159,7 +158,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 			})
 
-			article.Put("/set-star/{starredValue}", func(w http.ResponseWriter, r *http.Request) {
+			article.Put("/like/{value}", func(w http.ResponseWriter, r *http.Request) {
 
 				ctx := r.Context()
 
@@ -172,14 +171,14 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 					return
 				}
 
-				starredValue := r.PathValue("starredValue")
+				likeValue := r.PathValue("value")
 
-				if starredValue != "0" && starredValue != "1" {
-					logAndError(w, r, fmt.Sprintf("incorrect starred value: %v, needs to be 0 or 1", starredValue))
+				if likeValue != "0" && likeValue != "1" {
+					logAndError(w, r, fmt.Sprintf("incorrect like value: %v, needs to be 0 or 1", likeValue))
 					return
 				}
 
-				_, err := setStarredValue(queries, starredValue, articleID, ctx)
+				err := setArticleLikeValue(queries, likeValue, articleID, ctx)
 				if err != nil {
 					logAndError(w, r, err.Error())
 					return
@@ -192,7 +191,13 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 				}
 
 				sse := datastar.NewSSE(w, r)
-				sse.PatchElementTempl(PageTemplate(td.PageTitle, SideBarTemplate(td.Sidebar, r), ArticlePageTemplate(td)))
+				sse.PatchElementTempl(
+					PageTemplate(
+						td.PageTitle,
+						SideBarTemplate(td.Sidebar, r),
+						ArticlePageTemplate(td),
+					),
+				)
 
 			})
 

@@ -56,7 +56,7 @@ templ HomePageTemplate(latest []Article, starred []Article) {
 	<h2>Latest 5 articles</h2>
 	@ToReadTemplate(latest)
 	<h2>Starred articles</h2>
-	@StarredArticlesTemplate(starred)
+	@HaveLikedArticleTemplate(starred)
 }
 
 templ FeedPageTemplate(pageTitle string, alreadyRead []Article, toRead []Article) {
@@ -70,11 +70,11 @@ templ FeedPageTemplate(pageTitle string, alreadyRead []Article, toRead []Article
 templ ArticlePageTemplate(td ArticlePageTemplateData) {
 	<ul>
 		<li>{ td.FeedTitle }</li>
-		<li>{ td.FeedUrl }</li>
+		<li>{ td.DatePublished }</li>
 		<li>{ td.Link }</li>
 		<li>{ td.IsCache }</li>
 		<li>
-			@StarredTemplate(td.FeedId, td.ArticleId, td.IsStarred)
+			@LikeArticleTemplate(td.FeedId, td.ArticleId, td.IsStarred)
 		</li>
 	</ul>
 	<h2>{ td.FeedTitle } - { td.PageTitle }</h2>
@@ -83,9 +83,9 @@ templ ArticlePageTemplate(td ArticlePageTemplateData) {
 	</div>
 	<div data-on-intersect={ datastar.PutSSE("/article/%d/%d/set-read", td.FeedId, td.ArticleId) }>
 		<h3>To read</h3>
-		@ToReadTemplate(td.ToRead)
+		@ToReadTemplate(td.ArticlesToRead)
 		<h3>Older articles</h3>
-		@AlreadyReadTemplate(td.AlreadyRead)
+		@AlreadyReadTemplate(td.ArticlesRead)
 	</div>
 }
 
@@ -146,7 +146,7 @@ templ ToReadTemplate(toRead []Article) {
 				for _, a := range toRead {
 					if !(a.Read) {
 						<li>
-							if a.Starred {
+							if a.Liked {
 								<span>*</span>
 							}
 							<a href={ formatUrl("/article/%v/%v/view", a.FeedId, a.Id) }>{ a.Title }</a>
@@ -161,13 +161,13 @@ templ ToReadTemplate(toRead []Article) {
 	</div>
 }
 
-templ StarredArticlesTemplate(starred []Article) {
+templ HaveLikedArticleTemplate(starred []Article) {
 	<div id="starred-articles">
 		if (len(starred) > 0) {
 			<ul>
 				for _, a := range starred {
 					<li>
-						if a.Starred {
+						if a.Liked {
 							<span>*</span>
 						}
 						<a href={ formatUrl("/article/%v/%v/view", a.FeedId, a.Id) }>{ a.FullName() }</a>
@@ -186,7 +186,7 @@ templ AlreadyReadTemplate(alreadyRead []Article) {
 			<ul>
 				for _, a := range alreadyRead {
 					<li>
-						if a.Starred {
+						if a.Liked {
 							<span>*</span>
 						}
 						<a href={ formatUrl("/article/%v/%v/view", a.FeedId, a.Id) }>{ a.Title }</a>
@@ -272,8 +272,8 @@ templ UpdateReaderButtonTemplate() {
 	</button>
 }
 
-templ StarredTemplate(feedID int64, articleID int64, starredValue int64) {
-	<div id="star-value" data-on:click={ datastar.PutSSE(`/article/%v/%v/set-star/%v`, feedID, articleID, starredValue) }>Starred: { starredValue }</div>
+templ LikeArticleTemplate(feedID int64, articleID int64, starredValue int64) {
+	<div id="star-value" data-on:click={ datastar.PutSSE(`/article/%v/%v/like/%v`, feedID, articleID, starredValue) }>Starred: { starredValue }</div>
 }
 
 func formatUrl(pattern string, prms ...any) templ.SafeURL {

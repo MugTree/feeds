@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/mmcdole/gofeed"
@@ -113,16 +114,8 @@ func main() {
 
 		for _, v := range goFeed.Items {
 
-			pubParsed := ""
-			//updatedParsed := ""
-
-			if v.PublishedParsed != nil {
-				pubParsed = v.PublishedParsed.Format("2006-01-02 15:04:05")
-			}
-
-			// if v.UpdatedParsed != nil {
-			// 	updatedParsed = v.UpdatedParsed.Format("2006-01-02 15:04:05")
-			// }
+			publishedDate := feedItemDate(v)
+			dateFound := time.Now()
 
 			_, err = db.Exec(`
 				INSERT INTO articles (
@@ -130,7 +123,7 @@ func main() {
 				title, 
 				link, 
 				published, 
-				published_parsed, 
+				date_found, 
 				summary, 
 				read, 
 				starred
@@ -141,14 +134,14 @@ func main() {
 				 ?, 
 				 ?, 
 				 ?, 
-				 ?, 
+				 ?,
 				 ?
 				 );`,
 				id,
 				v.Title,
 				v.Link,
-				v.Published,
-				pubParsed,
+				publishedDate,
+				dateFound,
 				v.Description,
 				0,
 				0,
@@ -161,4 +154,16 @@ func main() {
 		}
 
 	}
+}
+
+func feedItemDate(item *gofeed.Item) *time.Time {
+	if item.PublishedParsed != nil {
+		return item.PublishedParsed
+	}
+
+	if item.UpdatedParsed != nil {
+		return item.UpdatedParsed
+	}
+
+	return nil
 }

@@ -26,43 +26,31 @@ func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID 
 	}
 	td.Sidebar = sidebar
 
-	af := ArticlePlusFeed{}
-
-	row, err := queries.GetFeedDataForArticleByArticleID(ctx, articleID)
+	row, err := queries.GetFeedAndArticleByArticleID(ctx, articleID)
 	if err != nil {
 		return td, err
 	}
 
-	af = ArticlePlusFeed{
-		ArticleID:              row.ID,
-		ArticleLink:            row.Link,
-		ArticleTitle:           row.Title,
-		ArticleStarred:         row.Starred,
-		FeedID:                 row.FeedID,
-		FeedTitle:              row.FeedTitle,
-		FeedUrl:                row.FeedUrl,
-		CssSelContainer:        row.CssSelContainer,
-		CssSelStart:            row.CssSelStart,
-		CssSelStop:             row.CssSelStop,
-		HtmlExtractionStrategy: row.HtmlExtractionStrategy,
-	}
+	td.PageTitle = row.ArticleTitle
+	td.FeedTitle = row.FeedTitle
+	td.FeedUrl = row.FeedUrl
+	td.Link = row.ArticleLink
+	td.ArticleId = row.ArticleID
+	td.FeedId = row.FeedID
+	td.IsStarred = row.ArticleStarred
 
-	td.PageTitle = af.ArticleTitle
-	td.FeedTitle = af.FeedTitle
-	td.FeedUrl = af.FeedUrl
-	td.Link = af.ArticleLink
-	td.ArticleId = af.ArticleID
-	td.FeedId = af.FeedID
-	td.IsStarred = af.ArticleStarred
+	fmt.Println(row.ArticleTitle, "\n", row.ArticlePublished)
+
+	td.DatePublished = row.ArticlePublished.String()
 
 	alreadyRead, toRead, err := getArticlesByFeed(queries, feedID, ctx)
 	if err != nil {
 		return td, err
 	}
-	td.AlreadyRead = alreadyRead
-	td.ToRead = toRead
+	td.ArticlesRead = alreadyRead
+	td.ArticlesToRead = toRead
 
-	hasContent, cachedContent, err := hasCachedContent(queries, af.ArticleLink, ctx)
+	hasContent, cachedContent, err := articleIsCached(queries, td.Link, ctx)
 	if err != nil {
 		return td, err
 	}
@@ -72,7 +60,7 @@ func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID 
 		td.IsCache = true
 	} else {
 
-		newContent, err := getArticleFromWeb(queries, af, ctx)
+		newContent, err := getArticleFromWeb(queries, row, ctx)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				return td, err
@@ -138,7 +126,7 @@ func getSidebarData(queries *db.Queries, ctx context.Context) ([]SidebarLink, er
 	return items, nil
 }
 
-func setStarredValue(queries *db.Queries, starredValue string, articleID int64, ctx context.Context) (int64, error) {
+func setArticleLikeValue(queries *db.Queries, starredValue string, articleID int64, ctx context.Context) error {
 
 	var flippedValue int64 = 0
 
@@ -152,10 +140,10 @@ func setStarredValue(queries *db.Queries, starredValue string, articleID int64, 
 			ID:      articleID},
 	)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
-	return flippedValue, nil
+	return nil
 }
 
 func getHomepageArticles(queries *db.Queries, ctx context.Context) (latest []Article, starred []Article, err error) {
@@ -167,16 +155,15 @@ func getHomepageArticles(queries *db.Queries, ctx context.Context) (latest []Art
 
 	for _, row := range latest5Articles {
 		latest = append(latest, Article{
-			Id:              row.ID,
-			FeedId:          row.FeedID,
-			Title:           row.Title,
-			Link:            row.Link,
-			Published:       row.Published.String(),
-			PublishedParsed: row.Published.String(),
-			Summary:         row.Summary,
-			Read:            int64ToBool(row.Read),
-			Starred:         int64ToBool(row.Starred),
-			FeedTitle:       row.FeedTitle,
+			Id:        row.ID,
+			FeedId:    row.FeedID,
+			Title:     row.Title,
+			Link:      row.Link,
+			Published: row.Published.String(),
+			Summary:   row.Summary,
+			Read:      int64ToBool(row.Read),
+			Liked:     int64ToBool(row.Starred),
+			FeedTitle: row.FeedTitle,
 		})
 	}
 
@@ -184,16 +171,15 @@ func getHomepageArticles(queries *db.Queries, ctx context.Context) (latest []Art
 
 	for _, row := range starredArticles {
 		starred = append(starred, Article{
-			Id:              row.ID,
-			FeedId:          row.FeedID,
-			Title:           row.Title,
-			Link:            row.Link,
-			Published:       row.Published.String(),
-			PublishedParsed: row.Published.String(),
-			Summary:         row.Summary,
-			Read:            int64ToBool(row.Read),
-			Starred:         int64ToBool(row.Starred),
-			FeedTitle:       row.FeedTitle,
+			Id:        row.ID,
+			FeedId:    row.FeedID,
+			Title:     row.Title,
+			Link:      row.Link,
+			Published: row.Published.String(),
+			Summary:   row.Summary,
+			Read:      int64ToBool(row.Read),
+			Liked:     int64ToBool(row.Starred),
+			FeedTitle: row.FeedTitle,
 		})
 	}
 
@@ -213,16 +199,15 @@ func getArticlesByFeed(queries *db.Queries, feedID int64, ctx context.Context) (
 	for _, row := range allArticles {
 
 		a := Article{
-			Id:              row.ID,
-			FeedId:          row.FeedID,
-			Title:           row.Title,
-			Link:            row.Link,
-			Published:       row.Published.String(),
-			PublishedParsed: row.Published.String(),
-			Summary:         row.Summary,
-			Read:            int64ToBool(row.Read),
-			Starred:         int64ToBool(row.Starred),
-			FeedTitle:       row.FeedTitle,
+			Id:        row.ID,
+			FeedId:    row.FeedID,
+			Title:     row.Title,
+			Link:      row.Link,
+			Published: row.Published.String(),
+			Summary:   row.Summary,
+			Read:      int64ToBool(row.Read),
+			Liked:     int64ToBool(row.Starred),
+			FeedTitle: row.FeedTitle,
 		}
 
 		if a.Read {
@@ -236,7 +221,7 @@ func getArticlesByFeed(queries *db.Queries, feedID int64, ctx context.Context) (
 	return alreadyRead, toRead, nil
 }
 
-func hasCachedContent(queries *db.Queries, articleLink string, ctx context.Context) (bool, string, error) {
+func articleIsCached(queries *db.Queries, articleLink string, ctx context.Context) (bool, string, error) {
 
 	lc, err := queries.GetCachedByLink(ctx, articleLink)
 	if err == nil {
@@ -250,7 +235,7 @@ func hasCachedContent(queries *db.Queries, articleLink string, ctx context.Conte
 
 }
 
-func getArticleFromWeb(queries *db.Queries, afd ArticlePlusFeed, ctx context.Context) (string, error) {
+func getArticleFromWeb(queries *db.Queries, afd db.GetFeedAndArticleByArticleIDRow, ctx context.Context) (string, error) {
 
 	pageHtmlContent := ""
 
@@ -261,18 +246,18 @@ func getArticleFromWeb(queries *db.Queries, afd ArticlePlusFeed, ctx context.Con
 	}
 
 	ep := extractionParams{}
-	ep.Container = afd.CssSelContainer.String
+	ep.Container = afd.FeedCssSelContainer.String
 
-	switch afd.HtmlExtractionStrategy.String {
+	switch afd.FeedHtmlExtractionStrategy.String {
 	case "no-clip":
 		break
 	case "clip-start":
-		ep.ClipStartPoint = afd.CssSelStart.String
+		ep.ClipStartPoint = afd.FeedCssSelStart.String
 	case "clip-end":
-		ep.ClipEndPoint = afd.CssSelStop.String
+		ep.ClipEndPoint = afd.FeedCssSelStop.String
 	case "clip-between":
-		ep.ClipStartPoint = afd.CssSelStart.String
-		ep.ClipEndPoint = afd.CssSelStop.String
+		ep.ClipStartPoint = afd.FeedCssSelStart.String
+		ep.ClipEndPoint = afd.FeedCssSelStop.String
 	}
 
 	//TODO - need to add some timeout values here really
@@ -378,41 +363,18 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 		// godump.Dump(feed.Items)
 		for _, i := range feed.Items {
 
-			//-----------------------------
-			//
-			// Will need a more sophisticated strategy here in the long run
-			// as we may need to update articles as they can change
-			// as we only really use the urls at the moment in the application
-			// and dont use the summary of descriptions that are liable to change
-			//
-			// ----------------------------
+			publishedDate := feedItemDate(i)
 
-			//godump.Dump(i.PublishedParsed)
-
-			pubParsed := ""
-			//updatedParsed := ""
-
-			if i.PublishedParsed != nil {
-				pubParsed = i.PublishedParsed.Format("2006-01-02 15:04:05")
-			}
-
-			// if i.UpdatedParsed != nil {
-			// 	updatedParsed = i.UpdatedParsed.Format("2006-01-02 15:04:05")
-			// }
-
-			published, err := time.Parse(time.RFC1123Z, i.Published)
-
-			queries.AddToArticles(
+			err := queries.AddToArticles(
 				ctx,
 				db.AddToArticlesParams{
-					FeedID:          v.ID,
-					Title:           i.Title,
-					Link:            i.Link,
-					Published:       published,
-					PublishedParsed: pubParsed,
-					Summary:         i.Description,
-					Read:            0,
-					Starred:         0,
+					FeedID:    v.ID,
+					Title:     i.Title,
+					Link:      i.Link,
+					Published: publishedDate,
+					Summary:   i.Description,
+					Read:      0,
+					Starred:   0,
 				},
 			)
 
@@ -429,6 +391,18 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
 	return 0, nil
 
+}
+
+func feedItemDate(item *gofeed.Item) *time.Time {
+	if item.PublishedParsed != nil {
+		return item.PublishedParsed
+	}
+
+	if item.UpdatedParsed != nil {
+		return item.UpdatedParsed
+	}
+
+	return nil
 }
 
 func mapFeedFromDbFeed(row db.Feed) Feed {
@@ -462,17 +436,17 @@ func (f Feed) LastFetchedDate() string {
 }
 
 type Article struct {
-	Id              int64  `json:"id" db:"id"`
-	FeedId          int64  `json:"feed_id" db:"feed_id"`
-	Title           string `json:"title" db:"title"`
-	Link            string `json:"link" db:"link"`
-	Published       string `json:"published" db:"published"`
-	PublishedParsed string `json:"published_parsed" db:"published_parsed"`
+	Id        int64  `json:"id" db:"id"`
+	FeedId    int64  `json:"feed_id" db:"feed_id"`
+	Title     string `json:"title" db:"title"`
+	Link      string `json:"link" db:"link"`
+	Published string `json:"published" db:"published"`
+	DateFound string `json:"date_found" db:"date_found"`
 	// Updated         string `json:"updated" db:"updated"`
 	// UpdatedParsed   string `json:"updated_parsed" db:"updated_parsed"`
 	Summary   string `json:"summary" db:"summary"`
 	Read      bool   `json:"read" db:"read"`
-	Starred   bool   `json:"starred" db:"starred"`
+	Liked     bool   `json:"starred" db:"starred"`
 	FeedTitle string `json:"feed_title" db:"feed_title"`
 }
 
@@ -538,18 +512,19 @@ func int64ToBool(i int64) bool {
 }
 
 type ArticlePageTemplateData struct {
-	FeedId      int64
-	PageTitle   string
-	AlreadyRead []Article
-	ToRead      []Article
-	FeedTitle   string
-	FeedUrl     string
-	Link        string
-	PageContent string
-	ArticleId   int64
-	IsCache     bool
-	IsStarred   int64
-	Sidebar     []SidebarLink
+	FeedId         int64
+	PageTitle      string
+	ArticlesRead   []Article
+	ArticlesToRead []Article
+	FeedTitle      string
+	FeedUrl        string
+	Link           string
+	PageContent    string
+	ArticleId      int64
+	IsCache        bool
+	IsStarred      int64
+	Sidebar        []SidebarLink
+	DatePublished  string
 }
 
 type UpdateParms struct {

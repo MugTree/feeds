@@ -119,7 +119,7 @@ func HomePageTemplate(latest []Article, starred []Article) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = StarredArticlesTemplate(starred).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = HaveLikedArticleTemplate(starred).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -220,9 +220,9 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
-		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(td.FeedUrl)
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(td.DatePublished)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates.templ`, Line: 73, Col: 18}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates.templ`, Line: 73, Col: 24}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -258,7 +258,7 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = StarredTemplate(td.FeedId, td.ArticleId, td.IsStarred).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = LikeArticleTemplate(td.FeedId, td.ArticleId, td.IsStarred).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -313,7 +313,7 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = ToReadTemplate(td.ToRead).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = ToReadTemplate(td.ArticlesToRead).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -321,7 +321,7 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = AlreadyReadTemplate(td.AlreadyRead).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = AlreadyReadTemplate(td.ArticlesRead).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -707,7 +707,7 @@ func ToReadTemplate(toRead []Article) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					if a.Starred {
+					if a.Liked {
 						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<span>*</span> ")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
@@ -763,7 +763,7 @@ func ToReadTemplate(toRead []Article) templ.Component {
 	})
 }
 
-func StarredArticlesTemplate(starred []Article) templ.Component {
+func HaveLikedArticleTemplate(starred []Article) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -798,7 +798,7 @@ func StarredArticlesTemplate(starred []Article) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				if a.Starred {
+				if a.Liked {
 					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<span>*</span> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -888,7 +888,7 @@ func AlreadyReadTemplate(alreadyRead []Article) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				if a.Starred {
+				if a.Liked {
 					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<span>*</span> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -1152,7 +1152,7 @@ func UpdateReaderButtonTemplate() templ.Component {
 	})
 }
 
-func StarredTemplate(feedID int64, articleID int64, starredValue int64) templ.Component {
+func LikeArticleTemplate(feedID int64, articleID int64, starredValue int64) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1178,9 +1178,9 @@ func StarredTemplate(feedID int64, articleID int64, starredValue int64) templ.Co
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var52 string
-		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(datastar.PutSSE(`/article/%v/%v/set-star/%v`, feedID, articleID, starredValue))
+		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(datastar.PutSSE(`/article/%v/%v/like/%v`, feedID, articleID, starredValue))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates.templ`, Line: 276, Col: 116}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates.templ`, Line: 276, Col: 112}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 		if templ_7745c5c3_Err != nil {
@@ -1193,7 +1193,7 @@ func StarredTemplate(feedID int64, articleID int64, starredValue int64) templ.Co
 		var templ_7745c5c3_Var53 string
 		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(starredValue)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates.templ`, Line: 276, Col: 142}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates.templ`, Line: 276, Col: 138}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 		if templ_7745c5c3_Err != nil {

@@ -10,15 +10,14 @@ import (
 )
 
 type Article struct {
-	ID              int64
-	FeedID          int64
-	Title           string
-	Link            string
-	Published       time.Time
-	PublishedParsed string
-	Summary         string
-	Read            int64
-	Starred         int64
+	ID        int64
+	FeedID    int64
+	Title     string
+	Link      string
+	Published *time.Time
+	Summary   string
+	Read      int64
+	Starred   int64
 }
 
 type ArticleCache struct {

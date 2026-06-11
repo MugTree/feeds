@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS feeds
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     url          TEXT NOT NULL UNIQUE,
     title        TEXT NOT NULL DEFAULT '',
-    last_fetched TIMESTAMP NOT NULL
+    last_fetched DATETIME NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS articles
@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS articles
     feed_id   INTEGER NOT NULL,
     title     TEXT NOT NULL DEFAULT '',
     link      TEXT NOT NULL DEFAULT '',
-    published TIMESTAMP NOT NULL,
-    published_parsed TEXT NOT NULL DEFAULT '',
+    published DATETIME NULL,
+    date_found DATETIME NULL,
     summary   TEXT NOT NULL DEFAULT '',
     read      INTEGER NOT NULL DEFAULT 0,
     starred   INTEGER NOT NULL DEFAULT 0,
