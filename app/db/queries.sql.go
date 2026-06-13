@@ -159,7 +159,7 @@ SELECT
 	a.id as article_id,
 	a.link as article_link, 
 	a.title as article_title,
-	a.starred as article_starred,
+	a.starred as article_stars,
 	a.published as article_published,
 	f.id as feed_id, 
 	f.title as feed_title,
@@ -178,7 +178,7 @@ type GetFeedAndArticleByArticleIDRow struct {
 	ArticleID                  int64
 	ArticleLink                string
 	ArticleTitle               string
-	ArticleStarred             int64
+	ArticleStars               int64
 	ArticlePublished           *time.Time
 	FeedID                     int64
 	FeedTitle                  string
@@ -196,7 +196,7 @@ func (q *Queries) GetFeedAndArticleByArticleID(ctx context.Context, id int64) (G
 		&i.ArticleID,
 		&i.ArticleLink,
 		&i.ArticleTitle,
-		&i.ArticleStarred,
+		&i.ArticleStars,
 		&i.ArticlePublished,
 		&i.FeedID,
 		&i.FeedTitle,

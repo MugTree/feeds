@@ -38,7 +38,7 @@ func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID 
 	td.Link = row.ArticleLink
 	td.ArticleId = row.ArticleID
 	td.FeedID = row.FeedID
-	td.IsStarred = row.ArticleStarred
+	td.StarValue = row.ArticleStars
 	td.ArticlePublished = row.ArticlePublished.Format(layoutISO)
 
 	alreadyRead, toRead, err := getArticlesByFeed(queries, feedID, ctx)
@@ -124,17 +124,18 @@ func getSidebarData(queries *db.Queries, ctx context.Context) ([]SidebarLink, er
 	return items, nil
 }
 
-func setArticleLikeValue(queries *db.Queries, starredValue string, articleID int64, ctx context.Context) error {
+func setArticleLikeValue(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
 
-	var flippedValue int64 = 0
-
-	if starredValue == "0" {
-		flippedValue = 1
-	}
+	updatedValue := func(currentValue int64) int64 {
+		if currentValue == 3 {
+			return 0
+		}
+		return currentValue + 1
+	}(starredValue)
 
 	err := queries.SetArticleStarredValue(ctx,
 		db.SetArticleStarredValueParams{
-			Starred: flippedValue,
+			Starred: int64(updatedValue),
 			ID:      articleID},
 	)
 	if err != nil {
@@ -509,7 +510,7 @@ type ArticlePageTemplateData struct {
 	PageContent      string
 	ArticleId        int64
 	IsCache          bool
-	IsStarred        int64
+	StarValue        int64
 	Sidebar          []SidebarLink
 	ArticlePublished string
 }

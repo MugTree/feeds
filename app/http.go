@@ -45,8 +45,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 			PageTemplate(
 				"Homepage",
-				NavTemplate(sidebar),
-				HomePageTemplate(latest, starred)).Render(ctx,
+				HomePageTemplate(NavTemplate(sidebar), latest, starred)).Render(ctx,
 				w,
 			)
 		})
@@ -83,8 +82,7 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 				PageTemplate(
 					pageTitle,
-					NavTemplate(sidebar),
-					FeedPageTemplate(pageTitle, alreadyRead, toRead)).Render(
+					FeedPageTemplate(NavTemplate(sidebar), pageTitle, alreadyRead, toRead)).Render(
 					r.Context(),
 					w,
 				)
@@ -115,7 +113,6 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 				PageTemplate(
 					td.PageTitle,
-					NavTemplate(td.Sidebar),
 					ArticlePageTemplate(td)).Render(
 					r.Context(),
 					w,
@@ -151,7 +148,6 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 				sse.PatchElementTempl(
 					PageTemplate(
 						td.PageTitle,
-						NavTemplate(td.Sidebar),
 						ArticlePageTemplate(td),
 					),
 				)
@@ -171,14 +167,14 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 					return
 				}
 
-				likeValue := r.PathValue("value")
+				likeValue, err := strconv.Atoi(r.PathValue("value"))
 
-				if likeValue != "0" && likeValue != "1" {
-					logAndError(w, r, fmt.Sprintf("incorrect like value: %v, needs to be 0 or 1", likeValue))
+				if likeValue < 0 && likeValue > 5 {
+					logAndError(w, r, fmt.Sprintf("incorrect like value: %v, needs to be between 0 and 5", likeValue))
 					return
 				}
 
-				err := setArticleLikeValue(queries, likeValue, articleID, ctx)
+				err = setArticleLikeValue(queries, int64(likeValue), articleID, ctx)
 				if err != nil {
 					logAndError(w, r, err.Error())
 					return
@@ -194,7 +190,6 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 				sse.PatchElementTempl(
 					PageTemplate(
 						td.PageTitle,
-						NavTemplate(td.Sidebar),
 						ArticlePageTemplate(td),
 					),
 				)
