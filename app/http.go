@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -18,6 +19,7 @@ import (
 
 //go:embed public/css/*.css
 //go:embed public/js/*.js
+//go:embed public/img/*
 var staticFS embed.FS
 
 func SetupHttpServer(queries *db.Queries, user string, password string) chi.Router {
@@ -27,6 +29,11 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 	r.Group(func(site chi.Router) {
 		site.Use(basicAuthHandler(user, password))
 
+		/**
+		-------------------------------------
+		Simple homepage
+		-------------------------------------
+		*/
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 
 			ctx := r.Context()
@@ -52,6 +59,11 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 		r.Route("/feed/{feedID}", func(feed chi.Router) {
 
+			/**
+			------------------------------------------------
+			Feed index page - show all the articles per feed
+			------------------------------------------------
+			*/
 			feed.Get("/view", func(w http.ResponseWriter, r *http.Request) {
 
 				ctx := r.Context()
@@ -92,6 +104,11 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 		r.Route("/article/{feedID}/{articleID}", func(article chi.Router) {
 
+			/**
+			---------------------------------------------------------------------
+			Main page - read an article that's been picked up bu the feed reader
+			---------------------------------------------------------------------
+			*/
 			article.Get("/view", func(w http.ResponseWriter, r *http.Request) {
 
 				ctx := r.Context()
@@ -119,6 +136,11 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 				)
 			})
 
+			/**
+			-----------------------------------------------
+			Called at the bottom of an article on intersect
+			-----------------------------------------------
+			*/
 			article.Put("/set-read", func(w http.ResponseWriter, r *http.Request) {
 
 				ctx := r.Context()
@@ -154,6 +176,11 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 			})
 
+			/**
+			------------------------------------------------------------
+			Set on a user click to set a star value on the article pages
+			------------------------------------------------------------
+			*/
 			article.Put("/like/{value}", func(w http.ResponseWriter, r *http.Request) {
 
 				ctx := r.Context()
@@ -168,9 +195,13 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 				}
 
 				likeValue, err := strconv.Atoi(r.PathValue("value"))
+				if err != nil {
+					logAndError(w, r, err.Error())
+					return
+				}
 
-				if likeValue < 0 && likeValue > 5 {
-					logAndError(w, r, fmt.Sprintf("incorrect like value: %v, needs to be between 0 and 5", likeValue))
+				if !slices.Contains([]int{0, 1, 2, 3}, likeValue) {
+					logAndError(w, r, fmt.Sprintf("incorrect like value: %v, needs to be between 0 and 3", likeValue))
 					return
 				}
 
@@ -198,6 +229,12 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 		})
 
+		/**
+		-------------------------------------------------------
+		At the moment this reloads all of the feeds and returns
+		a JS window.location.reload();
+		--------------------------------------------------------
+		*/
 		r.Get("/update-reader", func(w http.ResponseWriter, r *http.Request) {
 
 			_, err := getFeedUpdates(queries, r.Context())

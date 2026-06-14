@@ -164,7 +164,7 @@ func getHomepageArticles(queries *db.Queries, ctx context.Context) (latest []Art
 			DateFound: row.DateFound.Format(layoutISO),
 			Summary:   row.Summary,
 			Read:      int64ToBool(row.Read),
-			Liked:     int64ToBool(row.Starred),
+			Liked:     row.Starred,
 			FeedTitle: row.FeedTitle,
 		})
 	}
@@ -181,7 +181,7 @@ func getHomepageArticles(queries *db.Queries, ctx context.Context) (latest []Art
 			DateFound: row.Published.Format(layoutISO),
 			Summary:   row.Summary,
 			Read:      int64ToBool(row.Read),
-			Liked:     int64ToBool(row.Starred),
+			Liked:     row.Starred,
 			FeedTitle: row.FeedTitle,
 		})
 	}
@@ -210,7 +210,7 @@ func getArticlesByFeed(queries *db.Queries, feedID int64, ctx context.Context) (
 			DateFound: row.DateFound.Format(layoutISO),
 			Summary:   row.Summary,
 			Read:      int64ToBool(row.Read),
-			Liked:     int64ToBool(row.Starred),
+			Liked:     row.Starred,
 			FeedTitle: row.FeedTitle,
 		}
 
@@ -434,7 +434,7 @@ type Article struct {
 	// UpdatedParsed   string `json:"updated_parsed" db:"updated_parsed"`
 	Summary   string `json:"summary" db:"summary"`
 	Read      bool   `json:"read" db:"read"`
-	Liked     bool   `json:"starred" db:"starred"`
+	Liked     int64  `json:"starred" db:"starred"`
 	FeedTitle string `json:"feed_title" db:"feed_title"`
 }
 

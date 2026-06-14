@@ -33,7 +33,7 @@ templ HomePageTemplate(NavTemplate templ.Component, latest []Article, starred []
 	@NavTemplate
 	<h2>Latest 5 articles</h2>
 	@Latest5ArticlesTemplate(latest)
-	<h2>🔥 Starred articles</h2>
+	<h2>Starred articles</h2>
 	@HaveLikedArticleTemplate(starred)
 }
 
@@ -128,9 +128,6 @@ templ ToReadTemplate(toRead []Article) {
 				for _, a := range toRead {
 					if !(a.Read) {
 						<li>
-							if a.Liked {
-								<span>*</span>
-							}
 							<a href={ formatUrl("/article/%v/%v/view", a.FeedId, a.Id) }>{ a.Title }</a>
 						</li>
 					}
@@ -147,6 +144,9 @@ templ HaveLikedArticleTemplate(starred []Article) {
 				for _, a := range starred {
 					<li>
 						<a href={ formatUrl("/article/%v/%v/view", a.FeedId, a.Id) }>{ a.FullName() }</a>
+						if a.Liked >0 {
+							<img width="60px" src={ templ.SafeURL(fmt.Sprintf("/public/img/%v-star.png", a.Liked)) }/>
+						}
 					</li>
 				}
 			</ul>
@@ -179,8 +179,8 @@ templ AlreadyReadTemplate(alreadyRead []Article) {
 				for _, a := range alreadyRead {
 					<li>
 						<a href={ formatUrl("/article/%v/%v/view", a.FeedId, a.Id) }>{ a.Title }</a>
-						if a.Liked {
-							<span>🔥</span>
+						if a.Liked >0 {
+							<img width="60px" src={ templ.SafeURL(fmt.Sprintf("/public/img/%v-star.png", a.Liked)) }/>
 						}
 					</li>
 				}
@@ -231,7 +231,7 @@ templ UpdateReaderButtonTemplate() {
 }
 
 templ LikeArticleTemplate(feedID int64, articleID int64, starsValue int64) {
-	<div id="star-value" data-on:click={ datastar.PutSSE(`/article/%v/%v/like/%v`, feedID, articleID, starsValue) }>Starred: { starsValue }</div>
+	<div id="star-value" data-on:click={ datastar.PutSSE(`/article/%v/%v/like/%v`, feedID, articleID, starsValue) }>Starred: <img width="60px" src={ templ.SafeURL(fmt.Sprintf("/public/img/%v-star.png", starsValue)) }/> </div>
 }
 
 func formatUrl(pattern string, prms ...any) templ.SafeURL {
