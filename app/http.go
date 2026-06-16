@@ -256,6 +256,11 @@ func adminRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 		fmt.Println(feedID)
 	})
 
+	r.Get("/admin/feed/create", func(w http.ResponseWriter, r *http.Request) {
+		form := FeedAdminFormTemplate(FeedFormTemplateData{ButtonText: "Create new"})
+		AdminPageTemplate(form).Render(r.Context(), w)
+	})
+
 	r.Post("/admin/feed/create", func(w http.ResponseWriter, r *http.Request) {
 		form := FeedAdminFormTemplate(FeedFormTemplateData{ButtonText: "Create new"})
 		AdminPageTemplate(form).Render(r.Context(), w)
