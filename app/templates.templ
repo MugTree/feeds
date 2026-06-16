@@ -73,7 +73,7 @@ templ ArticlePageTemplate(td ArticlePageTemplateData) {
 templ FeedAdminListTemplate(feeds []Feed) {
 	<ul>
 		for _, v := range feeds {
-			<li><a href={ templ.URL(fmt.Sprintf("/admin/feed/%v", v.Id)) }>{ v.Title }</a></li>
+			<li><a href={ templ.URL(fmt.Sprintf("/admin/feed/%v/view", v.Id)) }>{ v.Title }</a></li>
 		}
 	</ul>
 }

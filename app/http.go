@@ -4,11 +4,9 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"embed"
-	"errors"
 	"fmt"
 	"net/http"
 	"runtime"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -28,321 +26,248 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 	r.Handle("/public/*", neuterDirectoryHandler(http.FileServer(http.FS(staticFS))))
 	r.Group(func(site chi.Router) {
 		site.Use(basicAuthHandler(user, password))
+		frontEndRoutes(r, queries)
+		adminRoutes(r, queries)
+	})
+	return r
+}
 
-		/**
-		-------------------------------------
-		Simple homepage
-		-------------------------------------
-		*/
-		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 
-			ctx := r.Context()
+		ctx := r.Context()
 
-			latest, starred, err := getHomepageArticles(queries, ctx)
-			if err != nil {
-				logAndError(w, r, err.Error())
-				return
-			}
-
-			sidebar, err := getSidebarData(queries, ctx)
-			if err != nil {
-				logAndError(w, r, err.Error())
-				return
-			}
-
-			PageTemplate(
-				"Homepage",
-				HomePageTemplate(NavTemplate(sidebar), latest, starred)).Render(ctx,
-				w,
-			)
-		})
-
-		r.Route("/feed/{feedID}", func(feed chi.Router) {
-
-			/**
-			------------------------------------------------
-			Feed index page - show all the articles per feed
-			------------------------------------------------
-			*/
-			feed.Get("/view", func(w http.ResponseWriter, r *http.Request) {
-
-				ctx := r.Context()
-
-				feedID, ok := requireIDParam(w, r, "feedID")
-				if !ok {
-					return
-				}
-
-				feed, err := getFeed(queries, feedID, ctx)
-				if err != nil {
-					logAndError(w, r, err.Error())
-					return
-				}
-				pageTitle := feed.Title
-
-				alreadyRead, toRead, err := getArticlesByFeed(queries, feedID, ctx)
-				if err != nil {
-					logAndError(w, r, err.Error())
-					return
-				}
-
-				sidebar, err := getSidebarData(queries, ctx)
-				if err != nil {
-					logAndError(w, r, err.Error())
-					return
-				}
-
-				PageTemplate(
-					pageTitle,
-					FeedPageTemplate(NavTemplate(sidebar), pageTitle, alreadyRead, toRead)).Render(
-					r.Context(),
-					w,
-				)
-			})
-
-		})
-
-		r.Route("/article/{feedID}/{articleID}", func(article chi.Router) {
-
-			/**
-			---------------------------------------------------------------------
-			Main page - read an article that's been picked up bu the feed reader
-			---------------------------------------------------------------------
-			*/
-			article.Get("/view", func(w http.ResponseWriter, r *http.Request) {
-
-				ctx := r.Context()
-
-				feedID, ok := requireIDParam(w, r, "feedID")
-				if !ok {
-					return
-				}
-				articleID, ok := requireIDParam(w, r, "articleID")
-				if !ok {
-					return
-				}
-
-				td, err := getArticleTemplateData(queries, ctx, articleID, feedID)
-				if err != nil {
-					logAndError(w, r, err.Error())
-					return
-				}
-
-				PageTemplate(
-					td.PageTitle,
-					ArticlePageTemplate(td)).Render(
-					r.Context(),
-					w,
-				)
-			})
-
-			/**
-			-----------------------------------------------
-			Called at the bottom of an article on intersect
-			-----------------------------------------------
-			*/
-			article.Put("/set-read", func(w http.ResponseWriter, r *http.Request) {
-
-				ctx := r.Context()
-
-				feedID, ok := requireIDParam(w, r, "feedID")
-				if !ok {
-					return
-				}
-				articleID, ok := requireIDParam(w, r, "articleID")
-				if !ok {
-					return
-				}
-
-				err := queries.SetArticleAsRead(ctx, articleID)
-				if err != nil {
-					logAndError(w, r, err.Error())
-					return
-				}
-
-				td, err := getArticleTemplateData(queries, ctx, articleID, feedID)
-				if err != nil {
-					logAndError(w, r, err.Error())
-					return
-				}
-
-				sse := datastar.NewSSE(w, r)
-				sse.PatchElementTempl(
-					PageTemplate(
-						td.PageTitle,
-						ArticlePageTemplate(td),
-					),
-				)
-
-			})
-
-			/**
-			------------------------------------------------------------
-			Set on a user click to set a star value on the article pages
-			------------------------------------------------------------
-			*/
-			article.Put("/like/{value}", func(w http.ResponseWriter, r *http.Request) {
-
-				ctx := r.Context()
-
-				feedID, ok := requireIDParam(w, r, "feedID")
-				if !ok {
-					return
-				}
-				articleID, ok := requireIDParam(w, r, "articleID")
-				if !ok {
-					return
-				}
-
-				likeValue, err := strconv.Atoi(r.PathValue("value"))
-				if err != nil {
-					logAndError(w, r, err.Error())
-					return
-				}
-
-				if !slices.Contains([]int{0, 1, 2, 3}, likeValue) {
-					logAndError(w, r, fmt.Sprintf("incorrect like value: %v, needs to be between 0 and 3", likeValue))
-					return
-				}
-
-				err = setArticleLikeValue(queries, int64(likeValue), articleID, ctx)
-				if err != nil {
-					logAndError(w, r, err.Error())
-					return
-				}
-
-				td, err := getArticleTemplateData(queries, ctx, articleID, feedID)
-				if err != nil {
-					logAndError(w, r, err.Error())
-					return
-				}
-
-				sse := datastar.NewSSE(w, r)
-				sse.PatchElementTempl(
-					PageTemplate(
-						td.PageTitle,
-						ArticlePageTemplate(td),
-					),
-				)
-
-			})
-
-		})
-
-		/**
-		-------------------------------------------------------
-		At the moment this reloads all of the feeds and returns
-		a JS window.location.reload();
-		--------------------------------------------------------
-		*/
-		r.Get("/update-reader", func(w http.ResponseWriter, r *http.Request) {
-
-			_, err := getFeedUpdates(queries, r.Context())
-			if err != nil {
-				logAndError(w, r, err.Error())
-				return
-			}
-
-			sse := datastar.NewSSE(w, r)
-			sse.PatchElementTempl(
-				RefreshTemplate(),
-				datastar.WithModeAppend(),
-				datastar.WithSelector("body"),
-			)
-
-		})
-
-		// READ ALL - plain old html/text
-		r.Get("/admin/feeds", func(w http.ResponseWriter, r *http.Request) {
-			feeds, err := getAllFeeds(queries, r.Context())
-			if err != nil {
-				logAndError(w, r, err.Error())
-				return
-			}
-
-			AdminPageTemplate(FeedAdminListTemplate(feeds)).Render(r.Context(), w)
-		})
-
-		// NEW FEED - plain old html/text
-		r.Get("/admin/feeds/new", func(w http.ResponseWriter, r *http.Request) {
-			form := FeedAdminFormTemplate(FeedFormTemplateData{ButtonText: "Create new"})
-			AdminPageTemplate(form).Render(r.Context(), w)
-		})
-
-		// CREATE - returns SSE
-		r.Post("/admin/feeds", func(w http.ResponseWriter, r *http.Request) {
-
-		})
-
-		// READ - returns text/html
-		r.Get("/admin/feeds/{feedID}", func(w http.ResponseWriter, r *http.Request) {
-
-			feedID, ok := requireIDParam(w, r, "feedID")
-			if !ok {
-				return
-			}
-
-			ctx := r.Context()
-
-			feed, err := getFeed(queries, feedID, ctx)
-			if err != nil {
-				logAndError(w, r, err.Error())
-				return
-			}
-
-			vm := FeedFormTemplateData{Feed: feed, ButtonText: "Update feed"}
-			AdminPageTemplate(FeedAdminFormTemplate(vm)).Render(r.Context(), w)
-		})
-
-		/**
-		  -------
-		  These are the SSE actions
-		*/
-
-		// UPDATE - returns SSE
-		r.Put("/admin/feeds/{feedId}", func(w http.ResponseWriter, r *http.Request) {
-
-			_, ok := requireIDParam(w, r, "feedID")
-			if !ok {
-				return
-			}
-
-		})
-
-		// DELETE
-		r.Delete("/admin/feeds/{feedID}", func(w http.ResponseWriter, r *http.Request) {
-
-			_, ok := requireIDParam(w, r, "feedID")
-			if !ok {
-				return
-			}
-
-		})
-
-		type FeedCreateUpdateSignals struct {
-			Title                  string `json:"title" title:"title"`
-			CSSSelectorContainer   string `json:"css_sel_container" db:"css_sel_container"`
-			CSSSelectorStart       string `json:"css_sel_start" db:"css_sel_start"`
-			CSSSelectorStop        string `json:"css_sel_stop" db:"css_sel_stop"`
-			HTMLExtractionStrategy string `json:"html_extraction_strategy" db:"html_extraction_strategy"`
+		latest, starred, err := getHomepageArticles(queries, ctx)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
 		}
 
-		r.Post("/admin/feeds/validate", func(w http.ResponseWriter, r *http.Request) {
+		sidebar, err := getSidebarData(queries, ctx)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
 
-			fsigs := &FeedCreateUpdateSignals{}
+		PageTemplate(
+			"Homepage",
+			HomePageTemplate(NavTemplate(sidebar), latest, starred)).Render(ctx,
+			w,
+		)
+	})
 
-			if err := datastar.ReadSignals(r, fsigs); err != nil {
-				logAndError(w, r, errors.New("signals not mapping").Error())
-				return
-			}
+	r.Get("/feed/{feedID}/view", func(w http.ResponseWriter, r *http.Request) {
 
-			if fsigs.Title == "" {
-				// patch in something here
-			}
+		ctx := r.Context()
+		feedID, ok := requireIDParam(w, r, "feedID")
+		if !ok {
+			return
+		}
 
-		})
+		feed, err := getFeed(queries, feedID, ctx)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+		pageTitle := feed.Title
+
+		alreadyRead, toRead, err := getArticlesByFeed(queries, feedID, ctx)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+
+		sidebar, err := getSidebarData(queries, ctx)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+
+		PageTemplate(
+			pageTitle,
+			FeedPageTemplate(NavTemplate(sidebar), pageTitle, alreadyRead, toRead)).Render(
+			r.Context(),
+			w,
+		)
 
 	})
+
+	r.Get("/article/{feedID}/{articleID}/view", func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		feedID, ok := requireIDParam(w, r, "feedID")
+		if !ok {
+			return
+		}
+		articleID, ok := requireIDParam(w, r, "articleID")
+		if !ok {
+			return
+		}
+
+		td, err := getArticleTemplateData(queries, ctx, articleID, feedID)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+
+		PageTemplate(
+			td.PageTitle,
+			ArticlePageTemplate(td)).Render(
+			r.Context(),
+			w,
+		)
+	})
+
+	r.Put("/article/{feedID}/{articleID}/set-read", func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+		feedID, ok := requireIDParam(w, r, "feedID")
+		if !ok {
+			return
+		}
+		articleID, ok := requireIDParam(w, r, "articleID")
+		if !ok {
+			return
+		}
+
+		err := queries.SetArticleAsRead(ctx, articleID)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+
+		td, err := getArticleTemplateData(queries, ctx, articleID, feedID)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+
+		sse := datastar.NewSSE(w, r)
+		sse.PatchElementTempl(
+			PageTemplate(
+				td.PageTitle,
+				ArticlePageTemplate(td),
+			),
+		)
+	})
+
+	r.Put("/article/{feedID}/{articleID}/like/{value}", func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
+		feedID, ok := requireIDParam(w, r, "feedID")
+		if !ok {
+			return
+		}
+		articleID, ok := requireIDParam(w, r, "articleID")
+		if !ok {
+			return
+		}
+
+		likeValue, err := strconv.Atoi(r.PathValue("value"))
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+
+		if likeValue >= 0 && likeValue <= 3 {
+			logAndError(w, r, fmt.Sprintf("incorrect like value: %v, needs to be between 0 and 3", likeValue))
+			return
+		}
+
+		err = setArticleLikeValue(queries, int64(likeValue), articleID, ctx)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+
+		td, err := getArticleTemplateData(queries, ctx, articleID, feedID)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+
+		sse := datastar.NewSSE(w, r)
+		sse.PatchElementTempl(
+			PageTemplate(
+				td.PageTitle,
+				ArticlePageTemplate(td),
+			),
+		)
+
+	})
+
+	r.Get("/update-reader", func(w http.ResponseWriter, r *http.Request) {
+
+		_, err := getFeedUpdates(queries, r.Context())
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+
+		sse := datastar.NewSSE(w, r)
+		sse.PatchElementTempl(
+			RefreshTemplate(),
+			datastar.WithModeAppend(),
+			datastar.WithSelector("body"),
+		)
+
+	})
+
+	return r
+}
+
+func adminRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
+
+	r.Get("/admin/feeds/list", func(w http.ResponseWriter, r *http.Request) {
+		feeds, err := getAllFeeds(queries, r.Context())
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+		AdminPageTemplate(FeedAdminListTemplate(feeds)).Render(r.Context(), w)
+	})
+
+	r.Get("/admin/feed/{feedID}/view", func(w http.ResponseWriter, r *http.Request) {
+
+		feedID, ok := requireIDParam(w, r, "feedID")
+		if !ok {
+			return
+		}
+
+		ctx := r.Context()
+
+		feed, err := getFeed(queries, feedID, ctx)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+
+		vm := FeedFormTemplateData{Feed: feed, ButtonText: "Update feed"}
+		AdminPageTemplate(FeedAdminFormTemplate(vm)).Render(r.Context(), w)
+	})
+
+	r.Put("/admin/feed/{feedID}/update", func(w http.ResponseWriter, r *http.Request) {
+
+		feedID, ok := requireIDParam(w, r, "feedID")
+		if !ok {
+			return
+		}
+		fmt.Println(feedID)
+	})
+
+	r.Post("/admin/feed/create", func(w http.ResponseWriter, r *http.Request) {
+		form := FeedAdminFormTemplate(FeedFormTemplateData{ButtonText: "Create new"})
+		AdminPageTemplate(form).Render(r.Context(), w)
+	})
+
+	type FeedCreateUpdateSignals struct {
+		Title                  string `json:"title" title:"title"`
+		CSSSelectorContainer   string `json:"css_sel_container" db:"css_sel_container"`
+		CSSSelectorStart       string `json:"css_sel_start" db:"css_sel_start"`
+		CSSSelectorStop        string `json:"css_sel_stop" db:"css_sel_stop"`
+		HTMLExtractionStrategy string `json:"html_extraction_strategy" db:"html_extraction_strategy"`
+	}
 
 	return r
 }
