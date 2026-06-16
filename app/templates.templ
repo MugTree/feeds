@@ -68,6 +68,22 @@ templ ArticlePageTemplate(td ArticlePageTemplateData) {
 		@NavTemplate(td.Sidebar)
 		<p><a href="#pagetop">Back to top</a></p>
 	</div>
+	<script>
+
+		let selectedText = "";
+
+		document.addEventListener("pointerup", () => {
+			const selection = window.getSelection().toString().trim();
+
+			if (selection) {
+				 selectedText = selection;
+
+        		console.log("Captured:", selectedText);
+			}
+
+		});
+	
+	</script>
 }
 
 templ FeedAdminListTemplate(feeds []Feed) {
