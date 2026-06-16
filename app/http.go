@@ -92,6 +92,8 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 	})
 
+	const articlePath = "/article/{feedID}/{articleID}/"
+
 	r.Get("/article/{feedID}/{articleID}/view", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
