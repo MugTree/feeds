@@ -170,7 +170,7 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 			return
 		}
 
-		if likeValue >= 0 && likeValue <= 3 {
+		if likeValue < 0 && likeValue > 3 {
 			logAndError(w, r, fmt.Sprintf("incorrect like value: %v, needs to be between 0 and 3", likeValue))
 			return
 		}
