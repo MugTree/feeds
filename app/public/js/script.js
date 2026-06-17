@@ -26,8 +26,8 @@ function getTextSelection() {
   return data;
 }
 
-function resetState(data) {
-  data = null;
+function resetState(selectionData) {
+  selectionData = null;
   document.getElementById("note").value = "";
   window.getSelection()?.removeAllRanges();
   dialog.close();
