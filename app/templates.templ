@@ -4,7 +4,46 @@ import "fmt"
 
 import "github.com/starfederation/datastar/sdk/go/datastar"
 
+templ SelectionTestDataStar() {
+	<!DOCTYPE html>
+	<html>
+		<head>
+			<script type="module" src="/public/js/datastar.js"></script>
+		</head>
+		<body>
+			<dialog id="annotateDialog">
+				<div id="snippetPreview"></div>
+				<input type="hidden" data-bind:selection-data.start/>
+				<input type="hidden" data-bind:selection-data.end/>
+				<input type="hidden" data-bind:selection-data.selection/>
+				<label for="note">
+					Note: 
+					<textarea id="note" data-bind:selection-data.note></textarea>
+				</label>
+				<menu>
+					<button type="button" data-on:click="resetState($selectionData);">Cancel</button>
+					<button data-on:click="@put('/annotate'); resetState($selectionData)">
+						Post anotation	
+					</button>
+				</menu>
+			</dialog>
+			/**
+			
+			*/
+			<main id="article" data-signals:selection-data data-on:pointerup="$selectionData = getTextSelection(); dialog.showModal()" data-on:pointerdown="closeDialog(evt)">
+				<p>
+					Select some of this text with your mouse. When you release,
+					the selected text will be captured and a button will appear.
+				</p>
+				<button id="sendBtn">Send Selection</button>
+			</main>
+			<script src="/public/js/script.js"></script>
+		</body>
+	</html>
+}
+
 templ PageTemplate(pageTitle string, Main templ.Component) {
+	<!DOCTYPE html>
 	<html lang="en">
 		<head>
 			<script type="module" src="/public/js/datastar.js"></script>
@@ -56,9 +95,9 @@ templ ArticlePageTemplate(td ArticlePageTemplateData) {
 			@LikeArticleTemplate(td.FeedID, td.ArticleId, td.StarValue)
 		</li>
 	</ul>
-	<div>
+	<section id="article-content">
 		@templ.Raw(td.PageContent)
-	</div>
+	</section>
 	@LikeArticleTemplate(td.FeedID, td.ArticleId, td.StarValue)
 	<div data-on-intersect={ datastar.PutSSE("/article/%d/%d/set-read", td.FeedID, td.ArticleId) }>
 		@ToReadTemplate(td.ArticlesToRead)
@@ -70,18 +109,19 @@ templ ArticlePageTemplate(td ArticlePageTemplateData) {
 	</div>
 	<script>
 
-		let selectedText = "";
+	let selectedText = "";
 
-		document.addEventListener("pointerup", () => {
-			const selection = window.getSelection().toString().trim();
+document.addEventListener("mouseup", () => {
+    const selection = window.getSelection().toString().trim();
 
-			if (selection) {
-				 selectedText = selection;
+    if (selection) {
+        selectedText = selection;
 
-        		console.log("Captured:", selectedText);
-			}
+        console.log("Captured:", selectedText);
 
-		});
+        document.getElementById("sendBtn").style.display = "inline-block";
+    }
+});
 	
 	</script>
 }

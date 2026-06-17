@@ -33,6 +33,14 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 }
 
 func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
+
+	r.Put("/annotate", func(w http.ResponseWriter, r *http.Request) {
+
+		w.Write([]byte("123"))
+	})
+	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
+		SelectionTestDataStar().Render(r.Context(), w)
+	})
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -194,6 +202,11 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 				ArticlePageTemplate(td),
 			),
 		)
+
+	})
+
+	// returns the whole document with a dialog and
+	r.Get("/article/{feedID}/{articleID}/edit", func(w http.ResponseWriter, r *http.Request) {
 
 	})
 
