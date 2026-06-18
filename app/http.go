@@ -34,13 +34,6 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
-	r.Put("/annotate", func(w http.ResponseWriter, r *http.Request) {
-
-		w.Write([]byte("123"))
-	})
-	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
-		SelectionTestDataStar().Render(r.Context(), w)
-	})
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -205,8 +198,44 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 	})
 
-	// returns the whole document with a dialog and
-	r.Get("/article/{feedID}/{articleID}/edit", func(w http.ResponseWriter, r *http.Request) {
+	/**
+
+	Adding annotations from article page
+
+	*/
+
+	type annotateSignals = struct {
+		Start     int64  `json:"start"`
+		End       int64  `json:"end"`
+		Notes     string `json:"notes"`
+		Selection string `json:"selection"`
+	}
+
+	type articlePageSignals = struct {
+		Annotation annotateSignals `json:"annotation"`
+	}
+
+	r.Put("/article/{feedID}/{articleID}/annotate", func(w http.ResponseWriter, r *http.Request) {
+		as := articlePageSignals{}
+		if err := datastar.ReadSignals(r, &as); err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+
+		feedID, ok := requireIDParam(w, r, "feedID")
+		if !ok {
+			return
+		}
+
+		articleID, ok := requireIDParam(w, r, "articleID")
+		if !ok {
+			return
+		}
+
+		fmt.Println(feedID, articleID)
+
+		// what needs to happen now is that we get the raw article text from the database stringify it and interpolate some
+		// <span> strings into it and push it back to the page
 
 	})
 

@@ -1,7 +1,7 @@
 const article = document.getElementById("article");
 const dialog = document.getElementById("annotateDialog");
 
-function getTextSelection() {
+function getAnnotationData() {
   const sel = window.getSelection();
   if (!sel || sel.isCollapsed || !sel.rangeCount) return;
 

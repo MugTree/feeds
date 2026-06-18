@@ -4,44 +4,6 @@ import "fmt"
 
 import "github.com/starfederation/datastar/sdk/go/datastar"
 
-templ SelectionTestDataStar() {
-	<!DOCTYPE html>
-	<html>
-		<head>
-			<script type="module" src="/public/js/datastar.js"></script>
-		</head>
-		<body>
-			<dialog id="annotateDialog">
-				<div id="snippetPreview"></div>
-				<input type="hidden" data-bind:selection-data.start/>
-				<input type="hidden" data-bind:selection-data.end/>
-				<input type="hidden" data-bind:selection-data.selection/>
-				<label for="note">
-					Note: 
-					<textarea id="note" data-bind:selection-data.note></textarea>
-				</label>
-				<menu>
-					<button type="button" data-on:click="resetState($selectionData);">Cancel</button>
-					<button data-on:click="@put('/annotate'); resetState($selectionData)">
-						Post anotation	
-					</button>
-				</menu>
-			</dialog>
-			/**
-			
-			*/
-			<main id="article" data-signals:selection-data data-on:pointerup="$selectionData = getTextSelection(); dialog.showModal()" data-on:pointerdown="closeDialog(evt)">
-				<p>
-					Select some of this text with your mouse. When you release,
-					the selected text will be captured and a button will appear.
-				</p>
-				<button id="sendBtn">Send Selection</button>
-			</main>
-			<script src="/public/js/script.js"></script>
-		</body>
-	</html>
-}
-
 templ PageTemplate(pageTitle string, Main templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -95,10 +57,33 @@ templ ArticlePageTemplate(td ArticlePageTemplateData) {
 			@LikeArticleTemplate(td.FeedID, td.ArticleId, td.StarValue)
 		</li>
 	</ul>
-	<section id="article-content">
+	<dialog id="annotateDialog">
+		<div data-text="$annotation.selection"></div>
+		<label for="note">
+			Note: 
+			<textarea id="note" data-bind:annotation.note></textarea>
+		</label>
+		<menu>
+			<button type="button" data-on:click="resetState($annotation);">Cancel</button>
+			{{ annotate := fmt.Sprintf("@put('/article/%d/%d/annotate'); resetState($annotation);", td.FeedID, td.ArticleId) }}
+			<button data-on:click={ annotate }>
+				Post anotation	
+			</button>
+		</menu>
+	</dialog>
+	/**
+
+	Annotate page	
+
+	*/
+	<section id="article" data-signals:annotation data-on:pointerup="$annotation = getAnnotationData(); dialog.showModal()" data-on:pointerdown="closeDialog(evt)">
+		// -----------------------------------------------------
 		@templ.Raw(td.PageContent)
 	</section>
 	@LikeArticleTemplate(td.FeedID, td.ArticleId, td.StarValue)
+	/**
+	Set the read value ...	
+	*/
 	<div data-on-intersect={ datastar.PutSSE("/article/%d/%d/set-read", td.FeedID, td.ArticleId) }>
 		@ToReadTemplate(td.ArticlesToRead)
 		<h3>Older articles</h3>
@@ -107,23 +92,7 @@ templ ArticlePageTemplate(td ArticlePageTemplateData) {
 		@NavTemplate(td.Sidebar)
 		<p><a href="#pagetop">Back to top</a></p>
 	</div>
-	<script>
-
-	let selectedText = "";
-
-document.addEventListener("mouseup", () => {
-    const selection = window.getSelection().toString().trim();
-
-    if (selection) {
-        selectedText = selection;
-
-        console.log("Captured:", selectedText);
-
-        document.getElementById("sendBtn").style.display = "inline-block";
-    }
-});
-	
-	</script>
+	<script src="/public/js/script.js"></script>
 }
 
 templ FeedAdminListTemplate(feeds []Feed) {
