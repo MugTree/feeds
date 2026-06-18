@@ -13,10 +13,12 @@ import (
 
 const addToArticleCache = `-- name: AddToArticleCache :exec
 INSERT INTO article_cache (
+	article_id,
 	link, 
 	article_content, 
 	created
 ) VALUES(
+?,
 ?,
 ?, 
 CURRENT_TIMESTAMP
@@ -24,12 +26,13 @@ CURRENT_TIMESTAMP
 `
 
 type AddToArticleCacheParams struct {
+	ArticleID      int64
 	Link           string
 	ArticleContent sql.NullString
 }
 
 func (q *Queries) AddToArticleCache(ctx context.Context, arg AddToArticleCacheParams) error {
-	_, err := q.db.ExecContext(ctx, addToArticleCache, arg.Link, arg.ArticleContent)
+	_, err := q.db.ExecContext(ctx, addToArticleCache, arg.ArticleID, arg.Link, arg.ArticleContent)
 	return err
 }
 
@@ -78,6 +81,41 @@ func (q *Queries) AddToArticles(ctx context.Context, arg AddToArticlesParams) er
 		arg.Starred,
 	)
 	return err
+}
+
+const getArticlePlusCachedByID = `-- name: GetArticlePlusCachedByID :one
+SELECT a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, ac.article_content FROM articles a INNER JOIN  article_cache ac ON a.id = ac.article_id WHERE a.id = ?
+`
+
+type GetArticlePlusCachedByIDRow struct {
+	ID             int64
+	FeedID         int64
+	Title          string
+	Link           string
+	Published      *time.Time
+	DateFound      *time.Time
+	Summary        string
+	Read           int64
+	Starred        int64
+	ArticleContent sql.NullString
+}
+
+func (q *Queries) GetArticlePlusCachedByID(ctx context.Context, id int64) (GetArticlePlusCachedByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getArticlePlusCachedByID, id)
+	var i GetArticlePlusCachedByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.FeedID,
+		&i.Title,
+		&i.Link,
+		&i.Published,
+		&i.DateFound,
+		&i.Summary,
+		&i.Read,
+		&i.Starred,
+		&i.ArticleContent,
+	)
+	return i, err
 }
 
 const getArticlesByFeedID = `-- name: GetArticlesByFeedID :many
@@ -139,7 +177,7 @@ func (q *Queries) GetArticlesByFeedID(ctx context.Context, feedID int64) ([]GetA
 }
 
 const getCachedByLink = `-- name: GetCachedByLink :one
-SELECT id, link, article_content, created FROM article_cache WHERE link = ?
+SELECT id, link, article_content, created, article_id, modified_article_content, modified FROM article_cache WHERE link = ?
 `
 
 func (q *Queries) GetCachedByLink(ctx context.Context, link string) (ArticleCache, error) {
@@ -150,6 +188,9 @@ func (q *Queries) GetCachedByLink(ctx context.Context, link string) (ArticleCach
 		&i.Link,
 		&i.ArticleContent,
 		&i.Created,
+		&i.ArticleID,
+		&i.ModifiedArticleContent,
+		&i.Modified,
 	)
 	return i, err
 }

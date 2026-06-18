@@ -1,7 +1,7 @@
 const article = document.getElementById("article");
 const dialog = document.getElementById("annotateDialog");
 
-function getAnnotationData() {
+function getAnnotation() {
   const sel = window.getSelection();
   if (!sel || sel.isCollapsed || !sel.rangeCount) return;
 
@@ -15,20 +15,13 @@ function getAnnotationData() {
 
   const start = pre.toString().length;
   const end = start + range.toString().length;
+  const selection = range.toString();
 
-  const data = {
-    start: start,
-    end: end,
-    selection: range.toString(),
-    note: "",
-  };
-
-  return data;
+  setFields(start, end, selection);
 }
 
-function resetState(selectionData) {
-  selectionData = null;
-  document.getElementById("note").value = "";
+function resetState() {
+  setFields("", "", "");
   window.getSelection()?.removeAllRanges();
   dialog.close();
 }
@@ -37,4 +30,13 @@ function closeDialog(e) {
   if (!dialog.open) return;
   if (dialog.contains(e.target)) return;
   resetState();
+}
+
+function setFields(start, end, selection) {
+  document.getElementById("annotation-start").value = start;
+  document.getElementById("annotation-end").value = end;
+  document.getElementById("annotation-selection").value = selection;
+  document.getElementById("annotation-selection-preview").innerText = selection;
+  // always blank
+  document.getElementById("annotation-note").value = "";
 }

@@ -1,3 +1,6 @@
+-- name: GetArticlePlusCachedByID :one
+SELECT a.*, ac.article_content FROM articles a INNER JOIN  article_cache ac ON a.id = ac.article_id WHERE a.id = ?;
+
 -- name: GetLatest5Articles :many
 SELECT 
 	a.*, 
@@ -75,10 +78,12 @@ SELECT * FROM article_cache WHERE link = ?;
 
 -- name: AddToArticleCache :exec
 INSERT INTO article_cache (
+	article_id,
 	link, 
 	article_content, 
 	created
 ) VALUES(
+?,
 ?,
 ?, 
 CURRENT_TIMESTAMP

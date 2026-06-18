@@ -22,10 +22,13 @@ type Article struct {
 }
 
 type ArticleCache struct {
-	ID             int64
-	Link           string
-	ArticleContent sql.NullString
-	Created        time.Time
+	ID                     int64
+	Link                   string
+	ArticleContent         sql.NullString
+	Created                time.Time
+	ArticleID              int64
+	ModifiedArticleContent sql.NullString
+	Modified               *time.Time
 }
 
 type Feed struct {

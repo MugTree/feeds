@@ -204,35 +204,50 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 	*/
 
-	type annotateSignals = struct {
-		Start     int64  `json:"start"`
-		End       int64  `json:"end"`
-		Notes     string `json:"notes"`
-		Selection string `json:"selection"`
-	}
-
-	type articlePageSignals = struct {
-		Annotation annotateSignals `json:"annotation"`
-	}
-
 	r.Put("/article/{feedID}/{articleID}/annotate", func(w http.ResponseWriter, r *http.Request) {
-		as := articlePageSignals{}
-		if err := datastar.ReadSignals(r, &as); err != nil {
-			logAndError(w, r, err.Error())
-			return
-		}
+
+		ctx := r.Context()
 
 		feedID, ok := requireIDParam(w, r, "feedID")
 		if !ok {
 			return
 		}
-
 		articleID, ok := requireIDParam(w, r, "articleID")
 		if !ok {
 			return
 		}
 
-		fmt.Println(feedID, articleID)
+		r.ParseForm()
+		start := r.Form.Get("start")
+		end := r.Form.Get("end")
+		note := r.Form.Get("note")
+		selection := r.Form.Get("selection")
+
+		// start needs to be before end
+		// end needs to be
+		fmt.Println(start, end, note, selection, feedID, articleID)
+
+		ac, err := queries.GetArticlePlusCachedByID(ctx, articleID)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+
+		fmt.Println(ac.ArticleContent.String)
+		// article.
+		// // need to parse the form here and do some conversions
+
+		// feedID, ok := requireIDParam(w, r, "feedID")
+		// if !ok {
+		// 	return
+		// }
+
+		// articleID, ok := requireIDParam(w, r, "articleID")
+		// if !ok {
+		// 	return
+		// }
+
+		// fmt.Println(feedID, articleID)
 
 		// what needs to happen now is that we get the raw article text from the database stringify it and interpolate some
 		// <span> strings into it and push it back to the page

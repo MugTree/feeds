@@ -277,6 +277,7 @@ func getArticleFromWeb(queries *db.Queries, afd db.GetFeedAndArticleByArticleIDR
 
 	insertErr := queries.AddToArticleCache(ctx,
 		db.AddToArticleCacheParams{
+			ArticleID:      afd.ArticleID,
 			Link:           afd.ArticleLink,
 			ArticleContent: sql.NullString{String: pageHtmlContent, Valid: true},
 		},
