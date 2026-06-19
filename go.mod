@@ -10,7 +10,6 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/mmcdole/gofeed v1.3.0
 	github.com/starfederation/datastar v1.0.0-RC.1
-	golang.org/x/sync v0.16.0
 )
 
 require (
@@ -54,7 +53,6 @@ require (
 
 require (
 	github.com/go-chi/chi/v5 v5.2.2
-	github.com/goforj/godump v1.9.1
 	github.com/jmoiron/sqlx v1.4.0
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	modernc.org/sqlite v1.38.0

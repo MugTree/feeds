@@ -384,6 +384,8 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
 func annotateArticle(startPos int, endPos int, snippet string) (string, error) {
 
+	fmt.Println(startPos, endPos, snippet)
+
 	return "", nil
 
 }
