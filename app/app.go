@@ -12,7 +12,6 @@ import (
 )
 
 type App struct {
-	//dbx     *sqlx.DB
 	db      *sql.DB
 	queries *db.Queries
 	server  *http.Server
@@ -28,11 +27,8 @@ func NewApp(db *sql.DB, queries *db.Queries, server *http.Server) *App {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	//dbx := sqlx.NewDb(db, "sqlite3")
-
 	return &App{
-		//dbx:     dbx,
-		db:      db, // lifescyle only
+		db:      db, // lifescyle only - shutdown etc
 		queries: queries,
 		server:  server,
 		ctx:     ctx,
@@ -43,7 +39,6 @@ func NewApp(db *sql.DB, queries *db.Queries, server *http.Server) *App {
 
 func (a *App) Start() {
 
-	// HTTP
 	a.wg.Go(func() {
 
 		LogInfo("http server starting")
@@ -53,8 +48,17 @@ func (a *App) Start() {
 		}
 	})
 
-	// Add anything else you need here
+	/**
+	-------------------------
+	Thinking here is that if any other concurrent processes need running I can add them here
+	Thinks like... data cleanup and deletion. Auto loading feeds if not updated daily etc.
 
+	a.wg.Go(func() {
+		LogInfo("starting other process")
+		...
+	})
+	-------------------------
+	*/
 }
 func (a *App) Stop() {
 	a.stopOnce.Do(func() {
