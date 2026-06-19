@@ -16,7 +16,7 @@ sql:
             go_type:
               type: time.Time
               pointer: true
-          - column: article_cache.modified
+          - column: annotations.date_added
             go_type:
               type: time.Time
               pointer: true

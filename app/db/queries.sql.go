@@ -177,7 +177,7 @@ func (q *Queries) GetArticlesByFeedID(ctx context.Context, feedID int64) ([]GetA
 }
 
 const getCachedByLink = `-- name: GetCachedByLink :one
-SELECT id, link, article_content, created, article_id, modified_article_content, modified FROM article_cache WHERE link = ?
+SELECT id, link, article_content, created, article_id FROM article_cache WHERE link = ?
 `
 
 func (q *Queries) GetCachedByLink(ctx context.Context, link string) (ArticleCache, error) {
@@ -189,8 +189,6 @@ func (q *Queries) GetCachedByLink(ctx context.Context, link string) (ArticleCach
 		&i.ArticleContent,
 		&i.Created,
 		&i.ArticleID,
-		&i.ModifiedArticleContent,
-		&i.Modified,
 	)
 	return i, err
 }

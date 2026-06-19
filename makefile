@@ -1,5 +1,5 @@
 seed-db:
-	go run ./data/seed/generate.go -urls ./data/seed/seed.csv -db ./data/feedreader.db
+	go run ./app/db/seed/generate.go --urls=./app/db/seed/seed.csv --db=./feeds.db
 
 lint:
 	golangci-lint run .

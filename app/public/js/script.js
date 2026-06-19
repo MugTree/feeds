@@ -17,6 +17,8 @@ function getAnnotation() {
   const end = start + range.toString().length;
   const selection = range.toString();
 
+  console.log(start, end, selection);
+
   setFields(start, end, selection);
 }
 

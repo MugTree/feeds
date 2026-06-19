@@ -218,6 +218,9 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 		}
 
 		r.ParseForm()
+
+		fmt.Println("============================")
+
 		start := r.Form.Get("start")
 		end := r.Form.Get("end")
 		note := r.Form.Get("note")
@@ -225,6 +228,7 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 		// start needs to be before end
 		// end needs to be
+
 		fmt.Println(start, end, note, selection, feedID, articleID)
 
 		ac, err := queries.GetArticlePlusCachedByID(ctx, articleID)
@@ -232,6 +236,8 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 			logAndError(w, r, err.Error())
 			return
 		}
+
+		fmt.Println("============================")
 
 		fmt.Println(ac.ArticleContent.String)
 		// article.

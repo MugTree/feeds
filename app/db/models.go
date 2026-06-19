@@ -9,6 +9,16 @@ import (
 	"time"
 )
 
+type Annotation struct {
+	ID        int64
+	ArticleID int64
+	StartPos  int64
+	EndPos    int64
+	Snippet   string
+	Note      string
+	DateAdded *time.Time
+}
+
 type Article struct {
 	ID        int64
 	FeedID    int64
@@ -22,13 +32,11 @@ type Article struct {
 }
 
 type ArticleCache struct {
-	ID                     int64
-	Link                   string
-	ArticleContent         sql.NullString
-	Created                time.Time
-	ArticleID              int64
-	ModifiedArticleContent sql.NullString
-	Modified               *time.Time
+	ID             int64
+	Link           string
+	ArticleContent sql.NullString
+	Created        time.Time
+	ArticleID      int64
 }
 
 type Feed struct {
