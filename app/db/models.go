@@ -35,7 +35,7 @@ type ArticleCache struct {
 	ID             int64
 	Link           string
 	ArticleContent sql.NullString
-	Created        time.Time
+	Created        *time.Time
 	ArticleID      int64
 }
 

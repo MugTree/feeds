@@ -1,6 +1,3 @@
--- name: GetArticlePlusCachedByID :one
-SELECT a.*, ac.article_content FROM articles a INNER JOIN  article_cache ac ON a.id = ac.article_id WHERE a.id = ?;
-
 -- name: GetLatest5Articles :many
 SELECT 
 	a.*, 
@@ -121,3 +118,6 @@ UPDATE articles SET read = 1 WHERE id = ?;
 
 -- name: SetArticleStarredValue :exec
 UPDATE articles SET starred = ? WHERE id = ?;
+
+-- name: SetArticleAnnotation :exec
+INSERT INTO annotations (article_id, start_pos, end_pos, note, snippet, date_added) VALUES (?,?,?,?,?, CURRENT_TIMESTAMP);

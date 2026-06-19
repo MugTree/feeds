@@ -8,6 +8,6 @@ CREATE TABLE IF NOT EXISTS annotations
     end_pos INTEGER NOT NULL,
     snippet TEXT NOT NULL DEFAULT '',
     note TEXT NOT NULL DEFAULT '', 
-    date_added DATETIME NULL
+    date_added TIMESTAMP NOT NULL
 );
 -- +goose StatementEnd

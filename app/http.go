@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"embed"
+	"errors"
 	"fmt"
 	"net/http"
 	"runtime"
@@ -198,17 +199,11 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 	})
 
-	/**
-
-	Adding annotations from article page
-
-	*/
-
 	r.Put("/article/{feedID}/{articleID}/annotate", func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
-		feedID, ok := requireIDParam(w, r, "feedID")
+		_, ok := requireIDParam(w, r, "feedID")
 		if !ok {
 			return
 		}
@@ -217,46 +212,66 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 			return
 		}
 
-		r.ParseForm()
-
-		fmt.Println("============================")
-
-		start := r.Form.Get("start")
-		end := r.Form.Get("end")
-		note := r.Form.Get("note")
-		selection := r.Form.Get("selection")
-
-		// start needs to be before end
-		// end needs to be
-
-		fmt.Println(start, end, note, selection, feedID, articleID)
-
-		ac, err := queries.GetArticlePlusCachedByID(ctx, articleID)
+		err := r.ParseForm()
 		if err != nil {
 			logAndError(w, r, err.Error())
 			return
 		}
 
-		fmt.Println("============================")
+		/**
+		-----------------------
+		Validate numbers
+		-----------------------
+		*/
 
-		fmt.Println(ac.ArticleContent.String)
-		// article.
-		// // need to parse the form here and do some conversions
+		start := r.Form.Get("start")
+		end := r.Form.Get("end")
 
-		// feedID, ok := requireIDParam(w, r, "feedID")
-		// if !ok {
-		// 	return
-		// }
+		startPos, err := strconv.Atoi(start)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
 
-		// articleID, ok := requireIDParam(w, r, "articleID")
-		// if !ok {
-		// 	return
-		// }
+		endPos, err := strconv.Atoi(end)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
 
-		// fmt.Println(feedID, articleID)
+		if (startPos < 0 || endPos < 0) || (startPos < endPos) {
+			logAndError(w, r, fmt.Errorf("start int val:%v or end int val:%v are wrong", startPos, endPos).Error())
+			return
+		}
 
-		// what needs to happen now is that we get the raw article text from the database stringify it and interpolate some
-		// <span> strings into it and push it back to the page
+		// -----------------------
+
+		selection := r.Form.Get("selection")
+		if selection < "" {
+			logAndError(w, r, errors.New("selection param is not set?").Error())
+			return
+		}
+
+		note := r.Form.Get("note")
+
+		if err := queries.SetArticleAnnotation(ctx, db.SetArticleAnnotationParams{
+			ArticleID: articleID,
+			StartPos:  int64(startPos),
+			EndPos:    int64(endPos),
+			Note:      note,
+			Snippet:   selection,
+		}); err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+
+		// passing the selection in as a sanity check
+		// ------------------------------------------
+		_, err = annotateArticle(startPos, endPos, selection)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
 
 	})
 

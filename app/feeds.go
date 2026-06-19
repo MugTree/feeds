@@ -382,6 +382,12 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 	return int64(len(feeds)), nil
 }
 
+func annotateArticle(startPos int, endPos int, snippet string) (string, error) {
+
+	return "", nil
+
+}
+
 func feedItemDate(item *gofeed.Item) *time.Time {
 	if item.PublishedParsed != nil {
 		return item.PublishedParsed

@@ -83,41 +83,6 @@ func (q *Queries) AddToArticles(ctx context.Context, arg AddToArticlesParams) er
 	return err
 }
 
-const getArticlePlusCachedByID = `-- name: GetArticlePlusCachedByID :one
-SELECT a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, ac.article_content FROM articles a INNER JOIN  article_cache ac ON a.id = ac.article_id WHERE a.id = ?
-`
-
-type GetArticlePlusCachedByIDRow struct {
-	ID             int64
-	FeedID         int64
-	Title          string
-	Link           string
-	Published      *time.Time
-	DateFound      *time.Time
-	Summary        string
-	Read           int64
-	Starred        int64
-	ArticleContent sql.NullString
-}
-
-func (q *Queries) GetArticlePlusCachedByID(ctx context.Context, id int64) (GetArticlePlusCachedByIDRow, error) {
-	row := q.db.QueryRowContext(ctx, getArticlePlusCachedByID, id)
-	var i GetArticlePlusCachedByIDRow
-	err := row.Scan(
-		&i.ID,
-		&i.FeedID,
-		&i.Title,
-		&i.Link,
-		&i.Published,
-		&i.DateFound,
-		&i.Summary,
-		&i.Read,
-		&i.Starred,
-		&i.ArticleContent,
-	)
-	return i, err
-}
-
 const getArticlesByFeedID = `-- name: GetArticlesByFeedID :many
 SELECT 
 	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
@@ -524,6 +489,29 @@ func (q *Queries) GetUnreadByFeedID(ctx context.Context, feedID int64) ([]GetUnr
 		return nil, err
 	}
 	return items, nil
+}
+
+const setArticleAnnotation = `-- name: SetArticleAnnotation :exec
+INSERT INTO annotations (article_id, start_pos, end_pos, note, snippet, date_added) VALUES (?,?,?,?,?, CURRENT_TIMESTAMP)
+`
+
+type SetArticleAnnotationParams struct {
+	ArticleID int64
+	StartPos  int64
+	EndPos    int64
+	Note      string
+	Snippet   string
+}
+
+func (q *Queries) SetArticleAnnotation(ctx context.Context, arg SetArticleAnnotationParams) error {
+	_, err := q.db.ExecContext(ctx, setArticleAnnotation,
+		arg.ArticleID,
+		arg.StartPos,
+		arg.EndPos,
+		arg.Note,
+		arg.Snippet,
+	)
+	return err
 }
 
 const setArticleAsRead = `-- name: SetArticleAsRead :exec
