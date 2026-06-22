@@ -44,5 +44,6 @@ require (
 
 require (
 	github.com/go-chi/chi/v5 v5.2.2
+	github.com/goforj/godump v1.9.1
 	github.com/jmoiron/sqlx v1.4.0
 )
