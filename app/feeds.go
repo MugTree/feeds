@@ -15,6 +15,7 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/mmcdole/gofeed"
 	"github.com/mugtree/feeds/app/db"
+	"golang.org/x/net/html"
 )
 
 func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageTemplateData, error) {
@@ -144,8 +145,6 @@ func setArticleLikeValue(queries *db.Queries, starredValue int64, articleID int6
 
 	return nil
 }
-
-const layoutISO = "2006-01-02"
 
 func getHomepageArticles(queries *db.Queries, ctx context.Context) (latest []Article, starred []Article, err error) {
 
@@ -279,7 +278,7 @@ func getArticleFromWeb(queries *db.Queries, afd db.GetFeedAndArticleByArticleIDR
 		db.AddToArticleCacheParams{
 			ArticleID:      afd.ArticleID,
 			Link:           afd.ArticleLink,
-			ArticleContent: sql.NullString{String: pageHtmlContent, Valid: true},
+			ArticleContent: sql.NullString{String: removeTabsNewlines.Replace(pageHtmlContent), Valid: true},
 		},
 	)
 
@@ -324,12 +323,6 @@ func extractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelec
 	return strings.Join(chunks, "")
 }
 
-/*
------------------------------------------
-fetch RSS feeds concurrently
-write articles sequentially (or very low concurrency)
------------------------------------------
-*/
 func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
 	feeds, err := queries.GetFeeds(ctx)
@@ -369,7 +362,7 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 				Link:      item.Link,
 				Published: feedItemDate(item),
 				DateFound: &now,
-				Summary:   item.Description,
+				Summary:   removeTabsNewlines.Replace(item.Description),
 				Read:      0,
 				Starred:   0,
 			})
@@ -382,10 +375,157 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 	return int64(len(feeds)), nil
 }
 
-func annotateArticle(startPos int, endPos int, snippet string) (string, error) {
+func getAnnotatedArticle(ctx context.Context, queries *db.Queries, articleID int64, startPos int, endPos int, note string, selection string) (string, error) {
 
-	return "", nil
+	if err := queries.SetArticleAnnotation(ctx, db.SetArticleAnnotationParams{
+		ArticleID: articleID,
+		StartPos:  int64(startPos),
+		EndPos:    int64(endPos),
+		Note:      note,
+		Snippet:   selection,
+	}); err != nil {
+		return "", err
+	}
 
+	annotations, err := queries.GetAnnotationsByArticle(ctx, articleID)
+	if err != nil {
+		return "", err
+	}
+
+	ans := []Annotation{}
+	for _, v := range annotations {
+		ans = append(ans, Annotation{
+			Start: int(v.StartPos),
+			End:   int(v.EndPos),
+			ID:    fmt.Sprint(v.ID),
+		})
+	}
+
+	content, err := queries.GetArticleContent(ctx, articleID)
+	if err != nil {
+		return "", err
+	}
+
+	html, err := applyAnnotations(content.String, ans)
+	if err != nil {
+		return "", err
+	}
+	return html, nil
+}
+
+func applyAnnotations(htmlInput string, annotations []Annotation) (string, error) {
+
+	doc, err := html.Parse(strings.NewReader(htmlInput))
+	if err != nil {
+		return "", err
+	}
+
+	var textNodes []TextNode
+	offset := 0
+
+	var getTextNodes func(*html.Node)
+	getTextNodes = func(n *html.Node) {
+		if n.Type == html.TextNode {
+			start := offset
+			offset += len(n.Data)
+
+			textNodes = append(textNodes, TextNode{
+				Node:  n,
+				Start: start,
+				End:   offset,
+			})
+		}
+
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			getTextNodes(c)
+		}
+	}
+
+	getTextNodes(doc)
+
+	/**
+	-----------------------------------------------------------------
+	Check each node to see if it has annotations
+	*/
+	for _, t := range textNodes {
+		var newNodes []*html.Node
+		cursor := 0
+
+		for _, a := range annotations {
+
+			if !hasAnnotation(a.Start, a.End, t.Start, t.End) {
+				continue
+			}
+
+			// span start and end
+			// -------------------------------------------
+			spanStart := max(0, a.Start-t.Start)
+
+			// 4
+			spanEnd := min(len(t.Node.Data), a.End-t.Start)
+
+			fmt.Printf("spanStart: %v\n", spanStart)
+			fmt.Printf("spanEnd: %v\n", spanEnd)
+
+			// Add a text node to start if the span if the span doesnt cover the whole node
+			// -------------------------------------------------------
+			if cursor < spanStart {
+				newNodes = append(newNodes, getTextNode(t.Node.Data[cursor:spanStart]))
+			}
+
+			// The actual span ...
+			// ---------------------------------------------------------
+			span := &html.Node{
+				Type: html.ElementNode,
+				Data: "span",
+				Attr: []html.Attribute{
+					{Key: "class", Val: "highlight"},
+					{Key: "data-id", Val: a.ID},
+				},
+			}
+
+			// Add the annotation text to the span
+			// -----------------------------------------------------------
+			selectedText := t.Node.Data[spanStart:spanEnd]
+			span.AppendChild(getTextNode(selectedText))
+
+			newNodes = append(newNodes, span)
+			cursor = spanEnd
+		}
+
+		fmt.Printf("cursor: %v\n", cursor)
+
+		// Add anything after
+		// ------------------------------------------
+		if cursor < len(t.Node.Data) {
+			newNodes = append(newNodes, getTextNode(t.Node.Data[cursor:]))
+		}
+
+		if len(newNodes) > 0 {
+			parent := t.Node.Parent
+			for _, n := range newNodes {
+				parent.InsertBefore(n, t.Node)
+			}
+			parent.RemoveChild(t.Node)
+		}
+
+		fmt.Printf("nodes to add: %v\n", len(newNodes))
+	}
+
+	var buf strings.Builder
+	html.Render(&buf, doc)
+	return buf.String(), nil
+}
+
+func getTextNode(s string) *html.Node {
+	return &html.Node{
+		Type: html.TextNode,
+		Data: s,
+	}
+}
+
+func hasAnnotation(aStart, aEnd, bStart, bEnd int) bool {
+	return aStart < bEnd && bStart < aEnd
 }
 
 func feedItemDate(item *gofeed.Item) *time.Time {
@@ -532,3 +672,19 @@ type FeedFormTemplateData struct {
 	UrlAction  string
 	Feed       Feed
 }
+
+type Annotation struct {
+	Start int
+	End   int
+	ID    string
+}
+
+type TextNode struct {
+	Node  *html.Node
+	Start int
+	End   int
+}
+
+const layoutISO = "2006-01-02"
+
+var removeTabsNewlines = strings.NewReplacer("/n", "", "/t", "")

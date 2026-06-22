@@ -121,3 +121,9 @@ UPDATE articles SET starred = ? WHERE id = ?;
 
 -- name: SetArticleAnnotation :exec
 INSERT INTO annotations (article_id, start_pos, end_pos, note, snippet, date_added) VALUES (?,?,?,?,?, CURRENT_TIMESTAMP);
+
+-- name: GetAnnotationsByArticle :many
+SELECT * FROM annotations WHERE article_id = ?;
+
+-- name: GetArticleContent :one
+SELECT article_content FROM article_cache WHERE article_id = ?;

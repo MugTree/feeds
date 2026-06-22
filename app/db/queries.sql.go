@@ -83,6 +83,52 @@ func (q *Queries) AddToArticles(ctx context.Context, arg AddToArticlesParams) er
 	return err
 }
 
+const getAnnotationsByArticle = `-- name: GetAnnotationsByArticle :many
+SELECT id, article_id, start_pos, end_pos, snippet, note, date_added FROM annotations WHERE article_id = ?
+`
+
+func (q *Queries) GetAnnotationsByArticle(ctx context.Context, articleID int64) ([]Annotation, error) {
+	rows, err := q.db.QueryContext(ctx, getAnnotationsByArticle, articleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Annotation
+	for rows.Next() {
+		var i Annotation
+		if err := rows.Scan(
+			&i.ID,
+			&i.ArticleID,
+			&i.StartPos,
+			&i.EndPos,
+			&i.Snippet,
+			&i.Note,
+			&i.DateAdded,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getArticleContent = `-- name: GetArticleContent :one
+SELECT article_content FROM article_cache WHERE article_id = ?
+`
+
+func (q *Queries) GetArticleContent(ctx context.Context, articleID int64) (sql.NullString, error) {
+	row := q.db.QueryRowContext(ctx, getArticleContent, articleID)
+	var article_content sql.NullString
+	err := row.Scan(&article_content)
+	return article_content, err
+}
+
 const getArticlesByFeedID = `-- name: GetArticlesByFeedID :many
 SELECT 
 	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 

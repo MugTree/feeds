@@ -254,25 +254,9 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 		note := r.Form.Get("note")
 
-		if err := queries.SetArticleAnnotation(ctx, db.SetArticleAnnotationParams{
-			ArticleID: articleID,
-			StartPos:  int64(startPos),
-			EndPos:    int64(endPos),
-			Note:      note,
-			Snippet:   selection,
-		}); err != nil {
-			logAndError(w, r, err.Error())
-			return
-		}
+		html, err := getAnnotatedArticle(ctx, queries, articleID, startPos, endPos, note, selection)
 
-		// passing the selection in as a sanity check
-		// ------------------------------------------
-		_, err = annotateArticle(startPos, endPos, selection)
-		if err != nil {
-			logAndError(w, r, err.Error())
-			return
-		}
-
+		fmt.Println(html)
 	})
 
 	r.Get("/update-reader", func(w http.ResponseWriter, r *http.Request) {
