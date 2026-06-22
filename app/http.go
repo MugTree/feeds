@@ -218,12 +218,6 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 			return
 		}
 
-		/**
-		-----------------------
-		Validate numbers
-		-----------------------
-		*/
-
 		start := r.Form.Get("start")
 		end := r.Form.Get("end")
 
@@ -239,12 +233,10 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 			return
 		}
 
-		if (startPos < 0 || endPos < 0) || (startPos < endPos) {
+		if (startPos < 0 || endPos < 0) || (endPos < startPos) {
 			logAndError(w, r, fmt.Errorf("start int val:%v or end int val:%v are wrong", startPos, endPos).Error())
 			return
 		}
-
-		// -----------------------
 
 		selection := r.Form.Get("selection")
 		if selection < "" {
@@ -253,10 +245,11 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 		}
 
 		note := r.Form.Get("note")
-
 		html, err := getAnnotatedArticle(ctx, queries, articleID, startPos, endPos, note, selection)
 
+		fmt.Println("-----------------------------")
 		fmt.Println(html)
+
 	})
 
 	r.Get("/update-reader", func(w http.ResponseWriter, r *http.Request) {

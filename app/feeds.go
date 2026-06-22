@@ -392,6 +392,7 @@ func getAnnotatedArticle(ctx context.Context, queries *db.Queries, articleID int
 		return "", err
 	}
 
+	// mapping as we're working with ints in the annotaions prog
 	ans := []Annotation{}
 	for _, v := range annotations {
 		ans = append(ans, Annotation{
@@ -406,10 +407,19 @@ func getAnnotatedArticle(ctx context.Context, queries *db.Queries, articleID int
 		return "", err
 	}
 
+	fmt.Println(content)
+	fmt.Println("------------------------------")
+
+	// content will never be null but is a nullable field
 	html, err := applyAnnotations(content.String, ans)
 	if err != nil {
 		return "", err
 	}
+
+	// the html.Parse() function will wrap the output in tags we dont need.. remove
+	html = strings.TrimPrefix(html, "<html><head></head><body>")
+	html = strings.TrimSuffix(html, "</body></html>")
+
 	return html, nil
 }
 
