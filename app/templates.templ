@@ -83,14 +83,9 @@ templ ArticlePageTemplate(td ArticlePageTemplateData) {
 		</form>
 	</dialog>
 	/**
-
 	Annotate page	
-
 	*/
-	<section id="article" data-on:pointerup="getAnnotation(); dialog.showModal()" data-on:pointerdown="closeDialog(evt)">
-		// -----------------------------------------------------
-		@templ.Raw(td.PageContent)
-	</section>
+	@ArticleBody(td.PageContent)
 	@LikeArticleTemplate(td.FeedID, td.ArticleId, td.StarValue)
 	/**
 	Set the read value ...	
@@ -104,6 +99,13 @@ templ ArticlePageTemplate(td ArticlePageTemplateData) {
 		<p><a href="#pagetop">Back to top</a></p>
 	</div>
 	<script src="/public/js/script.js"></script>
+}
+
+templ ArticleBody(htmlContent string) {
+	<section id="article" data-on:pointerup="getAnnotation(); dialog.showModal()" data-on:pointerdown="closeDialog(evt)">
+		// -----------------------------------------------------
+		@templ.Raw(htmlContent)
+	</section>
 }
 
 templ FeedAdminListTemplate(feeds []Feed) {

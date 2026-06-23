@@ -375,7 +375,43 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 	return int64(len(feeds)), nil
 }
 
-func getAnnotatedArticle(ctx context.Context, queries *db.Queries, articleID int64, startPos int, endPos int, note string, selection string) (string, error) {
+func checkAnnotationOverlaps(ctx context.Context, queries *db.Queries,
+	articleID int64, startPos int, endPos int) error {
+
+	ae := AnnotationError{}
+
+	if (startPos < 0 || endPos < 0) || (endPos < startPos) {
+		return &ae
+	}
+
+	annotations, err := queries.GetAnnotationsByArticle(ctx, articleID)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range annotations {
+
+		fmt.Printf("current annotations are: %v %v\n", v.StartPos, v.EndPos)
+		fmt.Printf("new annotations are: %v %v\n", startPos, endPos)
+		if startPos >= int(v.StartPos) && startPos <= int(v.EndPos) {
+			fmt.Println("first error")
+			return &ae
+		}
+
+		if endPos >= int(v.StartPos) && endPos <= int(v.EndPos) {
+			fmt.Println("second error")
+			return &ae
+		}
+	}
+
+	return nil
+
+}
+
+func getAnnotatedArticle(ctx context.Context, queries *db.Queries,
+	articleID int64, startPos int, endPos int, note string, selection string) (string, error) {
+
+	// ------------------------------------------------------
 
 	if err := queries.SetArticleAnnotation(ctx, db.SetArticleAnnotationParams{
 		ArticleID: articleID,
@@ -387,22 +423,12 @@ func getAnnotatedArticle(ctx context.Context, queries *db.Queries, articleID int
 		return "", err
 	}
 
-	annotations, err := queries.GetAnnotationsByArticle(ctx, articleID)
+	content, err := queries.GetArticleContent(ctx, articleID)
 	if err != nil {
 		return "", err
 	}
 
-	// mapping as we're working with ints in the annotaions prog
-	ans := []Annotation{}
-	for _, v := range annotations {
-		ans = append(ans, Annotation{
-			Start: int(v.StartPos),
-			End:   int(v.EndPos),
-			ID:    fmt.Sprint(v.ID),
-		})
-	}
-
-	content, err := queries.GetArticleContent(ctx, articleID)
+	updatedAnnotations, err := queries.GetAnnotationsByArticle(ctx, articleID)
 	if err != nil {
 		return "", err
 	}
@@ -410,8 +436,18 @@ func getAnnotatedArticle(ctx context.Context, queries *db.Queries, articleID int
 	fmt.Println(content)
 	fmt.Println("------------------------------")
 
+	// mapping as we're working with ints in the annotaions prog
+	ans := []Annotation{}
+	for _, v := range updatedAnnotations {
+		ans = append(ans, Annotation{
+			Start: int(v.StartPos),
+			End:   int(v.EndPos),
+			ID:    fmt.Sprint(v.ID),
+		})
+	}
+
 	// content will never be null but is a nullable field
-	html, err := applyAnnotations(content.String, ans)
+	html, err := applyAnnotationsToHTML(content.String, ans)
 	if err != nil {
 		return "", err
 	}
@@ -423,7 +459,24 @@ func getAnnotatedArticle(ctx context.Context, queries *db.Queries, articleID int
 	return html, nil
 }
 
-func applyAnnotations(htmlInput string, annotations []Annotation) (string, error) {
+type AnnotationError struct {
+	Line int
+}
+
+func (e *AnnotationError) Error() string {
+	return "annotations are overlapping"
+}
+
+// type SyntaxError struct {
+// 	Line int
+// 	Col  int
+// }
+
+// func (e *SyntaxError) Error() string {
+// 	return fmt.Sprintf("%d:%d: syntax error", e.Line, e.Col)
+// }
+
+func applyAnnotationsToHTML(htmlInput string, annotations []Annotation) (string, error) {
 
 	doc, err := html.Parse(strings.NewReader(htmlInput))
 	if err != nil {
@@ -433,9 +486,12 @@ func applyAnnotations(htmlInput string, annotations []Annotation) (string, error
 	var textNodes []TextNode
 	offset := 0
 
-	var getTextNodes func(*html.Node)
-	getTextNodes = func(n *html.Node) {
+	var getTextNodesFromHTML func(*html.Node)
+	getTextNodesFromHTML = func(n *html.Node) {
 		if n.Type == html.TextNode {
+
+			fmt.Printf("TEXT: %q\n", n.Data)
+
 			start := offset
 			offset += len(n.Data)
 
@@ -446,24 +502,27 @@ func applyAnnotations(htmlInput string, annotations []Annotation) (string, error
 			})
 		}
 
+		// keep going until nodes exhausted
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			getTextNodes(c)
+			getTextNodesFromHTML(c)
 		}
 	}
 
-	getTextNodes(doc)
+	getTextNodesFromHTML(doc)
 
 	/**
 	-----------------------------------------------------------------
-	Check each node to see if it has annotations
+	Check each node to see if it needs annotations applying
 	*/
 	for _, t := range textNodes {
+
+		// each text node may need many nodes applying
 		var newNodes []*html.Node
 		cursor := 0
 
 		for _, a := range annotations {
 
-			if !hasAnnotation(a.Start, a.End, t.Start, t.End) {
+			if !needsAnnotatedHTML(a.Start, a.End, t.Start, t.End) {
 				continue
 			}
 
@@ -474,8 +533,8 @@ func applyAnnotations(htmlInput string, annotations []Annotation) (string, error
 			// 4
 			spanEnd := min(len(t.Node.Data), a.End-t.Start)
 
-			fmt.Printf("spanStart: %v\n", spanStart)
-			fmt.Printf("spanEnd: %v\n", spanEnd)
+			// fmt.Printf("spanStart: %v\n", spanStart)
+			// fmt.Printf("spanEnd: %v\n", spanEnd)
 
 			// Add a text node to start if the span if the span doesnt cover the whole node
 			// -------------------------------------------------------
@@ -503,7 +562,7 @@ func applyAnnotations(htmlInput string, annotations []Annotation) (string, error
 			cursor = spanEnd
 		}
 
-		fmt.Printf("cursor: %v\n", cursor)
+		// fmt.Printf("cursor: %v\n", cursor)
 
 		// Add anything after
 		// ------------------------------------------
@@ -519,7 +578,7 @@ func applyAnnotations(htmlInput string, annotations []Annotation) (string, error
 			parent.RemoveChild(t.Node)
 		}
 
-		fmt.Printf("nodes to add: %v\n", len(newNodes))
+		// fmt.Printf("nodes to add: %v\n", len(newNodes))
 	}
 
 	var buf strings.Builder
@@ -534,7 +593,7 @@ func getTextNode(s string) *html.Node {
 	}
 }
 
-func hasAnnotation(aStart, aEnd, bStart, bEnd int) bool {
+func needsAnnotatedHTML(aStart, aEnd, bStart, bEnd int) bool {
 	return aStart < bEnd && bStart < aEnd
 }
 

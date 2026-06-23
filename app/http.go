@@ -233,8 +233,8 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 			return
 		}
 
-		if (startPos < 0 || endPos < 0) || (endPos < startPos) {
-			logAndError(w, r, fmt.Errorf("start int val:%v or end int val:%v are wrong", startPos, endPos).Error())
+		if err = checkAnnotationOverlaps(ctx, queries, articleID, startPos, endPos); err != nil {
+			logAndError(w, r, err.Error())
 			return
 		}
 
@@ -245,10 +245,18 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 		}
 
 		note := r.Form.Get("note")
-		html, err := getAnnotatedArticle(ctx, queries, articleID, startPos, endPos, note, selection)
 
-		fmt.Println("-----------------------------")
-		fmt.Println(html)
+		html, err := getAnnotatedArticle(ctx, queries, articleID, startPos, endPos, note, selection)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+
+		// fmt.Println("-----------------------------")
+		//fmt.Println(html)
+
+		sse := datastar.NewSSE(w, r)
+		sse.PatchElementTempl(ArticleBody(html))
 
 	})
 
