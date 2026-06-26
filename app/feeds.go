@@ -385,6 +385,7 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 	return int64(len(feeds)), nil
 }
 
+// remove extraneous tags and attributes. script, style, template, comments and attributes on a per tag basis
 func sanitizeHTML(input string) (string, error) {
 	doc, err := html.Parse(strings.NewReader(input))
 	if err != nil {
@@ -473,27 +474,6 @@ func sanitizeHTML(input string) (string, error) {
 
 	return b.String(), nil
 
-}
-
-func allowedAttrs(tag string) map[string]struct{} {
-	switch tag {
-	case "a":
-		return map[string]struct{}{
-			"href": {},
-		}
-	case "img":
-		return map[string]struct{}{
-			"src": {},
-			"alt": {},
-		}
-	case "td", "th":
-		return map[string]struct{}{
-			"colspan": {},
-			"rowspan": {},
-		}
-	default:
-		return nil
-	}
 }
 
 func feedItemDate(item *gofeed.Item) *time.Time {
@@ -654,5 +634,3 @@ type TextNode struct {
 }
 
 const layoutISO = "2006-01-02"
-
-var removeTabsNewlines = strings.NewReplacer("\n", "", "\t", "")
