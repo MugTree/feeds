@@ -274,11 +274,16 @@ func getArticleFromWeb(queries *db.Queries, afd db.GetFeedAndArticleByArticleIDR
 		return "", fmt.Errorf("error using colly to visit page: %v - %v", afd.ArticleLink, err)
 	}
 
+	sanHtml, err := sanitizeHTML(pageHtmlContent)
+	if err != nil {
+		return "", err
+	}
+
 	insertErr := queries.AddToArticleCache(ctx,
 		db.AddToArticleCacheParams{
 			ArticleID:      afd.ArticleID,
 			Link:           afd.ArticleLink,
-			ArticleContent: sql.NullString{String: removeTabsNewlines.Replace(pageHtmlContent), Valid: true},
+			ArticleContent: sql.NullString{String: sanHtml, Valid: true},
 		},
 	)
 
@@ -286,7 +291,7 @@ func getArticleFromWeb(queries *db.Queries, afd db.GetFeedAndArticleByArticleIDR
 		return "", fmt.Errorf("error adding to article cache: %v", insertErr)
 	}
 
-	return pageHtmlContent, nil
+	return sanHtml, nil
 }
 
 func extractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelector string) string {
@@ -356,13 +361,18 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
 			now := time.Now()
 
-			err := queries.AddToArticles(ctx, db.AddToArticlesParams{
+			sanitizedHtml, err := sanitizeHTML(item.Description)
+			if err != nil {
+				return 0, err
+			}
+
+			err = queries.AddToArticles(ctx, db.AddToArticlesParams{
 				FeedID:    feed.ID,
 				Title:     item.Title,
 				Link:      item.Link,
 				Published: feedItemDate(item),
 				DateFound: &now,
-				Summary:   removeTabsNewlines.Replace(item.Description),
+				Summary:   sanitizedHtml,
 				Read:      0,
 				Starred:   0,
 			})
@@ -375,226 +385,115 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 	return int64(len(feeds)), nil
 }
 
-func checkAnnotationOverlaps(ctx context.Context, queries *db.Queries,
-	articleID int64, startPos int, endPos int) error {
-
-	ae := AnnotationError{}
-
-	if (startPos < 0 || endPos < 0) || (endPos < startPos) {
-		return &ae
-	}
-
-	annotations, err := queries.GetAnnotationsByArticle(ctx, articleID)
+func sanitizeHTML(input string) (string, error) {
+	doc, err := html.Parse(strings.NewReader(input))
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	for _, v := range annotations {
-
-		fmt.Printf("current annotations are: %v %v\n", v.StartPos, v.EndPos)
-		fmt.Printf("new annotations are: %v %v\n", startPos, endPos)
-		if startPos >= int(v.StartPos) && startPos <= int(v.EndPos) {
-			fmt.Println("first error")
-			return &ae
-		}
-
-		if endPos >= int(v.StartPos) && endPos <= int(v.EndPos) {
-			fmt.Println("second error")
-			return &ae
+	allowedAttrs := func(tag string) map[string]struct{} {
+		switch tag {
+		case "a":
+			return map[string]struct{}{
+				"href": {},
+			}
+		case "img":
+			return map[string]struct{}{
+				"src": {},
+				"alt": {},
+			}
+		case "td", "th":
+			return map[string]struct{}{
+				"colspan": {},
+				"rowspan": {},
+			}
+		default:
+			return nil
 		}
 	}
 
-	return nil
+	var cleanHTML func(n *html.Node)
+	cleanHTML = func(n *html.Node) {
 
-}
+		shouldRemoveElement := func(n *html.Node) bool {
+			if n.Type != html.ElementNode {
+				return false
+			}
 
-func getAnnotatedArticle(ctx context.Context, queries *db.Queries,
-	articleID int64, startPos int, endPos int, note string, selection string) (string, error) {
-
-	// ------------------------------------------------------
-
-	if err := queries.SetArticleAnnotation(ctx, db.SetArticleAnnotationParams{
-		ArticleID: articleID,
-		StartPos:  int64(startPos),
-		EndPos:    int64(endPos),
-		Note:      note,
-		Snippet:   selection,
-	}); err != nil {
-		return "", err
-	}
-
-	content, err := queries.GetArticleContent(ctx, articleID)
-	if err != nil {
-		return "", err
-	}
-
-	updatedAnnotations, err := queries.GetAnnotationsByArticle(ctx, articleID)
-	if err != nil {
-		return "", err
-	}
-
-	fmt.Println(content)
-	fmt.Println("------------------------------")
-
-	// mapping as we're working with ints in the annotaions prog
-	ans := []Annotation{}
-	for _, v := range updatedAnnotations {
-		ans = append(ans, Annotation{
-			Start: int(v.StartPos),
-			End:   int(v.EndPos),
-			ID:    fmt.Sprint(v.ID),
-		})
-	}
-
-	// content will never be null but is a nullable field
-	html, err := applyAnnotationsToHTML(content.String, ans)
-	if err != nil {
-		return "", err
-	}
-
-	// the html.Parse() function will wrap the output in tags we dont need.. remove
-	html = strings.TrimPrefix(html, "<html><head></head><body>")
-	html = strings.TrimSuffix(html, "</body></html>")
-
-	return html, nil
-}
-
-type AnnotationError struct {
-	Line int
-}
-
-func (e *AnnotationError) Error() string {
-	return "annotations are overlapping"
-}
-
-// type SyntaxError struct {
-// 	Line int
-// 	Col  int
-// }
-
-// func (e *SyntaxError) Error() string {
-// 	return fmt.Sprintf("%d:%d: syntax error", e.Line, e.Col)
-// }
-
-func applyAnnotationsToHTML(htmlInput string, annotations []Annotation) (string, error) {
-
-	doc, err := html.Parse(strings.NewReader(htmlInput))
-	if err != nil {
-		return "", err
-	}
-
-	var textNodes []TextNode
-	offset := 0
-
-	var getTextNodesFromHTML func(*html.Node)
-	getTextNodesFromHTML = func(n *html.Node) {
-		if n.Type == html.TextNode {
-
-			fmt.Printf("TEXT: %q\n", n.Data)
-
-			start := offset
-			offset += len(n.Data)
-
-			textNodes = append(textNodes, TextNode{
-				Node:  n,
-				Start: start,
-				End:   offset,
-			})
+			switch strings.ToLower(n.Data) {
+			case "script", "noscript", "style", "template":
+				return true
+			default:
+				return false
+			}
 		}
 
-		// keep going until nodes exhausted
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			getTextNodesFromHTML(c)
-		}
-	}
+		for c := n.FirstChild; c != nil; {
 
-	getTextNodesFromHTML(doc)
+			next := c.NextSibling
 
-	/**
-	-----------------------------------------------------------------
-	Check each node to see if it needs annotations applying
-	*/
-	for _, t := range textNodes {
+			allowed := allowedAttrs(c.Data)
 
-		// each text node may need many nodes applying
-		var newNodes []*html.Node
-		cursor := 0
+			attrs := c.Attr[:0] // reuse underlying array
+			for _, v := range c.Attr {
+				if _, ok := allowed[v.Key]; ok {
+					attrs = append(attrs, v)
+				}
+			}
+			c.Attr = attrs
 
-		for _, a := range annotations {
-
-			if !needsAnnotatedHTML(a.Start, a.End, t.Start, t.End) {
+			if shouldRemoveElement(c) {
+				n.RemoveChild(c)
+				c = next
 				continue
 			}
 
-			// span start and end
-			// -------------------------------------------
-			spanStart := max(0, a.Start-t.Start)
-
-			// 4
-			spanEnd := min(len(t.Node.Data), a.End-t.Start)
-
-			// fmt.Printf("spanStart: %v\n", spanStart)
-			// fmt.Printf("spanEnd: %v\n", spanEnd)
-
-			// Add a text node to start if the span if the span doesnt cover the whole node
-			// -------------------------------------------------------
-			if cursor < spanStart {
-				newNodes = append(newNodes, getTextNode(t.Node.Data[cursor:spanStart]))
+			if c.Type == html.CommentNode {
+				n.RemoveChild(c)
+				c = next
+				continue
 			}
 
-			// The actual span ...
-			// ---------------------------------------------------------
-			span := &html.Node{
-				Type: html.ElementNode,
-				Data: "span",
-				Attr: []html.Attribute{
-					{Key: "class", Val: "highlight"},
-					{Key: "data-id", Val: a.ID},
-				},
+			if c.FirstChild != nil {
+				cleanHTML(c)
 			}
 
-			// Add the annotation text to the span
-			// -----------------------------------------------------------
-			selectedText := t.Node.Data[spanStart:spanEnd]
-			span.AppendChild(getTextNode(selectedText))
+			c = next
 
-			newNodes = append(newNodes, span)
-			cursor = spanEnd
 		}
-
-		// fmt.Printf("cursor: %v\n", cursor)
-
-		// Add anything after
-		// ------------------------------------------
-		if cursor < len(t.Node.Data) {
-			newNodes = append(newNodes, getTextNode(t.Node.Data[cursor:]))
-		}
-
-		if len(newNodes) > 0 {
-			parent := t.Node.Parent
-			for _, n := range newNodes {
-				parent.InsertBefore(n, t.Node)
-			}
-			parent.RemoveChild(t.Node)
-		}
-
-		// fmt.Printf("nodes to add: %v\n", len(newNodes))
 	}
 
-	var buf strings.Builder
-	html.Render(&buf, doc)
-	return buf.String(), nil
-}
+	cleanHTML(doc)
 
-func getTextNode(s string) *html.Node {
-	return &html.Node{
-		Type: html.TextNode,
-		Data: s,
+	var b strings.Builder
+	err = html.Render(&b, doc)
+	if err != nil {
+		return "", err
 	}
+
+	return b.String(), nil
+
 }
 
-func needsAnnotatedHTML(aStart, aEnd, bStart, bEnd int) bool {
-	return aStart < bEnd && bStart < aEnd
+func allowedAttrs(tag string) map[string]struct{} {
+	switch tag {
+	case "a":
+		return map[string]struct{}{
+			"href": {},
+		}
+	case "img":
+		return map[string]struct{}{
+			"src": {},
+			"alt": {},
+		}
+	case "td", "th":
+		return map[string]struct{}{
+			"colspan": {},
+			"rowspan": {},
+		}
+	default:
+		return nil
+	}
 }
 
 func feedItemDate(item *gofeed.Item) *time.Time {
@@ -756,4 +655,4 @@ type TextNode struct {
 
 const layoutISO = "2006-01-02"
 
-var removeTabsNewlines = strings.NewReplacer("/n", "", "/t", "")
+var removeTabsNewlines = strings.NewReplacer("\n", "", "\t", "")

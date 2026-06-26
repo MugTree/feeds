@@ -233,11 +233,6 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 			return
 		}
 
-		if err = checkAnnotationOverlaps(ctx, queries, articleID, startPos, endPos); err != nil {
-			logAndError(w, r, err.Error())
-			return
-		}
-
 		selection := r.Form.Get("selection")
 		if selection < "" {
 			logAndError(w, r, errors.New("selection param is not set?").Error())
@@ -246,17 +241,7 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 		note := r.Form.Get("note")
 
-		html, err := getAnnotatedArticle(ctx, queries, articleID, startPos, endPos, note, selection)
-		if err != nil {
-			logAndError(w, r, err.Error())
-			return
-		}
-
-		// fmt.Println("-----------------------------")
-		//fmt.Println(html)
-
-		sse := datastar.NewSSE(w, r)
-		sse.PatchElementTempl(ArticleBody(html))
+		fmt.Println(startPos, endPos, note, articleID, ctx)
 
 	})
 
