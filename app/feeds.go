@@ -476,8 +476,6 @@ type Article struct {
 	Link      string `json:"link" db:"link"`
 	Published string `json:"published" db:"published"`
 	DateFound string `json:"date_found" db:"date_found"`
-	// Updated         string `json:"updated" db:"updated"`
-	// UpdatedParsed   string `json:"updated_parsed" db:"updated_parsed"`
 	Summary   string `json:"summary" db:"summary"`
 	Read      bool   `json:"read" db:"read"`
 	Liked     int64  `json:"starred" db:"starred"`
@@ -573,9 +571,18 @@ type FeedFormTemplateData struct {
 }
 
 type Annotation struct {
-	Start int
-	End   int
-	ID    string
+	ID        int64          `json:"id"`
+	ArticleID int64          `json:"article_id"`
+	StartData AnnotationData `json:"start_data"`
+	EndData   AnnotationData `json:"end_data"`
+	Snippet   string         `json:"snippet"`
+	Note      string         `json:"note"`
+	DateAdded string         `json:"date_added"`
+}
+
+type AnnotationData struct {
+	Path   []int64 `json:"path"`
+	Offset int64   `json:"offset"`
 }
 
 type TextNode struct {

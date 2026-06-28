@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/goforj/godump"
 	"github.com/mugtree/feeds/app/db"
 	"github.com/starfederation/datastar/sdk/go/datastar"
 )
@@ -34,6 +36,83 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 }
 
 func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
+
+	r.Get("/data-test", func(w http.ResponseWriter, r *http.Request) {
+
+		a := Annotation{
+			ID:        1,
+			StartData: AnnotationData{Path: []int64{0, 4}, Offset: 8},
+			EndData:   AnnotationData{Path: []int64{0, 4}, Offset: 8},
+		}
+
+		b, err := json.Marshal(&a)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+
+		w.Header().Add("Content-Type", "application/json")
+		w.Write(b)
+
+	})
+
+	r.Get("/data-write", func(w http.ResponseWriter, r *http.Request) {
+
+		// a := Annotation{
+		// 	StartData: AnnotationData{Path: []int64{0, 4}, Offset: 8},
+		// 	EndData:   AnnotationData{Path: []int64{0, 4}, Offset: 8},
+		// }
+
+		// sd, err := json.Marshal(&a.StartData)
+		// if err != nil {
+		// 	logAndError(w, r, err.Error())
+		// 	return
+		// }
+
+		// ed, err := json.Marshal(&a.EndData)
+		// if err != nil {
+		// 	logAndError(w, r, err.Error())
+		// 	return
+		// }
+
+		// err = queries.SetArticleAnnotation(r.Context(), db.SetArticleAnnotationParams{
+		// 	StartData: string(sd),
+		// 	EndData:   string(ed),
+		// 	Note:      "note",
+		// 	Snippet:   "snippet",
+		// 	ArticleID: 1,
+		// })
+
+		dba, err := queries.GetAnnotationsByArticle(r.Context(), 1)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+
+		ans := []Annotation{}
+		sd := AnnotationData{}
+		ed := AnnotationData{}
+
+		for _, v := range dba {
+
+			err = json.Unmarshal([]byte(v.StartData), &sd)
+			err = json.Unmarshal([]byte(v.StartData), &ed)
+
+			ans = append(ans, Annotation{
+				ID:        v.ID,
+				ArticleID: v.ArticleID,
+				DateAdded: v.DateAdded.String(),
+				StartData: sd,
+				EndData:   ed,
+				Note:      v.Note,
+				Snippet:   v.Snippet,
+			})
+
+		}
+
+		godump.Dump(ans)
+
+	})
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 

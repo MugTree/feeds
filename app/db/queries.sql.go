@@ -84,7 +84,7 @@ func (q *Queries) AddToArticles(ctx context.Context, arg AddToArticlesParams) er
 }
 
 const getAnnotationsByArticle = `-- name: GetAnnotationsByArticle :many
-SELECT id, article_id, start_pos, end_pos, snippet, note, date_added FROM annotations WHERE article_id = ?
+SELECT id, article_id, start_data, end_data, snippet, note, date_added FROM annotations WHERE article_id = ?
 `
 
 func (q *Queries) GetAnnotationsByArticle(ctx context.Context, articleID int64) ([]Annotation, error) {
@@ -99,8 +99,8 @@ func (q *Queries) GetAnnotationsByArticle(ctx context.Context, articleID int64) 
 		if err := rows.Scan(
 			&i.ID,
 			&i.ArticleID,
-			&i.StartPos,
-			&i.EndPos,
+			&i.StartData,
+			&i.EndData,
 			&i.Snippet,
 			&i.Note,
 			&i.DateAdded,
@@ -538,13 +538,14 @@ func (q *Queries) GetUnreadByFeedID(ctx context.Context, feedID int64) ([]GetUnr
 }
 
 const setArticleAnnotation = `-- name: SetArticleAnnotation :exec
-INSERT INTO annotations (article_id, start_pos, end_pos, note, snippet, date_added) VALUES (?,?,?,?,?, CURRENT_TIMESTAMP)
+INSERT INTO annotations (article_id, start_data, end_data, note, snippet, date_added) 
+VALUES (?,?,?,?,?, CURRENT_TIMESTAMP)
 `
 
 type SetArticleAnnotationParams struct {
 	ArticleID int64
-	StartPos  int64
-	EndPos    int64
+	StartData string
+	EndData   string
 	Note      string
 	Snippet   string
 }
@@ -552,8 +553,8 @@ type SetArticleAnnotationParams struct {
 func (q *Queries) SetArticleAnnotation(ctx context.Context, arg SetArticleAnnotationParams) error {
 	_, err := q.db.ExecContext(ctx, setArticleAnnotation,
 		arg.ArticleID,
-		arg.StartPos,
-		arg.EndPos,
+		arg.StartData,
+		arg.EndData,
 		arg.Note,
 		arg.Snippet,
 	)

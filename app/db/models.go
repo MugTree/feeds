@@ -12,8 +12,8 @@ import (
 type Annotation struct {
 	ID        int64
 	ArticleID int64
-	StartPos  int64
-	EndPos    int64
+	StartData string
+	EndData   string
 	Snippet   string
 	Note      string
 	DateAdded *time.Time
