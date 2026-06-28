@@ -66,7 +66,7 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 			return
 		}
 
-		feed, err := getFeed(queries, feedID, ctx)
+		feed, err := queries.GetFeedByID(ctx, feedID)
 		if err != nil {
 			logAndError(w, r, err.Error())
 			return
@@ -268,7 +268,8 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 func adminRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 	r.Get("/admin/feeds/list", func(w http.ResponseWriter, r *http.Request) {
-		feeds, err := getAllFeeds(queries, r.Context())
+
+		feeds, err := queries.GetFeeds(r.Context())
 		if err != nil {
 			logAndError(w, r, err.Error())
 			return
@@ -285,7 +286,7 @@ func adminRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 		ctx := r.Context()
 
-		feed, err := getFeed(queries, feedID, ctx)
+		feed, err := queries.GetFeedByID(ctx, feedID)
 		if err != nil {
 			logAndError(w, r, err.Error())
 			return

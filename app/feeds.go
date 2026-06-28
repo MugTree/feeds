@@ -76,36 +76,6 @@ func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID 
 	return td, nil
 }
 
-func getAllFeeds(queries *db.Queries, ctx context.Context) ([]Feed, error) {
-
-	feeds := []Feed{}
-	dbFeeds, err := queries.GetFeeds(ctx)
-	if err != nil {
-		return feeds, err
-	}
-
-	for _, v := range dbFeeds {
-		feeds = append(feeds, mapFeedFromDbFeed(v))
-	}
-
-	return feeds, nil
-
-}
-
-func getFeed(queries *db.Queries, feedID int64, ctx context.Context) (Feed, error) {
-
-	feed := Feed{}
-	f, err := queries.GetFeedByID(ctx, feedID)
-	if err != nil {
-		return feed, err
-	}
-
-	feed = mapFeedFromDbFeed(f)
-
-	return feed, nil
-
-}
-
 func getSidebarData(queries *db.Queries, ctx context.Context) ([]SidebarLink, error) {
 
 	items := []SidebarLink{}
@@ -443,6 +413,17 @@ func sanitizeHTML(input string) (string, error) {
 			}
 			c.Attr = attrs
 
+			// remove any empty tags - artifacts if editors perhaps
+			if c.Type == html.ElementNode &&
+				len(c.Attr) == 0 &&
+				c.FirstChild == nil {
+
+				switch strings.ToLower(c.Data) {
+				case "div", "span", "p":
+					n.RemoveChild(c)
+				}
+			}
+
 			if shouldRemoveElement(c) {
 				n.RemoveChild(c)
 				c = next
@@ -488,36 +469,6 @@ func feedItemDate(item *gofeed.Item) *time.Time {
 	return nil
 }
 
-func mapFeedFromDbFeed(row db.Feed) Feed {
-	return Feed{
-		Id:                     row.ID,
-		Url:                    row.Url,
-		Title:                  row.Title,
-		LastFetched:            row.LastFetched.Format(layoutISO),
-		CSSSelectorContainer:   row.CssSelContainer.String,
-		CSSSelectorStart:       row.CssSelStart.String,
-		CSSSelectorStop:        row.CssSelStop.String,
-		HTMLExtractionStrategy: row.HtmlExtractionStrategy.String,
-	}
-}
-
-type Feed struct {
-	Id                     int64  `json:"id" db:"id"`
-	Url                    string `json:"url" db:"url"`
-	Title                  string `json:"title" title:"title"`
-	ArticlesRead           int64  `json:"articles_read" db:"articles_read"`
-	TotalArticles          int64  `json:"total_articles" db:"total_articles"`
-	LastFetched            string `json:"last_fetched" db:"last_fetched"`
-	CSSSelectorContainer   string `json:"css_sel_container" db:"css_sel_container"`
-	CSSSelectorStart       string `json:"css_sel_start" db:"css_sel_start"`
-	CSSSelectorStop        string `json:"css_sel_stop" db:"css_sel_stop"`
-	HTMLExtractionStrategy string `json:"html_extraction_strategy" db:"html_extraction_strategy"`
-}
-
-func (f Feed) LastFetchedDate() string {
-	return "not impl"
-}
-
 type Article struct {
 	Id        int64  `json:"id" db:"id"`
 	FeedId    int64  `json:"feed_id" db:"feed_id"`
@@ -535,20 +486,6 @@ type Article struct {
 
 func (a Article) FullName() string {
 	return a.FeedTitle + " - " + a.Title
-}
-
-type ArticlePlusFeed struct {
-	ArticleID              int64
-	ArticleLink            string
-	ArticleTitle           string
-	ArticleStarred         int64
-	FeedID                 int64
-	FeedTitle              string
-	FeedUrl                string
-	CssSelContainer        sql.NullString
-	CssSelStart            sql.NullString
-	CssSelStop             sql.NullString
-	HtmlExtractionStrategy sql.NullString
 }
 
 func (a Article) ScrubbedSummary() template.HTML {
@@ -578,6 +515,20 @@ func (a Article) PublishedDate() string {
 	}
 
 	return fmt.Sprintf("%d%s %s %d", day, suffix, month, year)
+}
+
+type ArticlePlusFeed struct {
+	ArticleID              int64
+	ArticleLink            string
+	ArticleTitle           string
+	ArticleStarred         int64
+	FeedID                 int64
+	FeedTitle              string
+	FeedUrl                string
+	CssSelContainer        sql.NullString
+	CssSelStart            sql.NullString
+	CssSelStop             sql.NullString
+	HtmlExtractionStrategy sql.NullString
 }
 
 type SidebarLink struct {
@@ -618,7 +569,7 @@ type UpdateParms struct {
 type FeedFormTemplateData struct {
 	ButtonText string
 	UrlAction  string
-	Feed       Feed
+	Feed       db.Feed
 }
 
 type Annotation struct {
