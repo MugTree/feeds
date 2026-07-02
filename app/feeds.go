@@ -18,6 +18,19 @@ import (
 	"golang.org/x/net/html"
 )
 
+func FAKE_getAnnotations() []Annotation {
+	return []Annotation{{
+		ID:        1,
+		StartData: AnnotationData{Path: []int64{0, 4}, Offset: 8},
+		EndData:   AnnotationData{Path: []int64{0, 4}, Offset: 8},
+	}, {
+		ID:        2,
+		StartData: AnnotationData{Path: []int64{0, 6}, Offset: 10},
+		EndData:   AnnotationData{Path: []int64{3, 4}, Offset: 9},
+	}}
+
+}
+
 func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageTemplateData, error) {
 
 	td := ArticlePageTemplateData{}
@@ -41,6 +54,7 @@ func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID 
 	td.FeedID = row.FeedID
 	td.StarValue = row.ArticleStars
 	td.ArticlePublished = row.ArticlePublished.Format(layoutISO)
+	td.Annotations = FAKE_getAnnotations()
 
 	alreadyRead, toRead, err := getArticlesByFeed(queries, feedID, ctx)
 	if err != nil {
@@ -557,6 +571,7 @@ type ArticlePageTemplateData struct {
 	StarValue        int64
 	Sidebar          []SidebarLink
 	ArticlePublished string
+	Annotations      []Annotation
 }
 
 type UpdateParms struct {
@@ -585,10 +600,10 @@ type AnnotationData struct {
 	Offset int64   `json:"offset"`
 }
 
-type TextNode struct {
-	Node  *html.Node
-	Start int
-	End   int
-}
+// type TextNode struct {
+// 	Node  *html.Node
+// 	Start int
+// 	End   int
+// }
 
 const layoutISO = "2006-01-02"

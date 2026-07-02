@@ -10,3 +10,5 @@ Annotations
   "end": { "path": [2, 0, 4], "offset": 10 }
 }
 ```
+
+Apply pre-existing annotations

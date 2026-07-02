@@ -37,12 +37,24 @@ func SetupHttpServer(queries *db.Queries, user string, password string) chi.Rout
 
 func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
-	r.Get("/data-test", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/fake-annotation-test", func(w http.ResponseWriter, r *http.Request) {
+		PageTemplate("test", FAKE_AnnotationTestTemplate()).Render(r.Context(), w)
+	})
 
-		a := Annotation{
-			ID:        1,
-			StartData: AnnotationData{Path: []int64{0, 4}, Offset: 8},
-			EndData:   AnnotationData{Path: []int64{0, 4}, Offset: 8},
+	// return some data
+	r.Get("/fake-annotation-test/data", func(w http.ResponseWriter, r *http.Request) {
+
+		a := []Annotation{{
+			ID: 12345,
+			StartData: AnnotationData{
+				Path:   []int64{0},
+				Offset: 1,
+			},
+			EndData: AnnotationData{
+				Path:   []int64{0},
+				Offset: 2,
+			},
+		},
 		}
 
 		b, err := json.Marshal(&a)
@@ -50,9 +62,8 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 			logAndError(w, r, err.Error())
 			return
 		}
-
 		w.Header().Add("Content-Type", "application/json")
-		w.Write(b)
+		w.Write([]byte(b))
 
 	})
 

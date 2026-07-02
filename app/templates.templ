@@ -6,6 +6,20 @@ import (
 	"github.com/starfederation/datastar/sdk/go/datastar"
 )
 
+templ FAKE_AnnotationTestTemplate() {
+	<h1>Annotation test</h1>
+	<main id="base" onmouseup="getSelectionRangeData(this)">
+		<p>ABC</p>
+		<ul>
+			<li>DEF</li>
+			<li>GHI</li>
+			<li>JKL</li>
+		</ul>
+		<p>MNO</p>
+	</main>
+	<script src="/public/js/test.js"></script>
+}
+
 templ PageTemplate(pageTitle string, Main templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -75,7 +89,7 @@ templ ArticlePageTemplate(td ArticlePageTemplateData) {
 				<textarea id="annotation-note" name="note"></textarea>
 			</label>
 			<menu>
-				<button type="button" data-on:click="resetState();">Cancel</button>
+				<button type="button" data-on:click="resetState()">Cancel</button>
 				{{ annotationURL := fmt.Sprintf("@put('/article/%d/%d/annotate',  {contentType: 'form'}); resetState();", td.FeedID, td.ArticleId) }}
 				<button data-on:click={ annotationURL }>
 					Post anotation	
