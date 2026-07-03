@@ -7,8 +7,8 @@ import (
 )
 
 templ FAKE_AnnotationTestTemplate() {
-	<h1>Annotation test</h1>
-	<main id="base" onmouseup="getSelectionRangeData(this)">
+	<h1>Annotation testing page</h1>
+	<main id="base" onmouseup="data = getSelectionRangeData(); console.log(data)">
 		<p>ABC</p>
 		<ul>
 			<li>DEF</li>
@@ -16,6 +16,10 @@ templ FAKE_AnnotationTestTemplate() {
 			<li>JKL</li>
 		</ul>
 		<p>MNO</p>
+		<table>
+			<tr><th>abc</th></tr>
+			<tr><td>123</td></tr>
+		</table>
 	</main>
 	<script src="/public/js/test.js"></script>
 }
