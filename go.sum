@@ -88,6 +88,8 @@ github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d h1:hrujxIzL1woJ7
 github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d/go.mod h1:uugorj2VCxiV1x+LzaIdVa9b4S4qGAcH6cbhh4qVxOU=
 github.com/starfederation/datastar v1.0.0-RC.1 h1:N5/zmqt8c9pljIbkYr82FSnyEWmHmPCbPLcZcmHFZoU=
 github.com/starfederation/datastar v1.0.0-RC.1/go.mod h1:oy/EeSWRRAIdz/07UVHTrkJbJtqMwUK6hqjjyBe7VCQ=
+github.com/starfederation/datastar-go v1.2.2 h1:f+U2y5FY5tXgXaTVXkuKu+Tz9uh7BU1j8jxthYmcC9Q=
+github.com/starfederation/datastar-go v1.2.2/go.mod h1:stm83LQkhZkwa5GzzdPEN6dLuu8FVwxIv0w1DYkbD3w=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.4.0/go.mod h1:YvHI0jy2hoMjB+UWwv71VJQ9isScKT/TqJzVSSt89Yw=
 github.com/stretchr/objx v0.5.0/go.mod h1:Yh+to48EsGEfYuaHDzXPcE3xhTkx73EhmCGUpEOglKo=

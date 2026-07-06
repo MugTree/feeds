@@ -1,0 +1,10 @@
+package app
+
+templ HomePageTemplate(NavTemplate templ.Component, latest []Article, starred []Article) {
+	<h3>All feeds</h3>
+	@NavTemplate
+	<h2>Latest 5 articles</h2>
+	@Latest5ArticlesTemplate(latest)
+	<h2>Starred articles</h2>
+	@HaveLikedArticleTemplate(starred)
+}

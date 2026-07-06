@@ -1,0 +1,150 @@
+package app
+
+import (
+	"fmt"
+	"github.com/starfederation/datastar/sdk/go/datastar"
+)
+
+templ PageTemplate(pageTitle string, Main templ.Component) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<script type="module" src="/public/js/datastar.js"></script>
+			<link rel="stylesheet" href="/public/css/main.css"/>
+			<title>{ pageTitle }</title>
+		</head>
+		<body>
+			<div id="pagetop">
+				<header>
+					<a href="/" class="home-link">Home</a>
+					<div class="action-area">
+						<button id="update-button" data-indicator:fetching data-attr:disabled="$fetching" data-on:click={ datastar.GetSSE(`/update-reader`) }>Load</button>
+						<div data-show="$fetching" style="display: none;"><div class="spinner" id="spinner"></div></div>
+					</div>
+				</header>
+				<main>
+					@Main
+				</main>
+			</div>
+		</body>
+	</html>
+}
+
+templ FAKE_AnnotationTestTemplate() {
+	<h1>Annotation testing page</h1>
+	<main id="base" onmouseup="data = getSelectionRangeData(); console.log(data)">
+		<p>ABC</p>
+		<ul>
+			<li>DEF</li>
+			<li>GHI</li>
+			<li>JKL</li>
+		</ul>
+		<p>MNO</p>
+		<table>
+			<tr><th>abc</th></tr>
+			<tr><td>123</td></tr>
+		</table>
+	</main>
+	<script src="/public/js/test.js"></script>
+}
+
+templ ToReadTemplate(toRead []Article) {
+	<div id="to-read">
+		if (len(toRead) > 0) {
+			<h3>To read</h3>
+			<ul>
+				for _, a := range toRead {
+					if !(a.Read) {
+						<li>
+							<a href={ formatUrl("/article/%v/%v/view", a.FeedId, a.Id) }>{ a.Title }</a>
+						</li>
+					}
+				}
+			</ul>
+		}
+	</div>
+}
+
+templ HaveLikedArticleTemplate(starred []Article) {
+	<div id="starred-articles">
+		if (len(starred) > 0) {
+			<ul>
+				for _, a := range starred {
+					<li>
+						<a href={ formatUrl("/article/%v/%v/view", a.FeedId, a.Id) }>{ a.FullName() }</a>
+						if a.Liked >0 {
+							<img width="60px" src={ templ.SafeURL(fmt.Sprintf("/public/img/%v-star.png", a.Liked)) }/>
+						}
+					</li>
+				}
+			</ul>
+		} else {
+			<p>Nothing starred yet</p>
+		}
+	</div>
+}
+
+templ Latest5ArticlesTemplate(starred []Article) {
+	<div id="latest-articles">
+		if (len(starred) > 0) {
+			<ul>
+				for _, a := range starred {
+					<li>
+						<a href={ formatUrl("/article/%v/%v/view", a.FeedId, a.Id) }>{ a.FullName() }</a>
+					</li>
+				}
+			</ul>
+		} else {
+			<p>Nothing starred yet</p>
+		}
+	</div>
+}
+
+templ AlreadyReadTemplate(alreadyRead []Article) {
+	<div id="already-read">
+		if (len(alreadyRead) > 0) {
+			<ul>
+				for _, a := range alreadyRead {
+					<li>
+						<a href={ formatUrl("/article/%v/%v/view", a.FeedId, a.Id) }>{ a.Title }</a>
+						if a.Liked >0 {
+							<img width="60px" src={ templ.SafeURL(fmt.Sprintf("/public/img/%v-star.png", a.Liked)) }/>
+						}
+					</li>
+				}
+			</ul>
+		}
+	</div>
+}
+
+templ NavTemplate(links []SidebarLink) {
+	<nav>
+		<ul>
+			for _, l := range links {
+				{{ link := templ.URL(l.Link) }}
+				<li>
+					<span><a href={ link }>{ l.Name }</a> { l.Unread }</span>
+				</li>
+			}
+		</ul>
+	</nav>
+	<hr/>
+}
+
+templ UpdateReaderButtonTemplate() {
+	<button id="update-button" class="btn" data-on-click={ datastar.GetSSE(`/update-reader`) }>
+		<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path><path d="m21.854 2.147-10.94 10.939"></path></svg>
+		<span>Update</span>
+	</button>
+}
+
+func formatUrl(pattern string, prms ...any) templ.SafeURL {
+	return templ.URL(fmt.Sprintf(pattern, prms...))
+}
+
+templ RefreshTemplate() {
+	<script>
+		console.log('how refreshing!')
+		window.location.reload();
+	</script>
+}
