@@ -380,8 +380,8 @@ SELECT
  FROM articles a 
  INNER JOIN feeds f 
  ON f.id = a.feed_id 
- WHERE a.starred = 1
- ORDER BY COALESCE(a.published, a.date_found) 
+ WHERE a.starred > 0
+ ORDER BY starred ASC, COALESCE(a.published, a.date_found) 
  DESC LIMIT 0, 5
 `
 

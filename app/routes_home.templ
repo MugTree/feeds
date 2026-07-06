@@ -1,10 +1,33 @@
 package app
 
+import "fmt"
+
 templ HomePageTemplate(NavTemplate templ.Component, latest []Article, starred []Article) {
 	<h3>All feeds</h3>
 	@NavTemplate
 	<h2>Latest 5 articles</h2>
-	@Latest5ArticlesTemplate(latest)
+	<div id="latest-articles">
+		<ul>
+			for _, a := range latest {
+				<li>
+					<a href={ formatUrl("/article/%v/%v/view", a.FeedId, a.Id) }>{ a.FullName() }</a>
+				</li>
+			}
+		</ul>
+	</div>
 	<h2>Starred articles</h2>
-	@HaveLikedArticleTemplate(starred)
+	<div id="starred-articles">
+		if (len(starred) > 0) {
+			<ul>
+				for _, a := range starred {
+					<li>
+						<a href={ formatUrl("/article/%v/%v/view", a.FeedId, a.Id) }>{ a.FullName() }</a>
+						<img width="60px" src={ templ.SafeURL(fmt.Sprintf("/public/img/%v-star.png", a.Liked)) }/>
+					</li>
+				}
+			</ul>
+		} else {
+			<p>Nothing starred yet</p>
+		}
+	</div>
 }

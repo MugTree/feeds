@@ -65,41 +65,6 @@ templ ToReadTemplate(toRead []Article) {
 	</div>
 }
 
-templ HaveLikedArticleTemplate(starred []Article) {
-	<div id="starred-articles">
-		if (len(starred) > 0) {
-			<ul>
-				for _, a := range starred {
-					<li>
-						<a href={ formatUrl("/article/%v/%v/view", a.FeedId, a.Id) }>{ a.FullName() }</a>
-						if a.Liked >0 {
-							<img width="60px" src={ templ.SafeURL(fmt.Sprintf("/public/img/%v-star.png", a.Liked)) }/>
-						}
-					</li>
-				}
-			</ul>
-		} else {
-			<p>Nothing starred yet</p>
-		}
-	</div>
-}
-
-templ Latest5ArticlesTemplate(starred []Article) {
-	<div id="latest-articles">
-		if (len(starred) > 0) {
-			<ul>
-				for _, a := range starred {
-					<li>
-						<a href={ formatUrl("/article/%v/%v/view", a.FeedId, a.Id) }>{ a.FullName() }</a>
-					</li>
-				}
-			</ul>
-		} else {
-			<p>Nothing starred yet</p>
-		}
-	</div>
-}
-
 templ AlreadyReadTemplate(alreadyRead []Article) {
 	<div id="already-read">
 		if (len(alreadyRead) > 0) {
