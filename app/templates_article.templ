@@ -5,14 +5,14 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-templ ArticlePageTemplate(td ArticlePageTemplateData) {
+templ TemplateArticlePage(td ArticlePageTemplateData) {
 	<h2 id="article-top">{ td.FeedTitle } - { td.PageTitle }</h2>
 	<ul>
 		<li><b>{ td.FeedTitle }</b></li>
 		<li>{ td.ArticlePublished }</li>
 		<li>{ td.IsCache }</li>
 		<li>
-			@LikeArticleTemplate(td.FeedID, td.ArticleId, td.StarValue)
+			@TemplateLikeArticle(td.FeedID, td.ArticleId, td.StarValue)
 		</li>
 	</ul>
 	/**
@@ -45,21 +45,21 @@ templ ArticlePageTemplate(td ArticlePageTemplateData) {
 	<section id="article" data-on:pointerup="getAnnotation(); dialog.showModal()" data-on:pointerdown="closeDialog(evt)">
 		@templ.Raw(td.PageContent)
 	</section>
-	@LikeArticleTemplate(td.FeedID, td.ArticleId, td.StarValue)
+	@TemplateLikeArticle(td.FeedID, td.ArticleId, td.StarValue)
 	/**
 	Set the read value ...	
 	*/
 	<div data-on-intersect={ datastar.PutSSE("/article/%d/%d/set-read", td.FeedID, td.ArticleId) }>
-		@ToReadTemplate(td.ArticlesToRead)
+		@TemplateToRead(td.ArticlesToRead)
 		<h3>Older articles</h3>
-		@AlreadyReadTemplate(td.ArticlesRead)
+		@TemplateAlreadyRead(td.ArticlesRead)
 		<hr/>
-		@NavTemplate(td.Sidebar)
+		@TemplateNav(td.Sidebar)
 		<p><a href="#pagetop">Back to top</a></p>
 	</div>
 	<script src="/public/js/script.js"></script>
 }
 
-templ LikeArticleTemplate(feedID int64, articleID int64, starsValue int64) {
+templ TemplateLikeArticle(feedID int64, articleID int64, starsValue int64) {
 	<div id="star-value" data-on:click={ datastar.PutSSE(`/article/%v/%v/like/%v`, feedID, articleID, starsValue) }>Starred: <img width="60px" src={ templ.SafeURL(fmt.Sprintf("/public/img/%v-star.png", starsValue)) }/> </div>
 }

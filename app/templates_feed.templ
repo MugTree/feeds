@@ -1,0 +1,10 @@
+package app
+
+templ TemplateFeedPage(NavTemplate templ.Component, pageTitle string, alreadyRead []feedsArticle, toRead []feedsArticle) {
+	<h2>{ pageTitle }</h2>
+	@TemplateToRead(toRead)
+	<h3>Already read</h3>
+	@TemplateAlreadyRead(alreadyRead)
+	<h3>Other feeds</h3>
+	@NavTemplate
+}

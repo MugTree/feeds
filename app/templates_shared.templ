@@ -5,7 +5,7 @@ import (
 	"github.com/starfederation/datastar/sdk/go/datastar"
 )
 
-templ PageTemplate(pageTitle string, Main templ.Component) {
+templ TemplateLayout(pageTitle string, Main templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -48,7 +48,7 @@ templ FAKE_AnnotationTestTemplate() {
 	<script src="/public/js/test.js"></script>
 }
 
-templ ToReadTemplate(toRead []Article) {
+templ TemplateToRead(toRead []feedsArticle) {
 	<div id="to-read">
 		if (len(toRead) > 0) {
 			<h3>To read</h3>
@@ -65,7 +65,7 @@ templ ToReadTemplate(toRead []Article) {
 	</div>
 }
 
-templ AlreadyReadTemplate(alreadyRead []Article) {
+templ TemplateAlreadyRead(alreadyRead []feedsArticle) {
 	<div id="already-read">
 		if (len(alreadyRead) > 0) {
 			<ul>
@@ -82,7 +82,7 @@ templ AlreadyReadTemplate(alreadyRead []Article) {
 	</div>
 }
 
-templ NavTemplate(links []SidebarLink) {
+templ TemplateNav(links []feedsSidebarLink) {
 	<nav>
 		<ul>
 			for _, l := range links {
@@ -96,7 +96,7 @@ templ NavTemplate(links []SidebarLink) {
 	<hr/>
 }
 
-templ UpdateReaderButtonTemplate() {
+templ TemplateUpdateReaderButton() {
 	<button id="update-button" class="btn" data-on-click={ datastar.GetSSE(`/update-reader`) }>
 		<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path><path d="m21.854 2.147-10.94 10.939"></path></svg>
 		<span>Update</span>
@@ -107,7 +107,7 @@ func formatUrl(pattern string, prms ...any) templ.SafeURL {
 	return templ.URL(fmt.Sprintf(pattern, prms...))
 }
 
-templ RefreshTemplate() {
+templ TemplateRefreshPage() {
 	<script>
 		console.log('how refreshing!')
 		window.location.reload();

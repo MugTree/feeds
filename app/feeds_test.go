@@ -39,7 +39,7 @@ func Test_ExtractHTMLRangeFlat(t *testing.T) {
 
 		c.OnHTML("#all", func(h *colly.HTMLElement) {
 			theDom = h.DOM
-			result = extractHTMLRangeFlat(theDom, "p:first-of-type", "")
+			result = feedsExtractHTMLRangeFlat(theDom, "p:first-of-type", "")
 		})
 
 		if err := c.Visit(ts.URL); err != nil {
@@ -55,7 +55,7 @@ func Test_ExtractHTMLRangeFlat(t *testing.T) {
 
 		// return unclipped
 		//----------------------------------------
-		result = extractHTMLRangeFlat(theDom, "", "")
+		result = feedsExtractHTMLRangeFlat(theDom, "", "")
 
 		expected = unclippedString
 
@@ -65,7 +65,7 @@ func Test_ExtractHTMLRangeFlat(t *testing.T) {
 
 		// return with the end clipped
 		//----------------------------------------
-		result = extractHTMLRangeFlat(theDom, "", "#nasty-ads")
+		result = feedsExtractHTMLRangeFlat(theDom, "", "#nasty-ads")
 
 		expected = clippedEndString
 
@@ -75,7 +75,7 @@ func Test_ExtractHTMLRangeFlat(t *testing.T) {
 
 		// return  clipped between
 		//----------------------------------------
-		result = extractHTMLRangeFlat(theDom, "p:first-of-type", "#nasty-ads")
+		result = feedsExtractHTMLRangeFlat(theDom, "p:first-of-type", "#nasty-ads")
 
 		expected = clippedBetweenString
 

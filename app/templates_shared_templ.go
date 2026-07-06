@@ -13,7 +13,7 @@ import (
 	"github.com/starfederation/datastar/sdk/go/datastar"
 )
 
-func PageTemplate(pageTitle string, Main templ.Component) templ.Component {
+func TemplateLayout(pageTitle string, Main templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -41,7 +41,7 @@ func PageTemplate(pageTitle string, Main templ.Component) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(pageTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/shared.templ`, Line: 14, Col: 21}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_shared.templ`, Line: 14, Col: 21}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -54,7 +54,7 @@ func PageTemplate(pageTitle string, Main templ.Component) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(datastar.GetSSE(`/update-reader`))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/shared.templ`, Line: 21, Col: 137}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_shared.templ`, Line: 21, Col: 137}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -105,7 +105,7 @@ func FAKE_AnnotationTestTemplate() templ.Component {
 	})
 }
 
-func ToReadTemplate(toRead []Article) templ.Component {
+func TemplateToRead(toRead []feedsArticle) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -144,7 +144,7 @@ func ToReadTemplate(toRead []Article) templ.Component {
 					var templ_7745c5c3_Var6 templ.SafeURL
 					templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(formatUrl("/article/%v/%v/view", a.FeedId, a.Id))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/shared.templ`, Line: 59, Col: 65}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_shared.templ`, Line: 59, Col: 65}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 					if templ_7745c5c3_Err != nil {
@@ -157,7 +157,7 @@ func ToReadTemplate(toRead []Article) templ.Component {
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(a.Title)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/shared.templ`, Line: 59, Col: 77}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_shared.templ`, Line: 59, Col: 77}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 					if templ_7745c5c3_Err != nil {
@@ -182,7 +182,7 @@ func ToReadTemplate(toRead []Article) templ.Component {
 	})
 }
 
-func AlreadyReadTemplate(alreadyRead []Article) templ.Component {
+func TemplateAlreadyRead(alreadyRead []feedsArticle) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -220,7 +220,7 @@ func AlreadyReadTemplate(alreadyRead []Article) templ.Component {
 				var templ_7745c5c3_Var9 templ.SafeURL
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinURLErrs(formatUrl("/article/%v/%v/view", a.FeedId, a.Id))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/shared.templ`, Line: 74, Col: 64}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_shared.templ`, Line: 74, Col: 64}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -233,7 +233,7 @@ func AlreadyReadTemplate(alreadyRead []Article) templ.Component {
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(a.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/shared.templ`, Line: 74, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_shared.templ`, Line: 74, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -251,7 +251,7 @@ func AlreadyReadTemplate(alreadyRead []Article) templ.Component {
 					var templ_7745c5c3_Var11 string
 					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/public/img/%v-star.png", a.Liked)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/shared.templ`, Line: 76, Col: 93}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_shared.templ`, Line: 76, Col: 93}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 					if templ_7745c5c3_Err != nil {
@@ -280,7 +280,7 @@ func AlreadyReadTemplate(alreadyRead []Article) templ.Component {
 	})
 }
 
-func NavTemplate(links []SidebarLink) templ.Component {
+func TemplateNav(links []feedsSidebarLink) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -314,7 +314,7 @@ func NavTemplate(links []SidebarLink) templ.Component {
 			var templ_7745c5c3_Var13 templ.SafeURL
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(link)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/shared.templ`, Line: 91, Col: 25}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_shared.templ`, Line: 91, Col: 25}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -327,7 +327,7 @@ func NavTemplate(links []SidebarLink) templ.Component {
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(l.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/shared.templ`, Line: 91, Col: 36}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_shared.templ`, Line: 91, Col: 36}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {
@@ -340,7 +340,7 @@ func NavTemplate(links []SidebarLink) templ.Component {
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(l.Unread)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/shared.templ`, Line: 91, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_shared.templ`, Line: 91, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -359,7 +359,7 @@ func NavTemplate(links []SidebarLink) templ.Component {
 	})
 }
 
-func UpdateReaderButtonTemplate() templ.Component {
+func TemplateUpdateReaderButton() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -387,7 +387,7 @@ func UpdateReaderButtonTemplate() templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(datastar.GetSSE(`/update-reader`))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/shared.templ`, Line: 100, Col: 89}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_shared.templ`, Line: 100, Col: 89}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 		if templ_7745c5c3_Err != nil {
@@ -405,7 +405,7 @@ func formatUrl(pattern string, prms ...any) templ.SafeURL {
 	return templ.URL(fmt.Sprintf(pattern, prms...))
 }
 
-func RefreshTemplate() templ.Component {
+func TemplateRefreshPage() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {

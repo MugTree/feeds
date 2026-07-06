@@ -61,7 +61,7 @@ func run(parent context.Context) error {
 
 	webserver := &http.Server{
 		Addr:    ":" + appPort,
-		Handler: app.SetupHttpServer(queries, appUser, appPassword),
+		Handler: app.HttpSetupServer(queries, appUser, appPassword),
 	}
 
 	application := app.NewApp(dbHandle, queries, webserver)

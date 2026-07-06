@@ -11,84 +11,12 @@ import (
 	"time"
 )
 
-const addToArticleCache = `-- name: AddToArticleCache :exec
-INSERT INTO article_cache (
-	article_id,
-	link, 
-	article_content, 
-	created
-) VALUES(
-?,
-?,
-?, 
-CURRENT_TIMESTAMP
-)
-`
-
-type AddToArticleCacheParams struct {
-	ArticleID      int64
-	Link           string
-	ArticleContent sql.NullString
-}
-
-func (q *Queries) AddToArticleCache(ctx context.Context, arg AddToArticleCacheParams) error {
-	_, err := q.db.ExecContext(ctx, addToArticleCache, arg.ArticleID, arg.Link, arg.ArticleContent)
-	return err
-}
-
-const addToArticles = `-- name: AddToArticles :exec
-INSERT OR IGNORE INTO articles (
-	feed_id, 
-	title, 
-	link, 
-	published, 
-	date_found,
-	summary, 
-	read, 
-	starred
-) VALUES (
-	 ?, 
-	 ?, 
-	 ?, 
-	 ?, 
-	 ?,
-	 ?, 
-	 ?, 
-	 ?
- )
-`
-
-type AddToArticlesParams struct {
-	FeedID    int64
-	Title     string
-	Link      string
-	Published *time.Time
-	DateFound *time.Time
-	Summary   string
-	Read      int64
-	Starred   int64
-}
-
-func (q *Queries) AddToArticles(ctx context.Context, arg AddToArticlesParams) error {
-	_, err := q.db.ExecContext(ctx, addToArticles,
-		arg.FeedID,
-		arg.Title,
-		arg.Link,
-		arg.Published,
-		arg.DateFound,
-		arg.Summary,
-		arg.Read,
-		arg.Starred,
-	)
-	return err
-}
-
-const getAnnotationsByArticle = `-- name: GetAnnotationsByArticle :many
+const dbArticleAnnotationsByID = `-- name: DbArticleAnnotationsByID :many
 SELECT id, article_id, start_data, end_data, snippet, note, date_added FROM annotations WHERE article_id = ?
 `
 
-func (q *Queries) GetAnnotationsByArticle(ctx context.Context, articleID int64) ([]Annotation, error) {
-	rows, err := q.db.QueryContext(ctx, getAnnotationsByArticle, articleID)
+func (q *Queries) DbArticleAnnotationsByID(ctx context.Context, articleID int64) ([]Annotation, error) {
+	rows, err := q.db.QueryContext(ctx, dbArticleAnnotationsByID, articleID)
 	if err != nil {
 		return nil, err
 	}
@@ -118,18 +46,112 @@ func (q *Queries) GetAnnotationsByArticle(ctx context.Context, articleID int64) 
 	return items, nil
 }
 
-const getArticleContent = `-- name: GetArticleContent :one
+const dbArticleContent = `-- name: DbArticleContent :one
 SELECT article_content FROM article_cache WHERE article_id = ?
 `
 
-func (q *Queries) GetArticleContent(ctx context.Context, articleID int64) (sql.NullString, error) {
-	row := q.db.QueryRowContext(ctx, getArticleContent, articleID)
+func (q *Queries) DbArticleContent(ctx context.Context, articleID int64) (sql.NullString, error) {
+	row := q.db.QueryRowContext(ctx, dbArticleContent, articleID)
 	var article_content sql.NullString
 	err := row.Scan(&article_content)
 	return article_content, err
 }
 
-const getArticlesByFeedID = `-- name: GetArticlesByFeedID :many
+const dbArticleSetAnnotation = `-- name: DbArticleSetAnnotation :exec
+INSERT INTO annotations (article_id, start_data, end_data, note, snippet, date_added) 
+VALUES (?,?,?,?,?, CURRENT_TIMESTAMP)
+`
+
+type DbArticleSetAnnotationParams struct {
+	ArticleID int64
+	StartData string
+	EndData   string
+	Note      string
+	Snippet   string
+}
+
+func (q *Queries) DbArticleSetAnnotation(ctx context.Context, arg DbArticleSetAnnotationParams) error {
+	_, err := q.db.ExecContext(ctx, dbArticleSetAnnotation,
+		arg.ArticleID,
+		arg.StartData,
+		arg.EndData,
+		arg.Note,
+		arg.Snippet,
+	)
+	return err
+}
+
+const dbArticleSetAsRead = `-- name: DbArticleSetAsRead :exec
+UPDATE articles SET read = 1 WHERE id = ?
+`
+
+func (q *Queries) DbArticleSetAsRead(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, dbArticleSetAsRead, id)
+	return err
+}
+
+const dbArticleSetStarredValue = `-- name: DbArticleSetStarredValue :exec
+UPDATE articles SET starred = ? WHERE id = ?
+`
+
+type DbArticleSetStarredValueParams struct {
+	Starred int64
+	ID      int64
+}
+
+func (q *Queries) DbArticleSetStarredValue(ctx context.Context, arg DbArticleSetStarredValueParams) error {
+	_, err := q.db.ExecContext(ctx, dbArticleSetStarredValue, arg.Starred, arg.ID)
+	return err
+}
+
+const dbArticlesAddArticle = `-- name: DbArticlesAddArticle :exec
+INSERT OR IGNORE INTO articles (
+	feed_id, 
+	title, 
+	link, 
+	published, 
+	date_found,
+	summary, 
+	read, 
+	starred
+) VALUES (
+	 ?, 
+	 ?, 
+	 ?, 
+	 ?, 
+	 ?,
+	 ?, 
+	 ?, 
+	 ?
+ )
+`
+
+type DbArticlesAddArticleParams struct {
+	FeedID    int64
+	Title     string
+	Link      string
+	Published *time.Time
+	DateFound *time.Time
+	Summary   string
+	Read      int64
+	Starred   int64
+}
+
+func (q *Queries) DbArticlesAddArticle(ctx context.Context, arg DbArticlesAddArticleParams) error {
+	_, err := q.db.ExecContext(ctx, dbArticlesAddArticle,
+		arg.FeedID,
+		arg.Title,
+		arg.Link,
+		arg.Published,
+		arg.DateFound,
+		arg.Summary,
+		arg.Read,
+		arg.Starred,
+	)
+	return err
+}
+
+const dbArticlesByFeedID = `-- name: DbArticlesByFeedID :many
 SELECT 
 	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
 	f.title as feed_title 
@@ -140,7 +162,7 @@ WHERE feed_id = ?
 ORDER BY COALESCE(a.published, a.date_found) DESC
 `
 
-type GetArticlesByFeedIDRow struct {
+type DbArticlesByFeedIDRow struct {
 	ID        int64
 	FeedID    int64
 	Title     string
@@ -153,15 +175,15 @@ type GetArticlesByFeedIDRow struct {
 	FeedTitle string
 }
 
-func (q *Queries) GetArticlesByFeedID(ctx context.Context, feedID int64) ([]GetArticlesByFeedIDRow, error) {
-	rows, err := q.db.QueryContext(ctx, getArticlesByFeedID, feedID)
+func (q *Queries) DbArticlesByFeedID(ctx context.Context, feedID int64) ([]DbArticlesByFeedIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, dbArticlesByFeedID, feedID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetArticlesByFeedIDRow
+	var items []DbArticlesByFeedIDRow
 	for rows.Next() {
-		var i GetArticlesByFeedIDRow
+		var i DbArticlesByFeedIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.FeedID,
@@ -187,12 +209,187 @@ func (q *Queries) GetArticlesByFeedID(ctx context.Context, feedID int64) ([]GetA
 	return items, nil
 }
 
-const getCachedByLink = `-- name: GetCachedByLink :one
+const dbArticlesLatest5 = `-- name: DbArticlesLatest5 :many
+SELECT 
+	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
+	f.title as feed_title 
+ FROM articles a 
+ INNER JOIN feeds f 
+ ON f.id = a.feed_id 
+ ORDER BY COALESCE(a.published, a.date_found) 
+ DESC LIMIT 0, 5
+`
+
+type DbArticlesLatest5Row struct {
+	ID        int64
+	FeedID    int64
+	Title     string
+	Link      string
+	Published *time.Time
+	DateFound *time.Time
+	Summary   string
+	Read      int64
+	Starred   int64
+	FeedTitle string
+}
+
+func (q *Queries) DbArticlesLatest5(ctx context.Context) ([]DbArticlesLatest5Row, error) {
+	rows, err := q.db.QueryContext(ctx, dbArticlesLatest5)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DbArticlesLatest5Row
+	for rows.Next() {
+		var i DbArticlesLatest5Row
+		if err := rows.Scan(
+			&i.ID,
+			&i.FeedID,
+			&i.Title,
+			&i.Link,
+			&i.Published,
+			&i.DateFound,
+			&i.Summary,
+			&i.Read,
+			&i.Starred,
+			&i.FeedTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const dbArticlesLatest5Starred = `-- name: DbArticlesLatest5Starred :many
+SELECT 
+	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
+	f.title as feed_title 
+ FROM articles a 
+ INNER JOIN feeds f 
+ ON f.id = a.feed_id 
+ WHERE a.starred > 0
+ ORDER BY starred DESC, COALESCE(a.published, a.date_found) 
+ DESC LIMIT 0, 5
+`
+
+type DbArticlesLatest5StarredRow struct {
+	ID        int64
+	FeedID    int64
+	Title     string
+	Link      string
+	Published *time.Time
+	DateFound *time.Time
+	Summary   string
+	Read      int64
+	Starred   int64
+	FeedTitle string
+}
+
+func (q *Queries) DbArticlesLatest5Starred(ctx context.Context) ([]DbArticlesLatest5StarredRow, error) {
+	rows, err := q.db.QueryContext(ctx, dbArticlesLatest5Starred)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DbArticlesLatest5StarredRow
+	for rows.Next() {
+		var i DbArticlesLatest5StarredRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FeedID,
+			&i.Title,
+			&i.Link,
+			&i.Published,
+			&i.DateFound,
+			&i.Summary,
+			&i.Read,
+			&i.Starred,
+			&i.FeedTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const dbArticlesUnreadByFeedID = `-- name: DbArticlesUnreadByFeedID :many
+SELECT 
+	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
+	f.title as feed_title 
+FROM articles a 
+INNER JOIN feeds f 
+ON f.id = a.feed_id 
+WHERE feed_id = ? AND a.read = 0
+ORDER BY COALESCE(a.published, a.date_found) DESC
+`
+
+type DbArticlesUnreadByFeedIDRow struct {
+	ID        int64
+	FeedID    int64
+	Title     string
+	Link      string
+	Published *time.Time
+	DateFound *time.Time
+	Summary   string
+	Read      int64
+	Starred   int64
+	FeedTitle string
+}
+
+func (q *Queries) DbArticlesUnreadByFeedID(ctx context.Context, feedID int64) ([]DbArticlesUnreadByFeedIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, dbArticlesUnreadByFeedID, feedID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DbArticlesUnreadByFeedIDRow
+	for rows.Next() {
+		var i DbArticlesUnreadByFeedIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FeedID,
+			&i.Title,
+			&i.Link,
+			&i.Published,
+			&i.DateFound,
+			&i.Summary,
+			&i.Read,
+			&i.Starred,
+			&i.FeedTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const dbCachedArticleByLink = `-- name: DbCachedArticleByLink :one
 SELECT id, link, article_content, created, article_id FROM article_cache WHERE link = ?
 `
 
-func (q *Queries) GetCachedByLink(ctx context.Context, link string) (ArticleCache, error) {
-	row := q.db.QueryRowContext(ctx, getCachedByLink, link)
+func (q *Queries) DbCachedArticleByLink(ctx context.Context, link string) (ArticleCache, error) {
+	row := q.db.QueryRowContext(ctx, dbCachedArticleByLink, link)
 	var i ArticleCache
 	err := row.Scan(
 		&i.ID,
@@ -204,7 +401,32 @@ func (q *Queries) GetCachedByLink(ctx context.Context, link string) (ArticleCach
 	return i, err
 }
 
-const getFeedAndArticleByArticleID = `-- name: GetFeedAndArticleByArticleID :one
+const dbCachedArticleCreateNew = `-- name: DbCachedArticleCreateNew :exec
+INSERT INTO article_cache (
+	article_id,
+	link, 
+	article_content, 
+	created
+) VALUES(
+?,
+?,
+?, 
+CURRENT_TIMESTAMP
+)
+`
+
+type DbCachedArticleCreateNewParams struct {
+	ArticleID      int64
+	Link           string
+	ArticleContent sql.NullString
+}
+
+func (q *Queries) DbCachedArticleCreateNew(ctx context.Context, arg DbCachedArticleCreateNewParams) error {
+	_, err := q.db.ExecContext(ctx, dbCachedArticleCreateNew, arg.ArticleID, arg.Link, arg.ArticleContent)
+	return err
+}
+
+const dbFeedAndArticletByArticleID = `-- name: DbFeedAndArticletByArticleID :one
 SELECT 
 	a.id as article_id,
 	a.link as article_link, 
@@ -224,7 +446,7 @@ INNER JOIN feeds f
 ON f.id = a.feed_id where a.id = ?
 `
 
-type GetFeedAndArticleByArticleIDRow struct {
+type DbFeedAndArticletByArticleIDRow struct {
 	ArticleID                  int64
 	ArticleLink                string
 	ArticleTitle               string
@@ -239,9 +461,9 @@ type GetFeedAndArticleByArticleIDRow struct {
 	FeedHtmlExtractionStrategy sql.NullString
 }
 
-func (q *Queries) GetFeedAndArticleByArticleID(ctx context.Context, id int64) (GetFeedAndArticleByArticleIDRow, error) {
-	row := q.db.QueryRowContext(ctx, getFeedAndArticleByArticleID, id)
-	var i GetFeedAndArticleByArticleIDRow
+func (q *Queries) DbFeedAndArticletByArticleID(ctx context.Context, id int64) (DbFeedAndArticletByArticleIDRow, error) {
+	row := q.db.QueryRowContext(ctx, dbFeedAndArticletByArticleID, id)
+	var i DbFeedAndArticletByArticleIDRow
 	err := row.Scan(
 		&i.ArticleID,
 		&i.ArticleLink,
@@ -259,12 +481,12 @@ func (q *Queries) GetFeedAndArticleByArticleID(ctx context.Context, id int64) (G
 	return i, err
 }
 
-const getFeedByID = `-- name: GetFeedByID :one
+const dbFeedByID = `-- name: DbFeedByID :one
 SELECT id, url, title, last_fetched, css_sel_container, css_sel_start, css_sel_stop, html_extraction_strategy FROM feeds where id = ?
 `
 
-func (q *Queries) GetFeedByID(ctx context.Context, id int64) (Feed, error) {
-	row := q.db.QueryRowContext(ctx, getFeedByID, id)
+func (q *Queries) DbFeedByID(ctx context.Context, id int64) (Feed, error) {
+	row := q.db.QueryRowContext(ctx, dbFeedByID, id)
 	var i Feed
 	err := row.Scan(
 		&i.ID,
@@ -279,12 +501,12 @@ func (q *Queries) GetFeedByID(ctx context.Context, id int64) (Feed, error) {
 	return i, err
 }
 
-const getFeeds = `-- name: GetFeeds :many
+const dbFeedsAll = `-- name: DbFeedsAll :many
 SELECT id, url, title, last_fetched, css_sel_container, css_sel_start, css_sel_stop, html_extraction_strategy from feeds
 `
 
-func (q *Queries) GetFeeds(ctx context.Context) ([]Feed, error) {
-	rows, err := q.db.QueryContext(ctx, getFeeds)
+func (q *Queries) DbFeedsAll(ctx context.Context) ([]Feed, error) {
+	rows, err := q.db.QueryContext(ctx, dbFeedsAll)
 	if err != nil {
 		return nil, err
 	}
@@ -315,124 +537,7 @@ func (q *Queries) GetFeeds(ctx context.Context) ([]Feed, error) {
 	return items, nil
 }
 
-const getLatest5Articles = `-- name: GetLatest5Articles :many
-SELECT 
-	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
-	f.title as feed_title 
- FROM articles a 
- INNER JOIN feeds f 
- ON f.id = a.feed_id 
- ORDER BY COALESCE(a.published, a.date_found) 
- DESC LIMIT 0, 5
-`
-
-type GetLatest5ArticlesRow struct {
-	ID        int64
-	FeedID    int64
-	Title     string
-	Link      string
-	Published *time.Time
-	DateFound *time.Time
-	Summary   string
-	Read      int64
-	Starred   int64
-	FeedTitle string
-}
-
-func (q *Queries) GetLatest5Articles(ctx context.Context) ([]GetLatest5ArticlesRow, error) {
-	rows, err := q.db.QueryContext(ctx, getLatest5Articles)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetLatest5ArticlesRow
-	for rows.Next() {
-		var i GetLatest5ArticlesRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.FeedID,
-			&i.Title,
-			&i.Link,
-			&i.Published,
-			&i.DateFound,
-			&i.Summary,
-			&i.Read,
-			&i.Starred,
-			&i.FeedTitle,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getLatest5StarredArticles = `-- name: GetLatest5StarredArticles :many
-SELECT 
-	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
-	f.title as feed_title 
- FROM articles a 
- INNER JOIN feeds f 
- ON f.id = a.feed_id 
- WHERE a.starred > 0
- ORDER BY starred ASC, COALESCE(a.published, a.date_found) 
- DESC LIMIT 0, 5
-`
-
-type GetLatest5StarredArticlesRow struct {
-	ID        int64
-	FeedID    int64
-	Title     string
-	Link      string
-	Published *time.Time
-	DateFound *time.Time
-	Summary   string
-	Read      int64
-	Starred   int64
-	FeedTitle string
-}
-
-func (q *Queries) GetLatest5StarredArticles(ctx context.Context) ([]GetLatest5StarredArticlesRow, error) {
-	rows, err := q.db.QueryContext(ctx, getLatest5StarredArticles)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetLatest5StarredArticlesRow
-	for rows.Next() {
-		var i GetLatest5StarredArticlesRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.FeedID,
-			&i.Title,
-			&i.Link,
-			&i.Published,
-			&i.DateFound,
-			&i.Summary,
-			&i.Read,
-			&i.Starred,
-			&i.FeedTitle,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getSidebarData = `-- name: GetSidebarData :many
+const dbSidebarDataAll = `-- name: DbSidebarDataAll :many
 SELECT
 	f.title AS feed_title,
 	f.id AS feed_id,
@@ -444,22 +549,22 @@ GROUP BY f.id, f.title
 ORDER BY feed_title ASC
 `
 
-type GetSidebarDataRow struct {
+type DbSidebarDataAllRow struct {
 	FeedTitle     string
 	FeedID        int64
 	TotalArticles int64
 	ArticlesRead  int64
 }
 
-func (q *Queries) GetSidebarData(ctx context.Context) ([]GetSidebarDataRow, error) {
-	rows, err := q.db.QueryContext(ctx, getSidebarData)
+func (q *Queries) DbSidebarDataAll(ctx context.Context) ([]DbSidebarDataAllRow, error) {
+	rows, err := q.db.QueryContext(ctx, dbSidebarDataAll)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetSidebarDataRow
+	var items []DbSidebarDataAllRow
 	for rows.Next() {
-		var i GetSidebarDataRow
+		var i DbSidebarDataAllRow
 		if err := rows.Scan(
 			&i.FeedTitle,
 			&i.FeedID,
@@ -477,109 +582,4 @@ func (q *Queries) GetSidebarData(ctx context.Context) ([]GetSidebarDataRow, erro
 		return nil, err
 	}
 	return items, nil
-}
-
-const getUnreadByFeedID = `-- name: GetUnreadByFeedID :many
-SELECT 
-	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
-	f.title as feed_title 
-FROM articles a 
-INNER JOIN feeds f 
-ON f.id = a.feed_id 
-WHERE feed_id = ? AND a.read = 0
-ORDER BY COALESCE(a.published, a.date_found) DESC
-`
-
-type GetUnreadByFeedIDRow struct {
-	ID        int64
-	FeedID    int64
-	Title     string
-	Link      string
-	Published *time.Time
-	DateFound *time.Time
-	Summary   string
-	Read      int64
-	Starred   int64
-	FeedTitle string
-}
-
-func (q *Queries) GetUnreadByFeedID(ctx context.Context, feedID int64) ([]GetUnreadByFeedIDRow, error) {
-	rows, err := q.db.QueryContext(ctx, getUnreadByFeedID, feedID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetUnreadByFeedIDRow
-	for rows.Next() {
-		var i GetUnreadByFeedIDRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.FeedID,
-			&i.Title,
-			&i.Link,
-			&i.Published,
-			&i.DateFound,
-			&i.Summary,
-			&i.Read,
-			&i.Starred,
-			&i.FeedTitle,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const setArticleAnnotation = `-- name: SetArticleAnnotation :exec
-INSERT INTO annotations (article_id, start_data, end_data, note, snippet, date_added) 
-VALUES (?,?,?,?,?, CURRENT_TIMESTAMP)
-`
-
-type SetArticleAnnotationParams struct {
-	ArticleID int64
-	StartData string
-	EndData   string
-	Note      string
-	Snippet   string
-}
-
-func (q *Queries) SetArticleAnnotation(ctx context.Context, arg SetArticleAnnotationParams) error {
-	_, err := q.db.ExecContext(ctx, setArticleAnnotation,
-		arg.ArticleID,
-		arg.StartData,
-		arg.EndData,
-		arg.Note,
-		arg.Snippet,
-	)
-	return err
-}
-
-const setArticleAsRead = `-- name: SetArticleAsRead :exec
-UPDATE articles SET read = 1 WHERE id = ?
-`
-
-func (q *Queries) SetArticleAsRead(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, setArticleAsRead, id)
-	return err
-}
-
-const setArticleStarredValue = `-- name: SetArticleStarredValue :exec
-UPDATE articles SET starred = ? WHERE id = ?
-`
-
-type SetArticleStarredValueParams struct {
-	Starred int64
-	ID      int64
-}
-
-func (q *Queries) SetArticleStarredValue(ctx context.Context, arg SetArticleStarredValueParams) error {
-	_, err := q.db.ExecContext(ctx, setArticleStarredValue, arg.Starred, arg.ID)
-	return err
 }

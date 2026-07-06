@@ -47,7 +47,7 @@ func FeedAdminListTemplate(feeds []db.Feed) templ.Component {
 			var templ_7745c5c3_Var2 templ.SafeURL
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/admin/feed/%v/view", v.ID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_admin.templ`, Line: 12, Col: 68}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 12, Col: 68}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -60,7 +60,7 @@ func FeedAdminListTemplate(feeds []db.Feed) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(v.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_admin.templ`, Line: 12, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 12, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -148,7 +148,7 @@ func FeedAdminFormTemplate(td FeedFormTemplateData) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(td.Feed.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_admin.templ`, Line: 36, Col: 100}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 36, Col: 100}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
@@ -161,7 +161,7 @@ func FeedAdminFormTemplate(td FeedFormTemplateData) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(td.Feed.Url)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_admin.templ`, Line: 40, Col: 95}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 40, Col: 95}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
@@ -174,7 +174,7 @@ func FeedAdminFormTemplate(td FeedFormTemplateData) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(td.Feed.CssSelContainer.String)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_admin.templ`, Line: 44, Col: 133}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 44, Col: 133}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 		if templ_7745c5c3_Err != nil {
@@ -187,7 +187,7 @@ func FeedAdminFormTemplate(td FeedFormTemplateData) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(td.Feed.CssSelStart.String)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_admin.templ`, Line: 48, Col: 117}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 48, Col: 117}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
@@ -200,7 +200,7 @@ func FeedAdminFormTemplate(td FeedFormTemplateData) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(td.Feed.CssSelStop.String)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_admin.templ`, Line: 52, Col: 110}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 52, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
@@ -213,7 +213,7 @@ func FeedAdminFormTemplate(td FeedFormTemplateData) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(datastar.PostSSE("%v", td.UrlAction))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_admin.templ`, Line: 55, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 55, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 		if templ_7745c5c3_Err != nil {
@@ -226,7 +226,7 @@ func FeedAdminFormTemplate(td FeedFormTemplateData) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(td.ButtonText)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_admin.templ`, Line: 55, Col: 80}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 55, Col: 80}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -268,7 +268,7 @@ func FeedFormTextInputTemplate(title string, id string, placeholder string, valu
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_admin.templ`, Line: 61, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 61, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
@@ -281,7 +281,7 @@ func FeedFormTextInputTemplate(title string, id string, placeholder string, valu
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_admin.templ`, Line: 61, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 61, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
@@ -294,7 +294,7 @@ func FeedFormTextInputTemplate(title string, id string, placeholder string, valu
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_admin.templ`, Line: 62, Col: 16}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 62, Col: 16}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 		if templ_7745c5c3_Err != nil {
@@ -307,7 +307,7 @@ func FeedFormTextInputTemplate(title string, id string, placeholder string, valu
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(placeholder)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_admin.templ`, Line: 62, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 62, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 		if templ_7745c5c3_Err != nil {
@@ -320,7 +320,7 @@ func FeedFormTextInputTemplate(title string, id string, placeholder string, valu
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(value)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_admin.templ`, Line: 62, Col: 94}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 62, Col: 94}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 		if templ_7745c5c3_Err != nil {

@@ -10,7 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "fmt"
 
-func HomePageTemplate(NavTemplate templ.Component, latest []Article, starred []Article) templ.Component {
+func TemplateHomePage(NavTemplate templ.Component, latest []feedsArticle, starred []feedsArticle) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -51,7 +51,7 @@ func HomePageTemplate(NavTemplate templ.Component, latest []Article, starred []A
 			var templ_7745c5c3_Var2 templ.SafeURL
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinURLErrs(formatUrl("/article/%v/%v/view", a.FeedId, a.Id))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_home.templ`, Line: 13, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_home.templ`, Line: 13, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -64,7 +64,7 @@ func HomePageTemplate(NavTemplate templ.Component, latest []Article, starred []A
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(a.FullName())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_home.templ`, Line: 13, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_home.templ`, Line: 13, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -92,7 +92,7 @@ func HomePageTemplate(NavTemplate templ.Component, latest []Article, starred []A
 				var templ_7745c5c3_Var4 templ.SafeURL
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(formatUrl("/article/%v/%v/view", a.FeedId, a.Id))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_home.templ`, Line: 24, Col: 64}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_home.templ`, Line: 24, Col: 64}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -105,7 +105,7 @@ func HomePageTemplate(NavTemplate templ.Component, latest []Article, starred []A
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(a.FullName())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_home.templ`, Line: 24, Col: 81}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_home.templ`, Line: 24, Col: 81}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -118,7 +118,7 @@ func HomePageTemplate(NavTemplate templ.Component, latest []Article, starred []A
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/public/img/%v-star.png", a.Liked)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_home.templ`, Line: 25, Col: 92}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_home.templ`, Line: 25, Col: 92}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 				if templ_7745c5c3_Err != nil {

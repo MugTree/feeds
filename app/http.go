@@ -23,34 +23,34 @@ import (
 //go:embed public/img/*
 var staticFS embed.FS
 
-func SetupHttpServer(queries *db.Queries, user string, password string) chi.Router {
+func HttpSetupServer(queries *db.Queries, user string, password string) chi.Router {
 
 	r := chi.NewRouter()
-	r.Handle("/public/*", neuterDirectoryHandler(http.FileServer(http.FS(staticFS))))
+	r.Handle("/public/*", httpNeuterDirectory(http.FileServer(http.FS(staticFS))))
 	r.Group(func(site chi.Router) {
-		site.Use(basicAuthHandler(user, password))
-		frontEndRoutes(r, queries)
-		adminRoutes(r, queries)
+		site.Use(httpBasicAuthHandler(user, password))
+		httpFrontEndRoutes(r, queries)
+		httpAdminRoutes(r, queries)
 	})
 	return r
 }
 
-func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
+func httpFrontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 	r.Get("/fake-annotation-test", func(w http.ResponseWriter, r *http.Request) {
-		PageTemplate("test", FAKE_AnnotationTestTemplate()).Render(r.Context(), w)
+		TemplateLayout("test", FAKE_AnnotationTestTemplate()).Render(r.Context(), w)
 	})
 
 	// return some data
 	r.Get("/fake-annotation-test/data", func(w http.ResponseWriter, r *http.Request) {
 
-		a := []Annotation{{
+		a := []feedsAnnotation{{
 			ID: 12345,
-			StartData: AnnotationData{
+			StartData: feedsAnnotationData{
 				Path:   []int64{0},
 				Offset: 1,
 			},
-			EndData: AnnotationData{
+			EndData: feedsAnnotationData{
 				Path:   []int64{0},
 				Offset: 2,
 			},
@@ -59,7 +59,7 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 		b, err := json.Marshal(&a)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 		w.Header().Add("Content-Type", "application/json")
@@ -94,22 +94,22 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 		// 	ArticleID: 1,
 		// })
 
-		dba, err := queries.GetAnnotationsByArticle(r.Context(), 1)
+		dba, err := queries.DbArticleAnnotationsByID(r.Context(), 1)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
-		ans := []Annotation{}
-		sd := AnnotationData{}
-		ed := AnnotationData{}
+		ans := []feedsAnnotation{}
+		sd := feedsAnnotationData{}
+		ed := feedsAnnotationData{}
 
 		for _, v := range dba {
 
 			err = json.Unmarshal([]byte(v.StartData), &sd)
 			err = json.Unmarshal([]byte(v.StartData), &ed)
 
-			ans = append(ans, Annotation{
+			ans = append(ans, feedsAnnotation{
 				ID:        v.ID,
 				ArticleID: v.ArticleID,
 				DateAdded: v.DateAdded.String(),
@@ -129,21 +129,21 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 		ctx := r.Context()
 
-		latest, starred, err := getHomepageArticles(queries, ctx)
+		latest, starred, err := feedsHomePageArticleSelection(queries, ctx)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
-		sidebar, err := getSidebarData(queries, ctx)
+		sidebar, err := feedsSideBarTemplateData(queries, ctx)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
-		PageTemplate(
+		TemplateLayout(
 			"Homepage",
-			HomePageTemplate(NavTemplate(sidebar), latest, starred)).Render(ctx,
+			TemplateHomePage(TemplateNav(sidebar), latest, starred)).Render(ctx,
 			w,
 		)
 	})
@@ -151,33 +151,33 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 	r.Get("/feed/{feedID}/view", func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		feedID, ok := requireIDParam(w, r, "feedID")
+		feedID, ok := httpRequireIDParam(w, r, "feedID")
 		if !ok {
 			return
 		}
 
-		feed, err := queries.GetFeedByID(ctx, feedID)
+		feed, err := queries.DbFeedByID(ctx, feedID)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 		pageTitle := feed.Title
 
-		alreadyRead, toRead, err := getArticlesByFeed(queries, feedID, ctx)
+		alreadyRead, toRead, err := feedsArticlesByFeedID(queries, feedID, ctx)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
-		sidebar, err := getSidebarData(queries, ctx)
+		sidebar, err := feedsSideBarTemplateData(queries, ctx)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
-		PageTemplate(
+		TemplateLayout(
 			pageTitle,
-			FeedPageTemplate(NavTemplate(sidebar), pageTitle, alreadyRead, toRead)).Render(
+			TemplateFeedPage(TemplateNav(sidebar), pageTitle, alreadyRead, toRead)).Render(
 			r.Context(),
 			w,
 		)
@@ -187,24 +187,24 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 	r.Get("/article/{feedID}/{articleID}/view", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-		feedID, ok := requireIDParam(w, r, "feedID")
+		feedID, ok := httpRequireIDParam(w, r, "feedID")
 		if !ok {
 			return
 		}
-		articleID, ok := requireIDParam(w, r, "articleID")
+		articleID, ok := httpRequireIDParam(w, r, "articleID")
 		if !ok {
 			return
 		}
 
-		td, err := getArticleTemplateData(queries, ctx, articleID, feedID)
+		td, err := feedsArticlePageTemplateData(queries, ctx, articleID, feedID)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
-		PageTemplate(
+		TemplateLayout(
 			td.PageTitle,
-			ArticlePageTemplate(td)).Render(
+			TemplateArticlePage(td)).Render(
 			r.Context(),
 			w,
 		)
@@ -213,32 +213,32 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 	r.Put("/article/{feedID}/{articleID}/set-read", func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		feedID, ok := requireIDParam(w, r, "feedID")
+		feedID, ok := httpRequireIDParam(w, r, "feedID")
 		if !ok {
 			return
 		}
-		articleID, ok := requireIDParam(w, r, "articleID")
+		articleID, ok := httpRequireIDParam(w, r, "articleID")
 		if !ok {
 			return
 		}
 
-		err := queries.SetArticleAsRead(ctx, articleID)
+		err := queries.DbArticleSetAsRead(ctx, articleID)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
-		td, err := getArticleTemplateData(queries, ctx, articleID, feedID)
+		td, err := feedsArticlePageTemplateData(queries, ctx, articleID, feedID)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
 		sse := datastar.NewSSE(w, r)
 		sse.PatchElementTempl(
-			PageTemplate(
+			TemplateLayout(
 				td.PageTitle,
-				ArticlePageTemplate(td),
+				TemplateArticlePage(td),
 			),
 		)
 	})
@@ -247,43 +247,43 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 		ctx := r.Context()
 
-		feedID, ok := requireIDParam(w, r, "feedID")
+		feedID, ok := httpRequireIDParam(w, r, "feedID")
 		if !ok {
 			return
 		}
-		articleID, ok := requireIDParam(w, r, "articleID")
+		articleID, ok := httpRequireIDParam(w, r, "articleID")
 		if !ok {
 			return
 		}
 
 		likeValue, err := strconv.Atoi(r.PathValue("value"))
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
 		if likeValue < 0 && likeValue > 3 {
-			logAndError(w, r, fmt.Sprintf("incorrect like value: %v, needs to be between 0 and 3", likeValue))
+			httpLogAndError(w, r, fmt.Sprintf("incorrect like value: %v, needs to be between 0 and 3", likeValue))
 			return
 		}
 
-		err = setArticleLikeValue(queries, int64(likeValue), articleID, ctx)
+		err = feedsArticleLike(queries, int64(likeValue), articleID, ctx)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
-		td, err := getArticleTemplateData(queries, ctx, articleID, feedID)
+		td, err := feedsArticlePageTemplateData(queries, ctx, articleID, feedID)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
 		sse := datastar.NewSSE(w, r)
 		sse.PatchElementTempl(
-			PageTemplate(
+			TemplateLayout(
 				td.PageTitle,
-				ArticlePageTemplate(td),
+				TemplateArticlePage(td),
 			),
 		)
 
@@ -293,18 +293,18 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 		ctx := r.Context()
 
-		_, ok := requireIDParam(w, r, "feedID")
+		_, ok := httpRequireIDParam(w, r, "feedID")
 		if !ok {
 			return
 		}
-		articleID, ok := requireIDParam(w, r, "articleID")
+		articleID, ok := httpRequireIDParam(w, r, "articleID")
 		if !ok {
 			return
 		}
 
 		err := r.ParseForm()
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
@@ -313,19 +313,19 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 		startPos, err := strconv.Atoi(start)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
 		endPos, err := strconv.Atoi(end)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
 		selection := r.Form.Get("selection")
 		if selection < "" {
-			logAndError(w, r, errors.New("selection param is not set?").Error())
+			httpLogAndError(w, r, errors.New("selection param is not set?").Error())
 			return
 		}
 
@@ -337,15 +337,15 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 	r.Get("/update-reader", func(w http.ResponseWriter, r *http.Request) {
 
-		_, err := getFeedUpdates(queries, r.Context())
+		_, err := feedsFeedUpdates(queries, r.Context())
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
 		sse := datastar.NewSSE(w, r)
 		sse.PatchElementTempl(
-			RefreshTemplate(),
+			TemplateRefreshPage(),
 			datastar.WithModeAppend(),
 			datastar.WithSelector("body"),
 		)
@@ -355,13 +355,13 @@ func frontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 	return r
 }
 
-func adminRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
+func httpAdminRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 	r.Get("/admin/feeds/list", func(w http.ResponseWriter, r *http.Request) {
 
-		feeds, err := queries.GetFeeds(r.Context())
+		feeds, err := queries.DbFeedsAll(r.Context())
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 		AdminPageTemplate(FeedAdminListTemplate(feeds)).Render(r.Context(), w)
@@ -369,16 +369,16 @@ func adminRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 	r.Get("/admin/feed/{feedID}/view", func(w http.ResponseWriter, r *http.Request) {
 
-		feedID, ok := requireIDParam(w, r, "feedID")
+		feedID, ok := httpRequireIDParam(w, r, "feedID")
 		if !ok {
 			return
 		}
 
 		ctx := r.Context()
 
-		feed, err := queries.GetFeedByID(ctx, feedID)
+		feed, err := queries.DbFeedByID(ctx, feedID)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
@@ -388,7 +388,7 @@ func adminRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 	r.Put("/admin/feed/{feedID}/update", func(w http.ResponseWriter, r *http.Request) {
 
-		feedID, ok := requireIDParam(w, r, "feedID")
+		feedID, ok := httpRequireIDParam(w, r, "feedID")
 		if !ok {
 			return
 		}
@@ -416,7 +416,7 @@ func adminRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 	return r
 }
 
-func neuterDirectoryHandler(next http.Handler) http.Handler {
+func httpNeuterDirectory(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/") {
 			http.NotFound(w, r)
@@ -427,7 +427,7 @@ func neuterDirectoryHandler(next http.Handler) http.Handler {
 	})
 }
 
-func basicAuthHandler(user string, user_password string) func(http.Handler) http.Handler {
+func httpBasicAuthHandler(user string, user_password string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			username, password, ok := r.BasicAuth()
@@ -453,15 +453,15 @@ func basicAuthHandler(user string, user_password string) func(http.Handler) http
 	}
 }
 
-func requireNonZeroInt64(value string, key string, w http.ResponseWriter, r *http.Request) (int64, bool) {
+func httpRequireNonZeroInt64(value string, key string, w http.ResponseWriter, r *http.Request) (int64, bool) {
 	v, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		logAndError(w, r, err.Error(), http.StatusBadRequest)
+		httpLogAndError(w, r, err.Error(), http.StatusBadRequest)
 		return 0, false
 	}
 
 	if v == 0 {
-		logAndError(
+		httpLogAndError(
 			w,
 			r,
 			fmt.Sprintf("key '%s' must be a non-zero integer", key),
@@ -473,8 +473,8 @@ func requireNonZeroInt64(value string, key string, w http.ResponseWriter, r *htt
 	return v, true
 }
 
-func requireIDParam(w http.ResponseWriter, r *http.Request, key string) (int64, bool) {
-	return requireNonZeroInt64(chi.URLParam(r, key), key, w, r)
+func httpRequireIDParam(w http.ResponseWriter, r *http.Request, key string) (int64, bool) {
+	return httpRequireNonZeroInt64(chi.URLParam(r, key), key, w, r)
 }
 
 // func requirePageType(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
@@ -489,7 +489,7 @@ func requireIDParam(w http.ResponseWriter, r *http.Request, key string) (int64, 
 // 	}
 // }
 
-func logAndError(w http.ResponseWriter, _ *http.Request, msg string, statusCode ...int) {
+func httpLogAndError(w http.ResponseWriter, _ *http.Request, msg string, statusCode ...int) {
 	status := 500
 	if len(statusCode) > 0 {
 		status = statusCode[0]

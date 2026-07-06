@@ -13,7 +13,7 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
+func TemplateArticlePage(td ArticlePageTemplateData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -41,7 +41,7 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(td.FeedTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_article.templ`, Line: 9, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_article.templ`, Line: 9, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -54,7 +54,7 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(td.PageTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_article.templ`, Line: 9, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_article.templ`, Line: 9, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -67,7 +67,7 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(td.FeedTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_article.templ`, Line: 11, Col: 23}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_article.templ`, Line: 11, Col: 23}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -80,7 +80,7 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(td.ArticlePublished)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_article.templ`, Line: 12, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_article.templ`, Line: 12, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -93,7 +93,7 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(td.IsCache)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_article.templ`, Line: 13, Col: 18}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_article.templ`, Line: 13, Col: 18}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -103,7 +103,7 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = LikeArticleTemplate(td.FeedID, td.ArticleId, td.StarValue).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = TemplateLikeArticle(td.FeedID, td.ArticleId, td.StarValue).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -119,7 +119,7 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(annotationURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_article.templ`, Line: 36, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_article.templ`, Line: 36, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
@@ -137,7 +137,7 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = LikeArticleTemplate(td.FeedID, td.ArticleId, td.StarValue).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = TemplateLikeArticle(td.FeedID, td.ArticleId, td.StarValue).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -148,7 +148,7 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(datastar.PutSSE("/article/%d/%d/set-read", td.FeedID, td.ArticleId))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_article.templ`, Line: 52, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_article.templ`, Line: 52, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 		if templ_7745c5c3_Err != nil {
@@ -158,7 +158,7 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = ToReadTemplate(td.ArticlesToRead).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = TemplateToRead(td.ArticlesToRead).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -166,7 +166,7 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = AlreadyReadTemplate(td.ArticlesRead).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = TemplateAlreadyRead(td.ArticlesRead).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -174,7 +174,7 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = NavTemplate(td.Sidebar).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = TemplateNav(td.Sidebar).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -186,7 +186,7 @@ func ArticlePageTemplate(td ArticlePageTemplateData) templ.Component {
 	})
 }
 
-func LikeArticleTemplate(feedID int64, articleID int64, starsValue int64) templ.Component {
+func TemplateLikeArticle(feedID int64, articleID int64, starsValue int64) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -214,7 +214,7 @@ func LikeArticleTemplate(feedID int64, articleID int64, starsValue int64) templ.
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(datastar.PutSSE(`/article/%v/%v/like/%v`, feedID, articleID, starsValue))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_article.templ`, Line: 64, Col: 110}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_article.templ`, Line: 64, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
@@ -227,7 +227,7 @@ func LikeArticleTemplate(feedID int64, articleID int64, starsValue int64) templ.
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/public/img/%v-star.png", starsValue)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/routes_article.templ`, Line: 64, Col: 211}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_article.templ`, Line: 64, Col: 211}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 		if templ_7745c5c3_Err != nil {

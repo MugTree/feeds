@@ -2,7 +2,7 @@ package app
 
 import "fmt"
 
-templ HomePageTemplate(NavTemplate templ.Component, latest []Article, starred []Article) {
+templ TemplateHomePage(NavTemplate templ.Component, latest []feedsArticle, starred []feedsArticle) {
 	<h3>All feeds</h3>
 	@NavTemplate
 	<h2>Latest 5 articles</h2>

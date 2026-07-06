@@ -19,30 +19,30 @@ import (
 	"golang.org/x/net/html"
 )
 
-func FAKE_getAnnotations() []Annotation {
-	return []Annotation{{
+func FAKE_getAnnotations() []feedsAnnotation {
+	return []feedsAnnotation{{
 		ID:        1,
-		StartData: AnnotationData{Path: []int64{0, 4}, Offset: 8},
-		EndData:   AnnotationData{Path: []int64{0, 4}, Offset: 8},
+		StartData: feedsAnnotationData{Path: []int64{0, 4}, Offset: 8},
+		EndData:   feedsAnnotationData{Path: []int64{0, 4}, Offset: 8},
 	}, {
 		ID:        2,
-		StartData: AnnotationData{Path: []int64{0, 6}, Offset: 10},
-		EndData:   AnnotationData{Path: []int64{3, 4}, Offset: 9},
+		StartData: feedsAnnotationData{Path: []int64{0, 6}, Offset: 10},
+		EndData:   feedsAnnotationData{Path: []int64{3, 4}, Offset: 9},
 	}}
 
 }
 
-func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageTemplateData, error) {
+func feedsArticlePageTemplateData(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageTemplateData, error) {
 
 	td := ArticlePageTemplateData{}
 
-	sidebar, err := getSidebarData(queries, ctx)
+	sidebar, err := feedsSideBarTemplateData(queries, ctx)
 	if err != nil {
 		return td, err
 	}
 	td.Sidebar = sidebar
 
-	row, err := queries.GetFeedAndArticleByArticleID(ctx, articleID)
+	row, err := queries.DbFeedAndArticletByArticleID(ctx, articleID)
 	if err != nil {
 		return td, err
 	}
@@ -57,14 +57,14 @@ func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID 
 	td.ArticlePublished = row.ArticlePublished.Format(layoutISO)
 	td.Annotations = FAKE_getAnnotations()
 
-	alreadyRead, toRead, err := getArticlesByFeed(queries, feedID, ctx)
+	alreadyRead, toRead, err := feedsArticlesByFeedID(queries, feedID, ctx)
 	if err != nil {
 		return td, err
 	}
 	td.ArticlesRead = alreadyRead
 	td.ArticlesToRead = toRead
 
-	hasContent, cachedContent, err := articleIsCached(queries, td.Link, ctx)
+	hasContent, cachedContent, err := feedsArticleIsCached(queries, td.Link, ctx)
 	if err != nil {
 		return td, err
 	}
@@ -74,7 +74,7 @@ func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID 
 		td.IsCache = true
 	} else {
 
-		newContent, err := getArticleFromWeb(queries, row, ctx)
+		newContent, err := feedsArticleFromWeb(queries, row, ctx)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				return td, err
@@ -91,16 +91,16 @@ func getArticleTemplateData(queries *db.Queries, ctx context.Context, articleID 
 	return td, nil
 }
 
-func getSidebarData(queries *db.Queries, ctx context.Context) ([]SidebarLink, error) {
+func feedsSideBarTemplateData(queries *db.Queries, ctx context.Context) ([]feedsSidebarLink, error) {
 
-	items := []SidebarLink{}
-	data, err := queries.GetSidebarData(ctx)
+	items := []feedsSidebarLink{}
+	data, err := queries.DbSidebarDataAll(ctx)
 	if err != nil {
 		return items, err
 	}
 
 	for _, row := range data {
-		items = append(items, SidebarLink{
+		items = append(items, feedsSidebarLink{
 			Name:   row.FeedTitle,
 			Link:   fmt.Sprintf("/feed/%v/view", row.FeedID),
 			Unread: (row.TotalArticles - row.ArticlesRead),
@@ -110,7 +110,7 @@ func getSidebarData(queries *db.Queries, ctx context.Context) ([]SidebarLink, er
 	return items, nil
 }
 
-func setArticleLikeValue(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
+func feedsArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
 
 	updatedValue := func(currentValue int64) int64 {
 		if currentValue == 3 {
@@ -119,8 +119,8 @@ func setArticleLikeValue(queries *db.Queries, starredValue int64, articleID int6
 		return currentValue + 1
 	}(starredValue)
 
-	err := queries.SetArticleStarredValue(ctx,
-		db.SetArticleStarredValueParams{
+	err := queries.DbArticleSetStarredValue(ctx,
+		db.DbArticleSetStarredValueParams{
 			Starred: int64(updatedValue),
 			ID:      articleID},
 	)
@@ -131,15 +131,15 @@ func setArticleLikeValue(queries *db.Queries, starredValue int64, articleID int6
 	return nil
 }
 
-func getHomepageArticles(queries *db.Queries, ctx context.Context) (latest []Article, starred []Article, err error) {
+func feedsHomePageArticleSelection(queries *db.Queries, ctx context.Context) (latest []feedsArticle, starred []feedsArticle, err error) {
 
-	latest5Articles, err := queries.GetLatest5Articles(ctx)
+	latest5Articles, err := queries.DbArticlesLatest5(ctx)
 	if err != nil {
 		return latest, starred, err
 	}
 
 	for _, row := range latest5Articles {
-		latest = append(latest, Article{
+		latest = append(latest, feedsArticle{
 			Id:        row.ID,
 			FeedId:    row.FeedID,
 			Title:     row.Title,
@@ -153,10 +153,10 @@ func getHomepageArticles(queries *db.Queries, ctx context.Context) (latest []Art
 		})
 	}
 
-	starredArticles, err := queries.GetLatest5StarredArticles(ctx)
+	starredArticles, err := queries.DbArticlesLatest5Starred(ctx)
 
 	for _, row := range starredArticles {
-		starred = append(starred, Article{
+		starred = append(starred, feedsArticle{
 			Id:        row.ID,
 			FeedId:    row.FeedID,
 			Title:     row.Title,
@@ -176,16 +176,16 @@ func getHomepageArticles(queries *db.Queries, ctx context.Context) (latest []Art
 
 }
 
-func getArticlesByFeed(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []Article, toRead []Article, err error) {
+func feedsArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []feedsArticle, toRead []feedsArticle, err error) {
 
-	allArticles, err := queries.GetArticlesByFeedID(ctx, feedID)
+	allArticles, err := queries.DbArticlesByFeedID(ctx, feedID)
 	if err != nil {
 		return alreadyRead, toRead, err
 	}
 
 	for _, row := range allArticles {
 
-		a := Article{
+		a := feedsArticle{
 			Id:        row.ID,
 			FeedId:    row.FeedID,
 			Title:     row.Title,
@@ -209,9 +209,9 @@ func getArticlesByFeed(queries *db.Queries, feedID int64, ctx context.Context) (
 	return alreadyRead, toRead, nil
 }
 
-func articleIsCached(queries *db.Queries, articleLink string, ctx context.Context) (bool, string, error) {
+func feedsArticleIsCached(queries *db.Queries, articleLink string, ctx context.Context) (bool, string, error) {
 
-	lc, err := queries.GetCachedByLink(ctx, articleLink)
+	lc, err := queries.DbCachedArticleByLink(ctx, articleLink)
 	if err == nil {
 		return true, lc.ArticleContent.String, nil
 	}
@@ -223,7 +223,7 @@ func articleIsCached(queries *db.Queries, articleLink string, ctx context.Contex
 
 }
 
-func getArticleFromWeb(queries *db.Queries, afd db.GetFeedAndArticleByArticleIDRow, ctx context.Context) (string, error) {
+func feedsArticleFromWeb(queries *db.Queries, afd db.DbFeedAndArticletByArticleIDRow, ctx context.Context) (string, error) {
 
 	pageHtmlContent := ""
 
@@ -252,21 +252,21 @@ func getArticleFromWeb(queries *db.Queries, afd db.GetFeedAndArticleByArticleIDR
 	c := colly.NewCollector()
 
 	c.OnHTML(ep.Container, func(h *colly.HTMLElement) {
-		pageHtmlContent = extractHTMLRangeFlat(h.DOM, ep.ClipStartPoint, ep.ClipEndPoint)
+		pageHtmlContent = feedsExtractHTMLRangeFlat(h.DOM, ep.ClipStartPoint, ep.ClipEndPoint)
 	})
 
 	if err := c.Visit(afd.ArticleLink); err != nil {
 		return "", fmt.Errorf("error using colly to visit page: %v - %v", afd.ArticleLink, err)
 	}
 
-	sanitizedHtml, err := sanitizeHTML(pageHtmlContent)
+	sanitizedHtml, err := feedsHtmlArticleSanitize(pageHtmlContent)
 	if err != nil {
 		return "", err
 	}
 
-	addTextIDs(sanitizedHtml)
-	replaceBodyWithArticle(sanitizedHtml)
-	sanitizedHtml = findNode(sanitizedHtml, "article")
+	feedsHTMLArticleAddTextIDs(sanitizedHtml)
+	feedsHTMLArticleReplaceBodyTag(sanitizedHtml)
+	sanitizedHtml = feedsFindNodeInHTML(sanitizedHtml, "article")
 
 	var output strings.Builder
 	err = html.Render(&output, sanitizedHtml)
@@ -274,8 +274,8 @@ func getArticleFromWeb(queries *db.Queries, afd db.GetFeedAndArticleByArticleIDR
 		return "", err
 	}
 
-	insertErr := queries.AddToArticleCache(ctx,
-		db.AddToArticleCacheParams{
+	insertErr := queries.DbCachedArticleCreateNew(ctx,
+		db.DbCachedArticleCreateNewParams{
 			ArticleID:      afd.ArticleID,
 			Link:           afd.ArticleLink,
 			ArticleContent: sql.NullString{String: output.String(), Valid: true},
@@ -289,9 +289,9 @@ func getArticleFromWeb(queries *db.Queries, afd db.GetFeedAndArticleByArticleIDR
 	return "", nil
 }
 
-func replaceBodyWithArticle(root *html.Node) error {
+func feedsHTMLArticleReplaceBodyTag(root *html.Node) error {
 
-	body := findNode(root, "body")
+	body := feedsFindNodeInHTML(root, "body")
 	if body == nil {
 		return fmt.Errorf("body not found")
 	}
@@ -324,7 +324,7 @@ func replaceBodyWithArticle(root *html.Node) error {
 	return nil
 }
 
-func findNode(n *html.Node, tag string) *html.Node {
+func feedsFindNodeInHTML(n *html.Node, tag string) *html.Node {
 
 	var walk func(*html.Node) *html.Node
 
@@ -346,7 +346,7 @@ func findNode(n *html.Node, tag string) *html.Node {
 	return walk(n)
 }
 
-func extractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelector string) string {
+func feedsExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelector string) string {
 
 	var chunks []string
 	started := startSelector == ""
@@ -380,9 +380,9 @@ func extractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelec
 	return strings.Join(chunks, "")
 }
 
-func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
+func feedsFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
-	feeds, err := queries.GetFeeds(ctx)
+	feeds, err := queries.DbFeedsAll(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("get feeds: %w", err)
 	}
@@ -413,7 +413,7 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
 			now := time.Now()
 
-			sanitizedHtml, err := sanitizeHTML(item.Description)
+			sanitizedHtml, err := feedsHtmlArticleSanitize(item.Description)
 			if err != nil {
 				return 0, err
 			}
@@ -424,11 +424,11 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 				return 0, err
 			}
 
-			err = queries.AddToArticles(ctx, db.AddToArticlesParams{
+			err = queries.DbArticlesAddArticle(ctx, db.DbArticlesAddArticleParams{
 				FeedID:    feed.ID,
 				Title:     item.Title,
 				Link:      item.Link,
-				Published: feedItemDate(item),
+				Published: feedsFeedItemDate(item),
 				DateFound: &now,
 				Summary:   output.String(),
 				Read:      0,
@@ -444,7 +444,7 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 }
 
 // remove extraneous tags and attributes. script, style, template, comments and attributes on a per tag basis
-func sanitizeHTML(input string) (*html.Node, error) {
+func feedsHtmlArticleSanitize(input string) (*html.Node, error) {
 	doc, err := html.Parse(strings.NewReader(input))
 	if err != nil {
 		return nil, err
@@ -538,7 +538,7 @@ func sanitizeHTML(input string) (*html.Node, error) {
 
 }
 
-func addTextIDs(doc *html.Node) {
+func feedsHTMLArticleAddTextIDs(doc *html.Node) {
 
 	id := 0
 
@@ -592,7 +592,7 @@ func addTextIDs(doc *html.Node) {
 	walk(doc)
 }
 
-func feedItemDate(item *gofeed.Item) *time.Time {
+func feedsFeedItemDate(item *gofeed.Item) *time.Time {
 	if item.PublishedParsed != nil {
 		return item.PublishedParsed
 	}
@@ -604,7 +604,7 @@ func feedItemDate(item *gofeed.Item) *time.Time {
 	return nil
 }
 
-type Article struct {
+type feedsArticle struct {
 	Id        int64  `json:"id" db:"id"`
 	FeedId    int64  `json:"feed_id" db:"feed_id"`
 	Title     string `json:"title" db:"title"`
@@ -617,16 +617,16 @@ type Article struct {
 	FeedTitle string `json:"feed_title" db:"feed_title"`
 }
 
-func (a Article) FullName() string {
+func (a feedsArticle) FullName() string {
 	return a.FeedTitle + " - " + a.Title
 }
 
-func (a Article) ScrubbedSummary() template.HTML {
+func (a feedsArticle) ScrubbedSummary() template.HTML {
 	p := bluemonday.UGCPolicy()
 	return template.HTML(p.Sanitize(a.Summary))
 }
 
-func (a Article) PublishedDate() string {
+func (a feedsArticle) PublishedDate() string {
 
 	d, err := time.Parse(time.RFC1123Z, a.Published)
 	if err != nil {
@@ -650,21 +650,21 @@ func (a Article) PublishedDate() string {
 	return fmt.Sprintf("%d%s %s %d", day, suffix, month, year)
 }
 
-type ArticlePlusFeed struct {
-	ArticleID              int64
-	ArticleLink            string
-	ArticleTitle           string
-	ArticleStarred         int64
-	FeedID                 int64
-	FeedTitle              string
-	FeedUrl                string
-	CssSelContainer        sql.NullString
-	CssSelStart            sql.NullString
-	CssSelStop             sql.NullString
-	HtmlExtractionStrategy sql.NullString
-}
+// type feedsArticlePlusFeed struct {
+// 	ArticleID              int64
+// 	ArticleLink            string
+// 	ArticleTitle           string
+// 	ArticleStarred         int64
+// 	FeedID                 int64
+// 	FeedTitle              string
+// 	FeedUrl                string
+// 	CssSelContainer        sql.NullString
+// 	CssSelStart            sql.NullString
+// 	CssSelStop             sql.NullString
+// 	HtmlExtractionStrategy sql.NullString
+// }
 
-type SidebarLink struct {
+type feedsSidebarLink struct {
 	Name   string
 	Link   string
 	Unread int64
@@ -681,8 +681,8 @@ func int64ToBool(i int64) bool {
 type ArticlePageTemplateData struct {
 	FeedID           int64
 	PageTitle        string
-	ArticlesRead     []Article
-	ArticlesToRead   []Article
+	ArticlesRead     []feedsArticle
+	ArticlesToRead   []feedsArticle
 	FeedTitle        string
 	FeedUrl          string
 	Link             string
@@ -690,15 +690,15 @@ type ArticlePageTemplateData struct {
 	ArticleId        int64
 	IsCache          bool
 	StarValue        int64
-	Sidebar          []SidebarLink
+	Sidebar          []feedsSidebarLink
 	ArticlePublished string
-	Annotations      []Annotation
+	Annotations      []feedsAnnotation
 }
 
-type UpdateParms struct {
-	FeedId   int64
-	PageType string
-}
+// type feedsUpdateParms struct {
+// 	FeedId   int64
+// 	PageType string
+// }
 
 type FeedFormTemplateData struct {
 	ButtonText string
@@ -706,17 +706,17 @@ type FeedFormTemplateData struct {
 	Feed       db.Feed
 }
 
-type Annotation struct {
-	ID        int64          `json:"id"`
-	ArticleID int64          `json:"article_id"`
-	StartData AnnotationData `json:"start_data"`
-	EndData   AnnotationData `json:"end_data"`
-	Snippet   string         `json:"snippet"`
-	Note      string         `json:"note"`
-	DateAdded string         `json:"date_added"`
+type feedsAnnotation struct {
+	ID        int64               `json:"id"`
+	ArticleID int64               `json:"article_id"`
+	StartData feedsAnnotationData `json:"start_data"`
+	EndData   feedsAnnotationData `json:"end_data"`
+	Snippet   string              `json:"snippet"`
+	Note      string              `json:"note"`
+	DateAdded string              `json:"date_added"`
 }
 
-type AnnotationData struct {
+type feedsAnnotationData struct {
 	Path   []int64 `json:"path"`
 	Offset int64   `json:"offset"`
 }
