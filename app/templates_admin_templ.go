@@ -14,7 +14,7 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-func FeedAdminListTemplate(feeds []db.Feed) templ.Component {
+func TemplateAdminListFeeds(feeds []db.Feed) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -79,7 +79,7 @@ func FeedAdminListTemplate(feeds []db.Feed) templ.Component {
 	})
 }
 
-func AdminPageInnerTemplate() templ.Component {
+func TemplateAdminPageInner() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -116,7 +116,7 @@ func AdminPageInnerTemplate() templ.Component {
 	})
 }
 
-func FeedAdminFormTemplate(td FeedFormTemplateData) templ.Component {
+func TemplateAdminFeedForm(td FeedFormTemplateData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -137,7 +137,7 @@ func FeedAdminFormTemplate(td FeedFormTemplateData) templ.Component {
 			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = FeedFormTextInputTemplate("Title", "FeedName", "Feed Name", "").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = TemplateAdminFeedFormTextInput("Title", "FeedName", "Feed Name", "").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -240,7 +240,7 @@ func FeedAdminFormTemplate(td FeedFormTemplateData) templ.Component {
 	})
 }
 
-func FeedFormTextInputTemplate(title string, id string, placeholder string, value string) templ.Component {
+func TemplateAdminFeedFormTextInput(title string, id string, placeholder string, value string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -334,7 +334,7 @@ func FeedFormTextInputTemplate(title string, id string, placeholder string, valu
 	})
 }
 
-func AdminPageTemplate(innerComp templ.Component) templ.Component {
+func TemplateAdminPage(innerComp templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -381,7 +381,7 @@ func AdminPageTemplate(innerComp templ.Component) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = AdminPageInnerTemplate().Render(templ.WithChildren(ctx, templ_7745c5c3_Var20), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = TemplateAdminPageInner().Render(templ.WithChildren(ctx, templ_7745c5c3_Var20), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

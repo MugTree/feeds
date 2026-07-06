@@ -6,7 +6,7 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-templ FeedAdminListTemplate(feeds []db.Feed) {
+templ TemplateAdminListFeeds(feeds []db.Feed) {
 	<ul>
 		for _, v := range feeds {
 			<li><a href={ templ.URL(fmt.Sprintf("/admin/feed/%v/view", v.ID)) }>{ v.Title }</a></li>
@@ -14,7 +14,7 @@ templ FeedAdminListTemplate(feeds []db.Feed) {
 	</ul>
 }
 
-templ AdminPageInnerTemplate() {
+templ TemplateAdminPageInner() {
 	<div id="content">
 		<header>
 			<button
@@ -29,8 +29,8 @@ templ AdminPageInnerTemplate() {
 	</div>
 }
 
-templ FeedAdminFormTemplate(td FeedFormTemplateData) {
-	@FeedFormTextInputTemplate("Title", "FeedName", "Feed Name", "")
+templ TemplateAdminFeedForm(td FeedFormTemplateData) {
+	@TemplateAdminFeedFormTextInput("Title", "FeedName", "Feed Name", "")
 	<div class="grid gap-2">
 		<label for="FeedName">Title</label>
 		<input id="FeedName" placeholder="Feed name" data-bind-feed-name type="text" value={ td.Feed.Title }/>
@@ -56,15 +56,15 @@ templ FeedAdminFormTemplate(td FeedFormTemplateData) {
 	</div>
 }
 
-templ FeedFormTextInputTemplate(title string, id string, placeholder string, value string) {
+templ TemplateAdminFeedFormTextInput(title string, id string, placeholder string, value string) {
 	<div class="grid gap-2">
 		<label for={ id }>{ title }</label>
 		<input id={ id } placeholder={ placeholder } data-bind-css-sel-end type="text" value={ value }/>
 	</div>
 }
 
-templ AdminPageTemplate(innerComp templ.Component) {
-	@AdminPageInnerTemplate() {
+templ TemplateAdminPage(innerComp templ.Component) {
+	@TemplateAdminPageInner() {
 		<div>
 			@innerComp
 		</div>

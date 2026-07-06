@@ -39,13 +39,13 @@ func httpFrontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 		ctx := r.Context()
 
-		latest, starred, err := feedsHomePageArticleSelection(queries, ctx)
+		latest, starred, err := feedsGetHomePageArticleSelections(queries, ctx)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
 		}
 
-		sidebar, err := feedsSideBarTemplateData(queries, ctx)
+		sidebar, err := feedsGetSideBarTemplateData(queries, ctx)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -73,13 +73,13 @@ func httpFrontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 		}
 		pageTitle := feed.Title
 
-		alreadyRead, toRead, err := feedsArticlesByFeedID(queries, feedID, ctx)
+		alreadyRead, toRead, err := feedsGetArticlesByFeedID(queries, feedID, ctx)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
 		}
 
-		sidebar, err := feedsSideBarTemplateData(queries, ctx)
+		sidebar, err := feedsGetSideBarTemplateData(queries, ctx)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -106,7 +106,7 @@ func httpFrontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 			return
 		}
 
-		td, err := feedsArticlePageTemplateData(queries, ctx, articleID, feedID)
+		td, err := feedsGetArticlePageTemplateData(queries, ctx, articleID, feedID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -138,7 +138,7 @@ func httpFrontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 			return
 		}
 
-		td, err := feedsArticlePageTemplateData(queries, ctx, articleID, feedID)
+		td, err := feedsGetArticlePageTemplateData(queries, ctx, articleID, feedID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -177,13 +177,13 @@ func httpFrontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 			return
 		}
 
-		err = feedsArticleLike(queries, int64(likeValue), articleID, ctx)
+		err = feedsSetArticleLike(queries, int64(likeValue), articleID, ctx)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
 		}
 
-		td, err := feedsArticlePageTemplateData(queries, ctx, articleID, feedID)
+		td, err := feedsGetArticlePageTemplateData(queries, ctx, articleID, feedID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -247,7 +247,7 @@ func httpFrontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 	r.Get("/update-reader", func(w http.ResponseWriter, r *http.Request) {
 
-		_, err := feedsFeedUpdates(queries, r.Context())
+		_, err := feedsGetFeedUpdates(queries, r.Context())
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -274,17 +274,17 @@ func httpAdminRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 			httpLogAndError(w, r, err.Error())
 			return
 		}
-		AdminPageTemplate(FeedAdminListTemplate(feeds)).Render(r.Context(), w)
+		TemplateAdminPage(TemplateAdminListFeeds(feeds)).Render(r.Context(), w)
 	})
 
 	r.Get("/admin/feed/{feedID}/view", func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
 
 		feedID, ok := httpRequireIDParam(w, r, "feedID")
 		if !ok {
 			return
 		}
-
-		ctx := r.Context()
 
 		feed, err := queries.SelectFeedByID(ctx, feedID)
 		if err != nil {
@@ -293,7 +293,7 @@ func httpAdminRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 		}
 
 		vm := FeedFormTemplateData{Feed: feed, ButtonText: "Update feed"}
-		AdminPageTemplate(FeedAdminFormTemplate(vm)).Render(r.Context(), w)
+		TemplateAdminPage(TemplateAdminFeedForm(vm)).Render(r.Context(), w)
 	})
 
 	r.Put("/admin/feed/{feedID}/update", func(w http.ResponseWriter, r *http.Request) {
@@ -306,13 +306,13 @@ func httpAdminRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 	})
 
 	r.Get("/admin/feed/create", func(w http.ResponseWriter, r *http.Request) {
-		form := FeedAdminFormTemplate(FeedFormTemplateData{ButtonText: "Create new"})
-		AdminPageTemplate(form).Render(r.Context(), w)
+		form := TemplateAdminFeedForm(FeedFormTemplateData{ButtonText: "Create new"})
+		TemplateAdminPage(form).Render(r.Context(), w)
 	})
 
 	r.Post("/admin/feed/create", func(w http.ResponseWriter, r *http.Request) {
-		form := FeedAdminFormTemplate(FeedFormTemplateData{ButtonText: "Create new"})
-		AdminPageTemplate(form).Render(r.Context(), w)
+		form := TemplateAdminFeedForm(FeedFormTemplateData{ButtonText: "Create new"})
+		TemplateAdminPage(form).Render(r.Context(), w)
 	})
 
 	type FeedCreateUpdateSignals struct {

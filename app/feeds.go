@@ -32,11 +32,11 @@ func FAKE_getAnnotations() []feedsAnnotation {
 
 }
 
-func feedsArticlePageTemplateData(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageTemplateData, error) {
+func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageTemplateData, error) {
 
 	td := ArticlePageTemplateData{}
 
-	sidebar, err := feedsSideBarTemplateData(queries, ctx)
+	sidebar, err := feedsGetSideBarTemplateData(queries, ctx)
 	if err != nil {
 		return td, err
 	}
@@ -57,14 +57,14 @@ func feedsArticlePageTemplateData(queries *db.Queries, ctx context.Context, arti
 	td.ArticlePublished = row.ArticlePublished.Format(layoutISO)
 	td.Annotations = FAKE_getAnnotations()
 
-	alreadyRead, toRead, err := feedsArticlesByFeedID(queries, feedID, ctx)
+	alreadyRead, toRead, err := feedsGetArticlesByFeedID(queries, feedID, ctx)
 	if err != nil {
 		return td, err
 	}
 	td.ArticlesRead = alreadyRead
 	td.ArticlesToRead = toRead
 
-	hasContent, cachedContent, err := feedsArticleIsCached(queries, td.Link, ctx)
+	hasContent, cachedContent, err := feedsIsArticleCached(queries, td.Link, ctx)
 	if err != nil {
 		return td, err
 	}
@@ -74,7 +74,7 @@ func feedsArticlePageTemplateData(queries *db.Queries, ctx context.Context, arti
 		td.IsCache = true
 	} else {
 
-		newContent, err := feedsArticleFromWeb(queries, row, ctx)
+		newContent, err := feedsGetArticleFromWeb(queries, row, ctx)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				return td, err
@@ -91,7 +91,7 @@ func feedsArticlePageTemplateData(queries *db.Queries, ctx context.Context, arti
 	return td, nil
 }
 
-func feedsSideBarTemplateData(queries *db.Queries, ctx context.Context) ([]feedsSidebarLink, error) {
+func feedsGetSideBarTemplateData(queries *db.Queries, ctx context.Context) ([]feedsSidebarLink, error) {
 
 	items := []feedsSidebarLink{}
 	data, err := queries.SelectSideBarData(ctx)
@@ -110,7 +110,7 @@ func feedsSideBarTemplateData(queries *db.Queries, ctx context.Context) ([]feeds
 	return items, nil
 }
 
-func feedsArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
+func feedsSetArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
 
 	updatedValue := func(currentValue int64) int64 {
 		if currentValue == 3 {
@@ -131,7 +131,7 @@ func feedsArticleLike(queries *db.Queries, starredValue int64, articleID int64, 
 	return nil
 }
 
-func feedsHomePageArticleSelection(queries *db.Queries, ctx context.Context) (latest []feedsArticle, starred []feedsArticle, err error) {
+func feedsGetHomePageArticleSelections(queries *db.Queries, ctx context.Context) (latest []feedsArticle, starred []feedsArticle, err error) {
 
 	latest5Articles, err := queries.SelectLatest5Articles(ctx)
 	if err != nil {
@@ -176,7 +176,7 @@ func feedsHomePageArticleSelection(queries *db.Queries, ctx context.Context) (la
 
 }
 
-func feedsArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []feedsArticle, toRead []feedsArticle, err error) {
+func feedsGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []feedsArticle, toRead []feedsArticle, err error) {
 
 	allArticles, err := queries.SelectArticlesByFeedID(ctx, feedID)
 	if err != nil {
@@ -209,7 +209,7 @@ func feedsArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Contex
 	return alreadyRead, toRead, nil
 }
 
-func feedsArticleIsCached(queries *db.Queries, articleLink string, ctx context.Context) (bool, string, error) {
+func feedsIsArticleCached(queries *db.Queries, articleLink string, ctx context.Context) (bool, string, error) {
 
 	lc, err := queries.SelectCachedArticleByLink(ctx, articleLink)
 	if err == nil {
@@ -223,7 +223,7 @@ func feedsArticleIsCached(queries *db.Queries, articleLink string, ctx context.C
 
 }
 
-func feedsArticleFromWeb(queries *db.Queries, afd db.SelectFeedAndArticletByArticleIDRow, ctx context.Context) (string, error) {
+func feedsGetArticleFromWeb(queries *db.Queries, afd db.SelectFeedAndArticletByArticleIDRow, ctx context.Context) (string, error) {
 
 	pageHtmlContent := ""
 
@@ -380,7 +380,7 @@ func feedsExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stop
 	return strings.Join(chunks, "")
 }
 
-func feedsFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
+func feedsGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
 	feeds, err := queries.SelectAllFeeds(ctx)
 	if err != nil {
@@ -428,7 +428,7 @@ func feedsFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 				FeedID:    feed.ID,
 				Title:     item.Title,
 				Link:      item.Link,
-				Published: feedsFeedItemDate(item),
+				Published: feedsGetFeedItemDate(item),
 				DateFound: &now,
 				Summary:   output.String(),
 				Read:      0,
@@ -592,7 +592,7 @@ func feedsHTMLArticleAddTextIDs(doc *html.Node) {
 	walk(doc)
 }
 
-func feedsFeedItemDate(item *gofeed.Item) *time.Time {
+func feedsGetFeedItemDate(item *gofeed.Item) *time.Time {
 	if item.PublishedParsed != nil {
 		return item.PublishedParsed
 	}
