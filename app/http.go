@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"embed"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/goforj/godump"
 	"github.com/mugtree/feeds/app/db"
 	"github.com/starfederation/datastar/sdk/go/datastar"
 )
@@ -36,94 +34,6 @@ func HttpSetupServer(queries *db.Queries, user string, password string) chi.Rout
 }
 
 func httpFrontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
-
-	r.Get("/fake-annotation-test", func(w http.ResponseWriter, r *http.Request) {
-		TemplateLayout("test", FAKE_AnnotationTestTemplate()).Render(r.Context(), w)
-	})
-
-	// return some data
-	r.Get("/fake-annotation-test/data", func(w http.ResponseWriter, r *http.Request) {
-
-		a := []feedsAnnotation{{
-			ID: 12345,
-			StartData: feedsAnnotationData{
-				Path:   []int64{0},
-				Offset: 1,
-			},
-			EndData: feedsAnnotationData{
-				Path:   []int64{0},
-				Offset: 2,
-			},
-		},
-		}
-
-		b, err := json.Marshal(&a)
-		if err != nil {
-			httpLogAndError(w, r, err.Error())
-			return
-		}
-		w.Header().Add("Content-Type", "application/json")
-		w.Write([]byte(b))
-
-	})
-
-	r.Get("/data-write", func(w http.ResponseWriter, r *http.Request) {
-
-		// a := Annotation{
-		// 	StartData: AnnotationData{Path: []int64{0, 4}, Offset: 8},
-		// 	EndData:   AnnotationData{Path: []int64{0, 4}, Offset: 8},
-		// }
-
-		// sd, err := json.Marshal(&a.StartData)
-		// if err != nil {
-		// 	logAndError(w, r, err.Error())
-		// 	return
-		// }
-
-		// ed, err := json.Marshal(&a.EndData)
-		// if err != nil {
-		// 	logAndError(w, r, err.Error())
-		// 	return
-		// }
-
-		// err = queries.SetArticleAnnotation(r.Context(), db.SetArticleAnnotationParams{
-		// 	StartData: string(sd),
-		// 	EndData:   string(ed),
-		// 	Note:      "note",
-		// 	Snippet:   "snippet",
-		// 	ArticleID: 1,
-		// })
-
-		dba, err := queries.DbArticleAnnotationsByID(r.Context(), 1)
-		if err != nil {
-			httpLogAndError(w, r, err.Error())
-			return
-		}
-
-		ans := []feedsAnnotation{}
-		sd := feedsAnnotationData{}
-		ed := feedsAnnotationData{}
-
-		for _, v := range dba {
-
-			err = json.Unmarshal([]byte(v.StartData), &sd)
-			err = json.Unmarshal([]byte(v.StartData), &ed)
-
-			ans = append(ans, feedsAnnotation{
-				ID:        v.ID,
-				ArticleID: v.ArticleID,
-				DateAdded: v.DateAdded.String(),
-				StartData: sd,
-				EndData:   ed,
-				Note:      v.Note,
-				Snippet:   v.Snippet,
-			})
-
-		}
-
-		godump.Dump(ans)
-
-	})
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 
@@ -156,7 +66,7 @@ func httpFrontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 			return
 		}
 
-		feed, err := queries.DbFeedByID(ctx, feedID)
+		feed, err := queries.SelectFeedByID(ctx, feedID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -222,7 +132,7 @@ func httpFrontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 			return
 		}
 
-		err := queries.DbArticleSetAsRead(ctx, articleID)
+		err := queries.UpdateArticleSetAsRead(ctx, articleID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -359,7 +269,7 @@ func httpAdminRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 	r.Get("/admin/feeds/list", func(w http.ResponseWriter, r *http.Request) {
 
-		feeds, err := queries.DbFeedsAll(r.Context())
+		feeds, err := queries.SelectAllFeeds(r.Context())
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -376,7 +286,7 @@ func httpAdminRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 
 		ctx := r.Context()
 
-		feed, err := queries.DbFeedByID(ctx, feedID)
+		feed, err := queries.SelectFeedByID(ctx, feedID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return

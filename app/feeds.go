@@ -42,7 +42,7 @@ func feedsArticlePageTemplateData(queries *db.Queries, ctx context.Context, arti
 	}
 	td.Sidebar = sidebar
 
-	row, err := queries.DbFeedAndArticletByArticleID(ctx, articleID)
+	row, err := queries.SelectFeedAndArticletByArticleID(ctx, articleID)
 	if err != nil {
 		return td, err
 	}
@@ -94,7 +94,7 @@ func feedsArticlePageTemplateData(queries *db.Queries, ctx context.Context, arti
 func feedsSideBarTemplateData(queries *db.Queries, ctx context.Context) ([]feedsSidebarLink, error) {
 
 	items := []feedsSidebarLink{}
-	data, err := queries.DbSidebarDataAll(ctx)
+	data, err := queries.SelectSideBarData(ctx)
 	if err != nil {
 		return items, err
 	}
@@ -119,8 +119,8 @@ func feedsArticleLike(queries *db.Queries, starredValue int64, articleID int64, 
 		return currentValue + 1
 	}(starredValue)
 
-	err := queries.DbArticleSetStarredValue(ctx,
-		db.DbArticleSetStarredValueParams{
+	err := queries.UpdateArticleSetStarredValue(ctx,
+		db.UpdateArticleSetStarredValueParams{
 			Starred: int64(updatedValue),
 			ID:      articleID},
 	)
@@ -133,7 +133,7 @@ func feedsArticleLike(queries *db.Queries, starredValue int64, articleID int64, 
 
 func feedsHomePageArticleSelection(queries *db.Queries, ctx context.Context) (latest []feedsArticle, starred []feedsArticle, err error) {
 
-	latest5Articles, err := queries.DbArticlesLatest5(ctx)
+	latest5Articles, err := queries.SelectLatest5Articles(ctx)
 	if err != nil {
 		return latest, starred, err
 	}
@@ -153,7 +153,7 @@ func feedsHomePageArticleSelection(queries *db.Queries, ctx context.Context) (la
 		})
 	}
 
-	starredArticles, err := queries.DbArticlesLatest5Starred(ctx)
+	starredArticles, err := queries.SelectLatest5StarredArticles(ctx)
 
 	for _, row := range starredArticles {
 		starred = append(starred, feedsArticle{
@@ -178,7 +178,7 @@ func feedsHomePageArticleSelection(queries *db.Queries, ctx context.Context) (la
 
 func feedsArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []feedsArticle, toRead []feedsArticle, err error) {
 
-	allArticles, err := queries.DbArticlesByFeedID(ctx, feedID)
+	allArticles, err := queries.SelectArticlesByFeedID(ctx, feedID)
 	if err != nil {
 		return alreadyRead, toRead, err
 	}
@@ -211,7 +211,7 @@ func feedsArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Contex
 
 func feedsArticleIsCached(queries *db.Queries, articleLink string, ctx context.Context) (bool, string, error) {
 
-	lc, err := queries.DbCachedArticleByLink(ctx, articleLink)
+	lc, err := queries.SelectCachedArticleByLink(ctx, articleLink)
 	if err == nil {
 		return true, lc.ArticleContent.String, nil
 	}
@@ -223,7 +223,7 @@ func feedsArticleIsCached(queries *db.Queries, articleLink string, ctx context.C
 
 }
 
-func feedsArticleFromWeb(queries *db.Queries, afd db.DbFeedAndArticletByArticleIDRow, ctx context.Context) (string, error) {
+func feedsArticleFromWeb(queries *db.Queries, afd db.SelectFeedAndArticletByArticleIDRow, ctx context.Context) (string, error) {
 
 	pageHtmlContent := ""
 
@@ -274,8 +274,8 @@ func feedsArticleFromWeb(queries *db.Queries, afd db.DbFeedAndArticletByArticleI
 		return "", err
 	}
 
-	insertErr := queries.DbCachedArticleCreateNew(ctx,
-		db.DbCachedArticleCreateNewParams{
+	insertErr := queries.InsertCachedArticle(ctx,
+		db.InsertCachedArticleParams{
 			ArticleID:      afd.ArticleID,
 			Link:           afd.ArticleLink,
 			ArticleContent: sql.NullString{String: output.String(), Valid: true},
@@ -382,7 +382,7 @@ func feedsExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stop
 
 func feedsFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
-	feeds, err := queries.DbFeedsAll(ctx)
+	feeds, err := queries.SelectAllFeeds(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("get feeds: %w", err)
 	}
@@ -424,7 +424,7 @@ func feedsFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 				return 0, err
 			}
 
-			err = queries.DbArticlesAddArticle(ctx, db.DbArticlesAddArticleParams{
+			err = queries.InsertOrIgnoreArticle(ctx, db.InsertOrIgnoreArticleParams{
 				FeedID:    feed.ID,
 				Title:     item.Title,
 				Link:      item.Link,

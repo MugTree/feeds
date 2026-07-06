@@ -84,7 +84,7 @@ func (a *App) Stop() {
 	})
 }
 
-func (a *App) Wait() error {
+func (a *App) AppWait() error {
 	done := make(chan struct{})
 
 	go func() {

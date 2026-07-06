@@ -1,4 +1,4 @@
--- name: DbArticlesLatest5 :many
+-- name: SelectLatest5Articles :many
 SELECT 
 	a.*, 
 	f.title as feed_title 
@@ -8,7 +8,7 @@ SELECT
  ORDER BY COALESCE(a.published, a.date_found) 
  DESC LIMIT 0, 5;
 
--- name: DbArticlesLatest5Starred :many
+-- name: SelectLatest5StarredArticles :many
 SELECT 
 	a.*, 
 	f.title as feed_title 
@@ -19,7 +19,7 @@ SELECT
  ORDER BY starred DESC, COALESCE(a.published, a.date_found) 
  DESC LIMIT 0, 5;
 
--- name: DbSidebarDataAll :many
+-- name: SelectSideBarData :many
 SELECT
 	f.title AS feed_title,
 	f.id AS feed_id,
@@ -30,7 +30,7 @@ LEFT JOIN articles a ON f.id = a.feed_id
 GROUP BY f.id, f.title
 ORDER BY feed_title ASC;
 
--- name: DbArticlesByFeedID :many
+-- name: SelectArticlesByFeedID :many
 SELECT 
 	a.*, 
 	f.title as feed_title 
@@ -40,7 +40,7 @@ ON f.id = a.feed_id
 WHERE feed_id = ? 
 ORDER BY COALESCE(a.published, a.date_found) DESC;
 
--- name: DbArticlesUnreadByFeedID :many
+-- name: SelectUnreadArticlesByFeedID :many
 SELECT 
 	a.*, 
 	f.title as feed_title 
@@ -50,7 +50,7 @@ ON f.id = a.feed_id
 WHERE feed_id = ? AND a.read = 0
 ORDER BY COALESCE(a.published, a.date_found) DESC;
 
--- name: DbFeedAndArticletByArticleID :one
+-- name: SelectFeedAndArticletByArticleID :one
 SELECT 
 	a.id as article_id,
 	a.link as article_link, 
@@ -70,10 +70,10 @@ INNER JOIN feeds f
 ON f.id = a.feed_id where a.id = ?;
 
 
--- name: DbCachedArticleByLink :one
+-- name: SelectCachedArticleByLink :one
 SELECT * FROM article_cache WHERE link = ?;
 
--- name: DbCachedArticleCreateNew :exec
+-- name: InsertCachedArticle :exec
 INSERT INTO article_cache (
 	article_id,
 	link, 
@@ -86,13 +86,13 @@ INSERT INTO article_cache (
 CURRENT_TIMESTAMP
 );
 
--- name: DbFeedsAll :many
+-- name: SelectAllFeeds :many
 SELECT * from feeds;	
 
--- name: DbFeedByID :one
+-- name: SelectFeedByID :one
 SELECT * FROM feeds where id = ?;
 
--- name: DbArticlesAddArticle :exec
+-- name: InsertOrIgnoreArticle :exec
 INSERT OR IGNORE INTO articles (
 	feed_id, 
 	title, 
@@ -113,18 +113,18 @@ INSERT OR IGNORE INTO articles (
 	 ?
  );
 
--- name: DbArticleSetAsRead :exec
+-- name: UpdateArticleSetAsRead :exec
 UPDATE articles SET read = 1 WHERE id = ?;
 
--- name: DbArticleSetStarredValue :exec
+-- name: UpdateArticleSetStarredValue :exec
 UPDATE articles SET starred = ? WHERE id = ?;
 
--- name: DbArticleSetAnnotation :exec
+-- name: InsertArticleAnnotation :exec
 INSERT INTO annotations (article_id, start_data, end_data, note, snippet, date_added) 
 VALUES (?,?,?,?,?, CURRENT_TIMESTAMP);
 
--- name: DbArticleAnnotationsByID :many
+-- name: SelectArticleAnnotationsByID :many
 SELECT * FROM annotations WHERE article_id = ?;
 
--- name: DbArticleContent :one
+-- name: SelectArticleContentFromArticleCache :one
 SELECT article_content FROM article_cache WHERE article_id = ?;

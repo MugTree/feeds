@@ -74,7 +74,7 @@ func run(parent context.Context) error {
 
 	application.Start()
 
-	if err := application.Wait(); err != nil {
+	if err := application.AppWait(); err != nil {
 		return err
 	}
 
