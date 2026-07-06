@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -258,7 +259,17 @@ func getArticleFromWeb(queries *db.Queries, afd db.GetFeedAndArticleByArticleIDR
 		return "", fmt.Errorf("error using colly to visit page: %v - %v", afd.ArticleLink, err)
 	}
 
-	sanHtml, err := sanitizeHTML(pageHtmlContent)
+	sanitizedHtml, err := sanitizeHTML(pageHtmlContent)
+	if err != nil {
+		return "", err
+	}
+
+	addTextIDs(sanitizedHtml)
+	replaceBodyWithArticle(sanitizedHtml)
+	sanitizedHtml = findNode(sanitizedHtml, "article")
+
+	var output strings.Builder
+	err = html.Render(&output, sanitizedHtml)
 	if err != nil {
 		return "", err
 	}
@@ -267,7 +278,7 @@ func getArticleFromWeb(queries *db.Queries, afd db.GetFeedAndArticleByArticleIDR
 		db.AddToArticleCacheParams{
 			ArticleID:      afd.ArticleID,
 			Link:           afd.ArticleLink,
-			ArticleContent: sql.NullString{String: sanHtml, Valid: true},
+			ArticleContent: sql.NullString{String: output.String(), Valid: true},
 		},
 	)
 
@@ -275,7 +286,64 @@ func getArticleFromWeb(queries *db.Queries, afd db.GetFeedAndArticleByArticleIDR
 		return "", fmt.Errorf("error adding to article cache: %v", insertErr)
 	}
 
-	return sanHtml, nil
+	return "", nil
+}
+
+func replaceBodyWithArticle(root *html.Node) error {
+
+	body := findNode(root, "body")
+	if body == nil {
+		return fmt.Errorf("body not found")
+	}
+
+	parent := body.Parent
+	if parent == nil {
+		return fmt.Errorf("body has no parent")
+	}
+
+	article := &html.Node{
+		Type: html.ElementNode,
+		Data: "article",
+	}
+
+	// move all children from body -> article
+	for c := body.FirstChild; c != nil; {
+
+		next := c.NextSibling
+
+		body.RemoveChild(c)
+		article.AppendChild(c)
+
+		c = next
+	}
+
+	// replace body with article
+	parent.InsertBefore(article, body)
+	parent.RemoveChild(body)
+
+	return nil
+}
+
+func findNode(n *html.Node, tag string) *html.Node {
+
+	var walk func(*html.Node) *html.Node
+
+	walk = func(n *html.Node) *html.Node {
+
+		if n.Type == html.ElementNode && n.Data == tag {
+			return n
+		}
+
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			if res := walk(c); res != nil {
+				return res
+			}
+		}
+
+		return nil
+	}
+
+	return walk(n)
 }
 
 func extractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelector string) string {
@@ -350,13 +418,19 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 				return 0, err
 			}
 
+			var output strings.Builder
+			err = html.Render(&output, sanitizedHtml)
+			if err != nil {
+				return 0, err
+			}
+
 			err = queries.AddToArticles(ctx, db.AddToArticlesParams{
 				FeedID:    feed.ID,
 				Title:     item.Title,
 				Link:      item.Link,
 				Published: feedItemDate(item),
 				DateFound: &now,
-				Summary:   sanitizedHtml,
+				Summary:   output.String(),
 				Read:      0,
 				Starred:   0,
 			})
@@ -370,10 +444,10 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 }
 
 // remove extraneous tags and attributes. script, style, template, comments and attributes on a per tag basis
-func sanitizeHTML(input string) (string, error) {
+func sanitizeHTML(input string) (*html.Node, error) {
 	doc, err := html.Parse(strings.NewReader(input))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	allowedAttrs := func(tag string) map[string]struct{} {
@@ -460,15 +534,62 @@ func sanitizeHTML(input string) (string, error) {
 	}
 
 	cleanHTML(doc)
+	return doc, nil
 
-	var b strings.Builder
-	err = html.Render(&b, doc)
-	if err != nil {
-		return "", err
+}
+
+func addTextIDs(doc *html.Node) {
+
+	id := 0
+
+	var walk func(*html.Node)
+
+	walk = func(n *html.Node) {
+
+		for c := n.FirstChild; c != nil; {
+
+			next := c.NextSibling
+
+			switch c.Type {
+
+			case html.CommentNode, html.DoctypeNode, html.ErrorNode:
+				c = next
+				continue
+
+			case html.TextNode:
+
+				if strings.TrimSpace(c.Data) == "" {
+					c = next
+					continue
+				}
+
+				wrapper := &html.Node{
+					Type: html.ElementNode,
+					Data: "span",
+					Attr: []html.Attribute{
+						{
+							Key: "data-text-id",
+							Val: strconv.Itoa(id),
+						},
+					},
+				}
+
+				id++
+
+				n.RemoveChild(c)
+				wrapper.AppendChild(c)
+				n.InsertBefore(wrapper, next)
+
+			case html.ElementNode:
+
+				walk(c)
+			}
+
+			c = next
+		}
 	}
 
-	return b.String(), nil
-
+	walk(doc)
 }
 
 func feedItemDate(item *gofeed.Item) *time.Time {
