@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"fmt"
@@ -37,7 +37,7 @@ type Document struct {
 // Build document
 //
 
-func feedsBuildDocument(htmlInput string) (*Document, error) {
+func feedsAnnotationBuildDocument(htmlInput string) (*Document, error) {
 
 	root, err := html.Parse(strings.NewReader(htmlInput))
 	if err != nil {
@@ -111,7 +111,7 @@ func feedsBuildDocument(htmlInput string) (*Document, error) {
 // Apply annotations
 //
 
-func feedsApplyAnnotations(doc *Document, annotations []Annotation) {
+func feedsAnnotationApplyMultiple(doc *Document, annotations []Annotation) {
 
 	for _, a := range annotations {
 
@@ -122,7 +122,7 @@ func feedsApplyAnnotations(doc *Document, annotations []Annotation) {
 			continue
 		}
 
-		feedsApplyAnnotation(start.Wrapper, a)
+		feedsAnnotationApplySingle(start.Wrapper, a)
 	}
 }
 
@@ -135,7 +135,7 @@ func feedsApplyAnnotations(doc *Document, annotations []Annotation) {
 // Multi-node selections are handled by extending this pattern.
 //
 
-func feedsApplyAnnotation(wrapper *html.Node, a Annotation) {
+func feedsAnnotationApplySingle(wrapper *html.Node, a Annotation) {
 
 	text := _getText(wrapper)
 
@@ -195,6 +195,101 @@ func feedsApplyAnnotation(wrapper *html.Node, a Annotation) {
 			},
 		)
 	}
+}
+
+// remove extraneous tags and attributes. script, style, template, comments and attributes on a per tag basis
+func feedsAnnotationSanitizeHTMLForStorage(input string) (*html.Node, error) {
+	doc, err := html.Parse(strings.NewReader(input))
+	if err != nil {
+		return nil, err
+	}
+
+	allowedAttrs := func(tag string) map[string]struct{} {
+		switch tag {
+		case "a":
+			return map[string]struct{}{
+				"href": {},
+			}
+		case "img":
+			return map[string]struct{}{
+				"src": {},
+				"alt": {},
+			}
+		case "td", "th":
+			return map[string]struct{}{
+				"colspan": {},
+				"rowspan": {},
+			}
+		default:
+			return nil
+		}
+	}
+
+	var cleanHTML func(n *html.Node)
+	cleanHTML = func(n *html.Node) {
+
+		shouldRemoveElement := func(n *html.Node) bool {
+			if n.Type != html.ElementNode {
+				return false
+			}
+
+			switch strings.ToLower(n.Data) {
+			case "script", "noscript", "style", "template":
+				return true
+			default:
+				return false
+			}
+		}
+
+		for c := n.FirstChild; c != nil; {
+
+			next := c.NextSibling
+
+			allowed := allowedAttrs(c.Data)
+
+			attrs := c.Attr[:0] // reuse underlying array
+			for _, v := range c.Attr {
+				if _, ok := allowed[v.Key]; ok {
+					attrs = append(attrs, v)
+				}
+			}
+			c.Attr = attrs
+
+			// remove any empty tags - artifacts if editors perhaps
+			if c.Type == html.ElementNode &&
+				len(c.Attr) == 0 &&
+				c.FirstChild == nil {
+
+				switch strings.ToLower(c.Data) {
+				case "div", "span", "p":
+					n.RemoveChild(c)
+				}
+			}
+
+			if shouldRemoveElement(c) {
+				n.RemoveChild(c)
+				c = next
+				continue
+			}
+
+			if c.Type == html.CommentNode {
+				n.RemoveChild(c)
+				c = next
+				continue
+			}
+
+			if c.FirstChild != nil {
+				cleanHTML(c)
+			}
+
+			c = next
+
+		}
+	}
+
+	cleanHTML(doc)
+	return doc, nil
+
 }
 
 //
@@ -265,7 +360,7 @@ func main() {
 	// 2. Build document
 	//
 
-	doc, err := feedsBuildDocument(rawHTML)
+	doc, err := feedsAnnotationBuildDocument(rawHTML)
 
 	if err != nil {
 		panic(err)
@@ -296,7 +391,7 @@ func main() {
 	// 4. Apply annotations
 	//
 
-	feedsApplyAnnotations(doc, annotations)
+	feedsAnnotationApplyMultiple(doc, annotations)
 
 	//
 	// 5. Render response

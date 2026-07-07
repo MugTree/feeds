@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -19,18 +18,18 @@ import (
 	"golang.org/x/net/html"
 )
 
-func FAKE_getAnnotations() []feedsAnnotation {
-	return []feedsAnnotation{{
-		ID:        1,
-		StartData: feedsAnnotationData{Path: []int64{0, 4}, Offset: 8},
-		EndData:   feedsAnnotationData{Path: []int64{0, 4}, Offset: 8},
-	}, {
-		ID:        2,
-		StartData: feedsAnnotationData{Path: []int64{0, 6}, Offset: 10},
-		EndData:   feedsAnnotationData{Path: []int64{3, 4}, Offset: 9},
-	}}
+// func FAKE_getAnnotations() []feedsAnnotation {
+// 	return []feedsAnnotation{{
+// 		ID:        1,
+// 		StartData: feedsAnnotationData{Path: []int64{0, 4}, Offset: 8},
+// 		EndData:   feedsAnnotationData{Path: []int64{0, 4}, Offset: 8},
+// 	}, {
+// 		ID:        2,
+// 		StartData: feedsAnnotationData{Path: []int64{0, 6}, Offset: 10},
+// 		EndData:   feedsAnnotationData{Path: []int64{3, 4}, Offset: 9},
+// 	}}
 
-}
+// }
 
 func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageTemplateData, error) {
 
@@ -55,7 +54,7 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 	td.FeedID = row.FeedID
 	td.StarValue = row.ArticleStars
 	td.ArticlePublished = row.ArticlePublished.Format(layoutISO)
-	td.Annotations = FAKE_getAnnotations()
+	//td.Annotations = FAKE_getAnnotations()
 
 	alreadyRead, toRead, err := feedsGetArticlesByFeedID(queries, feedID, ctx)
 	if err != nil {
@@ -74,7 +73,7 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 		td.IsCache = true
 	} else {
 
-		newContent, err := feedsGetArticleFromWeb(queries, row, ctx)
+		newContent, err := feedsGetArticleHTMLFromWeb(queries, row, ctx)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				return td, err
@@ -223,7 +222,7 @@ func feedsIsArticleCached(queries *db.Queries, articleLink string, ctx context.C
 
 }
 
-func feedsGetArticleFromWeb(queries *db.Queries, afd db.SelectFeedAndArticletByArticleIDRow, ctx context.Context) (string, error) {
+func feedsGetArticleHTMLFromWeb(queries *db.Queries, afd db.SelectFeedAndArticletByArticleIDRow, ctx context.Context) (string, error) {
 
 	pageHtmlContent := ""
 
@@ -259,14 +258,10 @@ func feedsGetArticleFromWeb(queries *db.Queries, afd db.SelectFeedAndArticletByA
 		return "", fmt.Errorf("error using colly to visit page: %v - %v", afd.ArticleLink, err)
 	}
 
-	sanitizedHtml, err := feedsHtmlArticleSanitize(pageHtmlContent)
+	sanitizedHtml, err := feedsAnnotationSanitizeHTMLForStorage(pageHtmlContent)
 	if err != nil {
 		return "", err
 	}
-
-	feedsHTMLArticleAddTextIDs(sanitizedHtml)
-	feedsHTMLArticleReplaceBodyTag(sanitizedHtml)
-	sanitizedHtml = feedsFindNodeInHTML(sanitizedHtml, "article")
 
 	var output strings.Builder
 	err = html.Render(&output, sanitizedHtml)
@@ -289,62 +284,62 @@ func feedsGetArticleFromWeb(queries *db.Queries, afd db.SelectFeedAndArticletByA
 	return "", nil
 }
 
-func feedsHTMLArticleReplaceBodyTag(root *html.Node) error {
+// func feedsHTMLArticleReplaceBodyTag(root *html.Node) error {
 
-	body := feedsFindNodeInHTML(root, "body")
-	if body == nil {
-		return fmt.Errorf("body not found")
-	}
+// 	body := feedsFindNodeInHTML(root, "body")
+// 	if body == nil {
+// 		return fmt.Errorf("body not found")
+// 	}
 
-	parent := body.Parent
-	if parent == nil {
-		return fmt.Errorf("body has no parent")
-	}
+// 	parent := body.Parent
+// 	if parent == nil {
+// 		return fmt.Errorf("body has no parent")
+// 	}
 
-	article := &html.Node{
-		Type: html.ElementNode,
-		Data: "article",
-	}
+// 	article := &html.Node{
+// 		Type: html.ElementNode,
+// 		Data: "article",
+// 	}
 
-	// move all children from body -> article
-	for c := body.FirstChild; c != nil; {
+// 	// move all children from body -> article
+// 	for c := body.FirstChild; c != nil; {
 
-		next := c.NextSibling
+// 		next := c.NextSibling
 
-		body.RemoveChild(c)
-		article.AppendChild(c)
+// 		body.RemoveChild(c)
+// 		article.AppendChild(c)
 
-		c = next
-	}
+// 		c = next
+// 	}
 
-	// replace body with article
-	parent.InsertBefore(article, body)
-	parent.RemoveChild(body)
+// 	// replace body with article
+// 	parent.InsertBefore(article, body)
+// 	parent.RemoveChild(body)
 
-	return nil
-}
+// 	return nil
+// }
 
-func feedsFindNodeInHTML(n *html.Node, tag string) *html.Node {
+// func feedsFindNodeInHTML(n *html.Node, tag string) *html.Node {
 
-	var walk func(*html.Node) *html.Node
+// 	var walk func(*html.Node) *html.Node
 
-	walk = func(n *html.Node) *html.Node {
+// 	walk = func(n *html.Node) *html.Node {
 
-		if n.Type == html.ElementNode && n.Data == tag {
-			return n
-		}
+// 		if n.Type == html.ElementNode && n.Data == tag {
+// 			return n
+// 		}
 
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			if res := walk(c); res != nil {
-				return res
-			}
-		}
+// 		for c := n.FirstChild; c != nil; c = c.NextSibling {
+// 			if res := walk(c); res != nil {
+// 				return res
+// 			}
+// 		}
 
-		return nil
-	}
+// 		return nil
+// 	}
 
-	return walk(n)
-}
+// 	return walk(n)
+// }
 
 func feedsExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelector string) string {
 
@@ -413,7 +408,7 @@ func feedsGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error
 
 			now := time.Now()
 
-			sanitizedHtml, err := feedsHtmlArticleSanitize(item.Description)
+			sanitizedHtml, err := feedsAnnotationSanitizeHTMLForStorage(item.Description)
 			if err != nil {
 				return 0, err
 			}
@@ -441,155 +436,6 @@ func feedsGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error
 	}
 
 	return int64(len(feeds)), nil
-}
-
-// remove extraneous tags and attributes. script, style, template, comments and attributes on a per tag basis
-func feedsHtmlArticleSanitize(input string) (*html.Node, error) {
-	doc, err := html.Parse(strings.NewReader(input))
-	if err != nil {
-		return nil, err
-	}
-
-	allowedAttrs := func(tag string) map[string]struct{} {
-		switch tag {
-		case "a":
-			return map[string]struct{}{
-				"href": {},
-			}
-		case "img":
-			return map[string]struct{}{
-				"src": {},
-				"alt": {},
-			}
-		case "td", "th":
-			return map[string]struct{}{
-				"colspan": {},
-				"rowspan": {},
-			}
-		default:
-			return nil
-		}
-	}
-
-	var cleanHTML func(n *html.Node)
-	cleanHTML = func(n *html.Node) {
-
-		shouldRemoveElement := func(n *html.Node) bool {
-			if n.Type != html.ElementNode {
-				return false
-			}
-
-			switch strings.ToLower(n.Data) {
-			case "script", "noscript", "style", "template":
-				return true
-			default:
-				return false
-			}
-		}
-
-		for c := n.FirstChild; c != nil; {
-
-			next := c.NextSibling
-
-			allowed := allowedAttrs(c.Data)
-
-			attrs := c.Attr[:0] // reuse underlying array
-			for _, v := range c.Attr {
-				if _, ok := allowed[v.Key]; ok {
-					attrs = append(attrs, v)
-				}
-			}
-			c.Attr = attrs
-
-			// remove any empty tags - artifacts if editors perhaps
-			if c.Type == html.ElementNode &&
-				len(c.Attr) == 0 &&
-				c.FirstChild == nil {
-
-				switch strings.ToLower(c.Data) {
-				case "div", "span", "p":
-					n.RemoveChild(c)
-				}
-			}
-
-			if shouldRemoveElement(c) {
-				n.RemoveChild(c)
-				c = next
-				continue
-			}
-
-			if c.Type == html.CommentNode {
-				n.RemoveChild(c)
-				c = next
-				continue
-			}
-
-			if c.FirstChild != nil {
-				cleanHTML(c)
-			}
-
-			c = next
-
-		}
-	}
-
-	cleanHTML(doc)
-	return doc, nil
-
-}
-
-func feedsHTMLArticleAddTextIDs(doc *html.Node) {
-
-	id := 0
-
-	var walk func(*html.Node)
-
-	walk = func(n *html.Node) {
-
-		for c := n.FirstChild; c != nil; {
-
-			next := c.NextSibling
-
-			switch c.Type {
-
-			case html.CommentNode, html.DoctypeNode, html.ErrorNode:
-				c = next
-				continue
-
-			case html.TextNode:
-
-				if strings.TrimSpace(c.Data) == "" {
-					c = next
-					continue
-				}
-
-				wrapper := &html.Node{
-					Type: html.ElementNode,
-					Data: "span",
-					Attr: []html.Attribute{
-						{
-							Key: "data-text-id",
-							Val: strconv.Itoa(id),
-						},
-					},
-				}
-
-				id++
-
-				n.RemoveChild(c)
-				wrapper.AppendChild(c)
-				n.InsertBefore(wrapper, next)
-
-			case html.ElementNode:
-
-				walk(c)
-			}
-
-			c = next
-		}
-	}
-
-	walk(doc)
 }
 
 func feedsGetFeedItemDate(item *gofeed.Item) *time.Time {
@@ -692,7 +538,7 @@ type ArticlePageTemplateData struct {
 	StarValue        int64
 	Sidebar          []feedsSidebarLink
 	ArticlePublished string
-	Annotations      []feedsAnnotation
+	//Annotations      []feedsAnnotation
 }
 
 // type feedsUpdateParms struct {
@@ -706,20 +552,20 @@ type FeedFormTemplateData struct {
 	Feed       db.Feed
 }
 
-type feedsAnnotation struct {
-	ID        int64               `json:"id"`
-	ArticleID int64               `json:"article_id"`
-	StartData feedsAnnotationData `json:"start_data"`
-	EndData   feedsAnnotationData `json:"end_data"`
-	Snippet   string              `json:"snippet"`
-	Note      string              `json:"note"`
-	DateAdded string              `json:"date_added"`
-}
+// type feedsAnnotation struct {
+// 	ID        int64               `json:"id"`
+// 	ArticleID int64               `json:"article_id"`
+// 	StartData feedsAnnotationData `json:"start_data"`
+// 	EndData   feedsAnnotationData `json:"end_data"`
+// 	Snippet   string              `json:"snippet"`
+// 	Note      string              `json:"note"`
+// 	DateAdded string              `json:"date_added"`
+// }
 
-type feedsAnnotationData struct {
-	Path   []int64 `json:"path"`
-	Offset int64   `json:"offset"`
-}
+// type feedsAnnotationData struct {
+// 	Path   []int64 `json:"path"`
+// 	Offset int64   `json:"offset"`
+// }
 
 // type TextNode struct {
 // 	Node  *html.Node
