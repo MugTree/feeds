@@ -37,13 +37,16 @@ type Document struct {
 // Build document
 //
 
-func feedsBuildDocument(htmlInput string) (*Document, error) {
+// depth first traversal
+func feedsBuildStructuredDocument(htmlInput string) (*Document, error) {
 
+	// create teh tree
 	root, err := html.Parse(strings.NewReader(htmlInput))
 	if err != nil {
 		return nil, err
 	}
 
+	// structure to contain the tree plus an index of all of the text nodes
 	doc := &Document{
 		Root:      root,
 		TextIndex: make(map[int]*TextNode),
@@ -51,18 +54,30 @@ func feedsBuildDocument(htmlInput string) (*Document, error) {
 
 	id := 0
 
+	// written this way as we recurse
+	// basic depth first traversal
 	var walk func(*html.Node)
 
 	walk = func(n *html.Node) {
 
+		// on a non nil node step in
 		for c := n.FirstChild; c != nil; {
+
+			// basic idea
+			// -----------------------------------------------
+			// next := c.NextSibling   // remember my brother
+			// walk(c)                 // visit my children
+			// c = next                // now visit my brother
 
 			next := c.NextSibling
 
 			if c.Type == html.TextNode {
 
+				// does the node have any content
+				// the preprocessing shoudl have stripped empty nodes out
 				if strings.TrimSpace(c.Data) != "" {
 
+					// create a new node with out markup
 					wrapper := &html.Node{
 						Type: html.ElementNode,
 						Data: "span",
@@ -74,30 +89,40 @@ func feedsBuildDocument(htmlInput string) (*Document, error) {
 						},
 					}
 
+					// step out to the text nodes parent node
 					parent := c.Parent
 
+					// remove the current text node
 					parent.RemoveChild(c)
 
+					// append it to the wrapper we have created
 					wrapper.AppendChild(c)
 
+					// insert before using the reference we made earlier
 					parent.InsertBefore(wrapper, next)
 
+					// add out newly created to the TextIndex for later reference
 					doc.TextIndex[id] = &TextNode{
 						ID:      id,
 						Wrapper: wrapper,
 					}
 
+					// step up the counter - this is the key for the index and
+					// also used in the html so we can get hold of the node in the front end more easily
 					id++
 				}
 
+				// step forward to the next iteration
 				c = next
 				continue
 			}
 
+			// recursion
 			if c.FirstChild != nil {
 				walk(c)
 			}
 
+			// this allows us to step across the document and not just drill down
 			c = next
 		}
 	}
@@ -115,9 +140,11 @@ func feedsApplyAnnotations(doc *Document, annotations []Annotation) {
 
 	for _, a := range annotations {
 
+		// get the start and end points in the text index
 		start := doc.TextIndex[a.Start.TextID]
 		end := doc.TextIndex[a.End.TextID]
 
+		// basic check
 		if start == nil || end == nil {
 			continue
 		}
@@ -139,14 +166,19 @@ func feedsApplyAnnotation(wrapper *html.Node, a Annotation) {
 
 	text := _getText(wrapper)
 
+	// do the offsets look wrong - too small / large
+	// is the start greater than the end
 	if a.Start.Offset < 0 ||
 		a.End.Offset > len(text) ||
 		a.Start.Offset >= a.End.Offset {
 		return
 	}
 
+	// get the first part
 	before := text[:a.Start.Offset]
+	// get the middle part
 	selected := text[a.Start.Offset:a.End.Offset]
+	// get the end part
 	after := text[a.End.Offset:]
 
 	// remove current contents
@@ -154,6 +186,7 @@ func feedsApplyAnnotation(wrapper *html.Node, a Annotation) {
 		wrapper.RemoveChild(wrapper.FirstChild)
 	}
 
+	// append part of the text that doesnt need wrapping
 	if before != "" {
 		wrapper.AppendChild(
 			&html.Node{
@@ -163,6 +196,7 @@ func feedsApplyAnnotation(wrapper *html.Node, a Annotation) {
 		)
 	}
 
+	// append the span node..
 	highlight := &html.Node{
 		Type: html.ElementNode,
 		Data: "span",
@@ -178,6 +212,7 @@ func feedsApplyAnnotation(wrapper *html.Node, a Annotation) {
 		},
 	}
 
+	// append the contents "selected" ...
 	highlight.AppendChild(
 		&html.Node{
 			Type: html.TextNode,
@@ -185,6 +220,7 @@ func feedsApplyAnnotation(wrapper *html.Node, a Annotation) {
 		},
 	)
 
+	// add that back to the outer wrapper node
 	wrapper.AppendChild(highlight)
 
 	if after != "" {
@@ -209,11 +245,13 @@ func _getText(n *html.Node) string {
 
 	walk = func(n *html.Node) {
 
+		// get the text a GTFO
 		if n.Type == html.TextNode {
 			b.WriteString(n.Data)
 			return
 		}
 
+		// keep going if required
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			walk(c)
 		}
@@ -228,7 +266,7 @@ func _getText(n *html.Node) string {
 // Render
 //
 
-func _render(doc *Document) (string, error) {
+func feedsRenderHTMLStr(doc *Document) (string, error) {
 
 	var b strings.Builder
 
@@ -265,7 +303,7 @@ func main() {
 	// 2. Build document
 	//
 
-	doc, err := feedsBuildDocument(rawHTML)
+	doc, err := feedsBuildStructuredDocument(rawHTML)
 
 	if err != nil {
 		panic(err)
@@ -287,7 +325,7 @@ func main() {
 
 			End: SelectionPoint{
 				TextID: 0,
-				Offset: 11,
+				Offset: 7,
 			},
 		},
 	}
@@ -302,7 +340,7 @@ func main() {
 	// 5. Render response
 	//
 
-	output, err := _render(doc)
+	output, err := feedsRenderHTMLStr(doc)
 
 	if err != nil {
 		panic(err)

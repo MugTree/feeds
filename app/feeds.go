@@ -284,63 +284,6 @@ func feedsGetArticleHTMLFromWeb(queries *db.Queries, afd db.SelectFeedAndArticle
 	return "", nil
 }
 
-// func feedsHTMLArticleReplaceBodyTag(root *html.Node) error {
-
-// 	body := feedsFindNodeInHTML(root, "body")
-// 	if body == nil {
-// 		return fmt.Errorf("body not found")
-// 	}
-
-// 	parent := body.Parent
-// 	if parent == nil {
-// 		return fmt.Errorf("body has no parent")
-// 	}
-
-// 	article := &html.Node{
-// 		Type: html.ElementNode,
-// 		Data: "article",
-// 	}
-
-// 	// move all children from body -> article
-// 	for c := body.FirstChild; c != nil; {
-
-// 		next := c.NextSibling
-
-// 		body.RemoveChild(c)
-// 		article.AppendChild(c)
-
-// 		c = next
-// 	}
-
-// 	// replace body with article
-// 	parent.InsertBefore(article, body)
-// 	parent.RemoveChild(body)
-
-// 	return nil
-// }
-
-// func feedsFindNodeInHTML(n *html.Node, tag string) *html.Node {
-
-// 	var walk func(*html.Node) *html.Node
-
-// 	walk = func(n *html.Node) *html.Node {
-
-// 		if n.Type == html.ElementNode && n.Data == tag {
-// 			return n
-// 		}
-
-// 		for c := n.FirstChild; c != nil; c = c.NextSibling {
-// 			if res := walk(c); res != nil {
-// 				return res
-// 			}
-// 		}
-
-// 		return nil
-// 	}
-
-// 	return walk(n)
-// }
-
 func feedsExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelector string) string {
 
 	var chunks []string

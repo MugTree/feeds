@@ -1,6 +1,20 @@
 package app
 
 import "fmt"
+import "github.com/mugtree/feeds/app/db"
+import "context"
+
+templ SeparationOfConcernsBlahBlahTemplate(queries *db.Queries, ctx context.Context) {
+	{{ feeds, err := queries.SelectAllFeeds(ctx) }}
+	if err != nil {
+		{{ fmt.Println(err) }}
+		<div>Hello mcfly</div>
+	} else {
+		for _, v := range feeds {
+			<div>{ v.Title }</div>
+		}
+	}
+}
 
 templ TemplateHomePage(NavTemplate templ.Component, latest []feedsArticle, starred []feedsArticle) {
 	<h3>All feeds</h3>
