@@ -12,3 +12,22 @@ Annotations
 ```
 
 Apply pre-existing annotations
+
+Revise the idea of anotations.
+
+Thought. With each article. 
+
+The writer has presented us with a thought through peice of writing arranged into paragraphs. 
+
+I've read that to aid understanding you should. Read a paragraph and then be able to sumarise.
+An improved version of this is that you should be able to 
+
+read paragraph and summarise
+read paragraph and sumaraise
+read paragraph and summarise all three
+
+read paragraph and summarise
+read paragraph and sumaraise
+read paragraph and sumrarise all 6
+
+Simple to implement each 
