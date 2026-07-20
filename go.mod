@@ -43,7 +43,6 @@ require (
 
 require (
 	github.com/go-chi/chi/v5 v5.2.2
-	github.com/goforj/godump v1.9.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/starfederation/datastar-go v1.2.2
 	golang.org/x/net v0.51.0

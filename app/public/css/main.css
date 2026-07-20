@@ -86,3 +86,10 @@ button:hover {
 span {
   border: 1px red solid;
 }
+
+.editor {
+  display: flex;
+}
+
+.editor div {
+}

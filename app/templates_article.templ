@@ -20,30 +20,33 @@ templ TemplateArticlePage(td ArticlePageTemplateData) {
 	ANNOTATION DIALOG 
 	---------------------------------------------------
 	*/
-	<dialog id="annotateDialog">
-		<form>
-			<div id="annotation-selection-preview"></div>
-			<input type="hidden" id="annotation-start" name="start"/>
-			<input type="hidden" id="annotation-end" name="end"/>
-			<input type="hidden" id="annotation-selection" name="selection"/>
-			<label for="note">
-				Note: 
-				<textarea id="annotation-note" name="note"></textarea>
-			</label>
-			<menu>
-				<button type="button" data-on:click="resetState()">Cancel</button>
-				{{ annotationURL := fmt.Sprintf("@put('/article/%d/%d/annotate',  {contentType: 'form'}); resetState();", td.FeedID, td.ArticleId) }}
-				<button data-on:click={ annotationURL }>
-					Post anotation	
-				</button>
-			</menu>
-		</form>
-	</dialog>
+	// <dialog id="annotateDialog">
+	// 	<form>
+	// 		<div id="annotation-selection-preview"></div>
+	// 		<input type="hidden" id="annotation-start" name="start"/>
+	// 		<input type="hidden" id="annotation-end" name="end"/>
+	// 		<input type="hidden" id="annotation-selection" name="selection"/>
+	// 		<label for="note">
+	// 			Note: 
+	// 			<textarea id="annotation-note" name="note"></textarea>
+	// 		</label>
+	// 		<menu>
+	// 			<button type="button" data-on:click="resetState()">Cancel</button>
+	// 			{{ annotationURL := fmt.Sprintf("@put('/article/%d/%d/annotate',  {contentType: 'form'}); resetState();", td.FeedID, td.ArticleId) }}
+	// 			<button data-on:click={ annotationURL }>
+	// 				Post anotation	
+	// 			</button>
+	// 		</menu>
+	// 	</form>
+	// </dialog>
 	/**
 	Annotate page	
 	*/
-	<section id="article" data-on:pointerup="getAnnotation(); dialog.showModal()" data-on:pointerdown="closeDialog(evt)">
-		@templ.Raw(td.PageContent)
+	<section class="editor">
+		<div>
+			@templ.Raw(td.PageContent)
+		</div>
+		<div></div>
 	</section>
 	@TemplateLikeArticle(td.FeedID, td.ArticleId, td.StarValue)
 	/**

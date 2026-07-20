@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -258,13 +259,12 @@ func feedsGetArticleHTMLFromWeb(queries *db.Queries, afd db.SelectFeedAndArticle
 		return "", fmt.Errorf("error using colly to visit page: %v - %v", afd.ArticleLink, err)
 	}
 
-	sanitizedHtml, err := feedsAnnotationSanitizeHTMLForStorage(pageHtmlContent)
+	sanitizedHtml, err := feedsSanitizeHTMLForStorage(pageHtmlContent)
 	if err != nil {
 		return "", err
 	}
 
-	var output strings.Builder
-	err = html.Render(&output, sanitizedHtml)
+	output, err := feedsStringifyHTMLForStorage(sanitizedHtml, "article")
 	if err != nil {
 		return "", err
 	}
@@ -273,7 +273,7 @@ func feedsGetArticleHTMLFromWeb(queries *db.Queries, afd db.SelectFeedAndArticle
 		db.InsertCachedArticleParams{
 			ArticleID:      afd.ArticleID,
 			Link:           afd.ArticleLink,
-			ArticleContent: sql.NullString{String: output.String(), Valid: true},
+			ArticleContent: sql.NullString{String: output, Valid: true},
 		},
 	)
 
@@ -351,13 +351,12 @@ func feedsGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error
 
 			now := time.Now()
 
-			sanitizedHtml, err := feedsAnnotationSanitizeHTMLForStorage(item.Description)
+			sanitizedHtml, err := feedsSanitizeHTMLForStorage(item.Description)
 			if err != nil {
 				return 0, err
 			}
 
-			var output strings.Builder
-			err = html.Render(&output, sanitizedHtml)
+			output, err := feedsStringifyHTMLForStorage(sanitizedHtml, "div")
 			if err != nil {
 				return 0, err
 			}
@@ -368,7 +367,7 @@ func feedsGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error
 				Link:      item.Link,
 				Published: feedsGetFeedItemDate(item),
 				DateFound: &now,
-				Summary:   output.String(),
+				Summary:   output,
 				Read:      0,
 				Starred:   0,
 			})
@@ -391,6 +390,176 @@ func feedsGetFeedItemDate(item *gofeed.Item) *time.Time {
 	}
 
 	return nil
+}
+
+func feedsSanitizeHTMLForStorage(input string) (*html.Node, error) {
+
+	doc, err := html.Parse(strings.NewReader(input))
+	if err != nil {
+		return nil, err
+	}
+
+	allowedAttrs := func(tag string) map[string]struct{} {
+		switch tag {
+		case "a":
+			return map[string]struct{}{
+				"href": {},
+			}
+		case "img":
+			return map[string]struct{}{
+				"src": {},
+				"alt": {},
+			}
+		case "td", "th":
+			return map[string]struct{}{
+				"colspan": {},
+				"rowspan": {},
+			}
+		default:
+			return nil
+		}
+	}
+
+	isBlockElement := func(tag string) bool {
+		switch tag {
+		case "p",
+			//"h1",
+			//"h2",
+			//"h3",
+			//"h4",
+			//"div",
+			"blockquote",
+			"ul",
+			"ol",
+			"table":
+			return true
+		default:
+			return false
+		}
+	}
+
+	blockID := 0
+
+	var cleanHTML func(n *html.Node)
+
+	cleanHTML = func(n *html.Node) {
+
+		shouldRemoveElement := func(n *html.Node) bool {
+
+			if n.Type != html.ElementNode {
+				return false
+			}
+
+			switch strings.ToLower(n.Data) {
+			case "script", "noscript", "style", "template":
+				return true
+			default:
+				return false
+			}
+		}
+
+		for c := n.FirstChild; c != nil; {
+
+			next := c.NextSibling
+
+			//
+			// Remove unwanted elements
+			//
+			if shouldRemoveElement(c) {
+				n.RemoveChild(c)
+				c = next
+				continue
+			}
+
+			//
+			// Remove comments
+			//
+			if c.Type == html.CommentNode {
+				n.RemoveChild(c)
+				c = next
+				continue
+			}
+
+			//
+			// Strip attributes
+			//
+			if c.Type == html.ElementNode {
+
+				allowed := allowedAttrs(strings.ToLower(c.Data))
+
+				attrs := c.Attr[:0]
+
+				for _, v := range c.Attr {
+
+					if _, ok := allowed[v.Key]; ok {
+						attrs = append(attrs, v)
+					}
+				}
+
+				c.Attr = attrs
+
+				//
+				// Add application block ID
+				//
+				if isBlockElement(strings.ToLower(c.Data)) {
+
+					c.Attr = append(c.Attr, html.Attribute{
+						Key: "data-block-id",
+						Val: strconv.Itoa(blockID),
+					})
+
+					blockID++
+				}
+			}
+
+			//
+			// Remove empty artifacts
+			//
+			if c.Type == html.ElementNode &&
+				len(c.Attr) == 0 &&
+				c.FirstChild == nil {
+
+				switch strings.ToLower(c.Data) {
+				case "div", "span", "p":
+					n.RemoveChild(c)
+					c = next
+					continue
+				}
+			}
+
+			//
+			// Recurse
+			//
+			if c.FirstChild != nil {
+				cleanHTML(c)
+			}
+
+			c = next
+		}
+	}
+
+	cleanHTML(doc)
+
+	return doc, nil
+}
+
+// article for the article, div for the desc from feeds
+func feedsStringifyHTMLForStorage(doc *html.Node, holdingTag string) (string, error) {
+
+	var b strings.Builder
+
+	err := html.Render(&b, doc)
+
+	if err != nil {
+		return "", err
+	}
+
+	s := strings.Replace(b.String(), "<html><head></head><body>", "<"+holdingTag+">", 1)
+	s = strings.Replace(s, "</body></html>", "</"+holdingTag+">", 1)
+	s = strings.ReplaceAll(s, "\n", "")
+	s = strings.ReplaceAll(s, "\t", "")
+
+	return s, nil
 }
 
 type feedsArticle struct {

@@ -1,12 +1,10 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE IF NOT EXISTS annotations
+CREATE TABLE IF NOT EXISTS margin_notes
 (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     article_id INTEGER NOT NULL,
-    start_data TEXT NOT NULL,
-    end_data TEXT NOT NULL,
-    snippet TEXT NOT NULL DEFAULT '',
+    block_id INTEGER NOT NULL,
     note TEXT NOT NULL DEFAULT '', 
     date_added TIMESTAMP NOT NULL
 );
