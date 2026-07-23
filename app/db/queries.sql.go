@@ -227,9 +227,12 @@ SELECT
 	f.css_sel_container as feed_css_sel_container, 
 	f.css_sel_start as feed_css_sel_start, 
 	f.css_sel_stop as feed_css_sel_stop, 
-	f.html_extraction_strategy as feed_html_extraction_strategy   
+	f.html_extraction_strategy as feed_html_extraction_strategy,
+	ac.clickable_block_count    
 FROM 
 	articles a 
+INNER JOIN article_cache ac
+ON a.id = ac.article_id
 INNER JOIN feeds f 
 ON f.id = a.feed_id where a.id = ?
 `
@@ -247,6 +250,7 @@ type SelectFeedAndArticletByArticleIDRow struct {
 	FeedCssSelStart            sql.NullString
 	FeedCssSelStop             sql.NullString
 	FeedHtmlExtractionStrategy sql.NullString
+	ClickableBlockCount        int64
 }
 
 func (q *Queries) SelectFeedAndArticletByArticleID(ctx context.Context, id int64) (SelectFeedAndArticletByArticleIDRow, error) {
@@ -265,6 +269,7 @@ func (q *Queries) SelectFeedAndArticletByArticleID(ctx context.Context, id int64
 		&i.FeedCssSelStart,
 		&i.FeedCssSelStop,
 		&i.FeedHtmlExtractionStrategy,
+		&i.ClickableBlockCount,
 	)
 	return i, err
 }
@@ -407,7 +412,7 @@ func (q *Queries) SelectLatest5StarredArticles(ctx context.Context) ([]SelectLat
 }
 
 const selectMarginNotesByArticleID = `-- name: SelectMarginNotesByArticleID :many
-SELECT id, article_id, clickable_block_id, note, date_added FROM margin_notes WHERE article_id = ?
+SELECT id, article_id, related_clickable_block_id, note, date_added FROM margin_notes WHERE article_id = ?
 `
 
 func (q *Queries) SelectMarginNotesByArticleID(ctx context.Context, articleID int64) ([]MarginNote, error) {
@@ -422,7 +427,7 @@ func (q *Queries) SelectMarginNotesByArticleID(ctx context.Context, articleID in
 		if err := rows.Scan(
 			&i.ID,
 			&i.ArticleID,
-			&i.ClickableBlockID,
+			&i.RelatedClickableBlockID,
 			&i.Note,
 			&i.DateAdded,
 		); err != nil {

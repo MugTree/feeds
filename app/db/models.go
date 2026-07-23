@@ -42,9 +42,9 @@ type Feed struct {
 }
 
 type MarginNote struct {
-	ID               int64
-	ArticleID        int64
-	ClickableBlockID int64
-	Note             string
-	DateAdded        time.Time
+	ID                      int64
+	ArticleID               int64
+	RelatedClickableBlockID int64
+	Note                    string
+	DateAdded               time.Time
 }

@@ -35,6 +35,8 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 		return td, err
 	}
 
+	td.ClickableBlockCount = row.ClickableBlockCount
+
 	td.PageTitle = row.ArticleTitle
 	td.FeedTitle = row.FeedTitle
 	td.FeedUrl = row.FeedUrl
@@ -695,20 +697,22 @@ func int64ToBool(i int64) bool {
 }
 
 type ArticlePageTemplateData struct {
-	FeedID           int64
-	PageTitle        string
-	ArticlesRead     []feedsArticle
-	ArticlesToRead   []feedsArticle
-	FeedTitle        string
-	FeedUrl          string
-	Link             string
-	PageContent      string
-	ArticleId        int64
-	IsCache          bool
-	StarValue        int64
-	Sidebar          []feedsSidebarLink
-	ArticlePublished string
-	MarginNotes      []db.MarginNote
+	FeedID              int64
+	PageTitle           string
+	ArticlesRead        []feedsArticle
+	ArticlesToRead      []feedsArticle
+	FeedTitle           string
+	FeedUrl             string
+	Link                string
+	PageContent         string
+	ArticleId           int64
+	IsCache             bool
+	StarValue           int64
+	Sidebar             []feedsSidebarLink
+	ArticlePublished    string
+	MarginNotes         []db.MarginNote
+	ClickableBlockCount int64
+
 	//Annotations      []feedsAnnotation
 }
 

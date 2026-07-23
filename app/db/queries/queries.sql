@@ -63,9 +63,12 @@ SELECT
 	f.css_sel_container as feed_css_sel_container, 
 	f.css_sel_start as feed_css_sel_start, 
 	f.css_sel_stop as feed_css_sel_stop, 
-	f.html_extraction_strategy as feed_html_extraction_strategy   
+	f.html_extraction_strategy as feed_html_extraction_strategy,
+	ac.clickable_block_count 
 FROM 
 	articles a 
+INNER JOIN article_cache ac
+ON a.id = ac.article_id
 INNER JOIN feeds f 
 ON f.id = a.feed_id where a.id = ?;
 
