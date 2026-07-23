@@ -20,19 +20,6 @@ import (
 	"golang.org/x/net/html"
 )
 
-// func FAKE_getAnnotations() []feedsAnnotation {
-// 	return []feedsAnnotation{{
-// 		ID:        1,
-// 		StartData: feedsAnnotationData{Path: []int64{0, 4}, Offset: 8},
-// 		EndData:   feedsAnnotationData{Path: []int64{0, 4}, Offset: 8},
-// 	}, {
-// 		ID:        2,
-// 		StartData: feedsAnnotationData{Path: []int64{0, 6}, Offset: 10},
-// 		EndData:   feedsAnnotationData{Path: []int64{3, 4}, Offset: 9},
-// 	}}
-
-// }
-
 func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageTemplateData, error) {
 
 	td := ArticlePageTemplateData{}
@@ -277,23 +264,24 @@ func feedsRetrieveArticleHTMLFromWeb(queries *db.Queries, afd db.SelectFeedAndAr
 		return "", fmt.Errorf("error using colly to visit page: %v - %v", afd.ArticleLink, err)
 	}
 
-	sanitizedHtml, blockCount, err := feedsSanitizeAndAnnotateHTMLForStorage(pageHtmlContent)
+	sanitizedHtml, clickableBlockCount, err := feedsSanitizeAndAnnotateHTMLForStorage(pageHtmlContent)
 	if err != nil {
 		return "", err
 	}
 	fmt.Println("feedsGetArticleHTMLFromWeb")
-	fmt.Printf("Counted %v blocks...\n\n", blockCount)
+	fmt.Printf("Counted %v clickable blocks...\n\n", clickableBlockCount)
 
-	output, err := feedsStringifyHTML(sanitizedHtml)
+	stringifiedHTML, err := feedsStringifyHTML(sanitizedHtml)
 	if err != nil {
 		return "", err
 	}
 
 	insertErr := queries.InsertCachedArticle(ctx,
 		db.InsertCachedArticleParams{
-			ArticleID:      afd.ArticleID,
-			Link:           afd.ArticleLink,
-			ArticleContent: sql.NullString{String: output, Valid: true},
+			ArticleID:           afd.ArticleID,
+			Link:                afd.ArticleLink,
+			ArticleContent:      sql.NullString{String: stringifiedHTML, Valid: true},
+			ClickableBlockCount: clickableBlockCount,
 		},
 	)
 
@@ -301,7 +289,7 @@ func feedsRetrieveArticleHTMLFromWeb(queries *db.Queries, afd db.SelectFeedAndAr
 		return "", fmt.Errorf("error adding to article cache: %v", insertErr)
 	}
 
-	return "", nil
+	return stringifiedHTML, nil
 }
 
 func feedsExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelector string) string {
@@ -371,13 +359,13 @@ func feedsGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error
 
 			now := time.Now()
 
-			sanitizedHtml, blockCount, err := feedsSanitizeAndAnnotateHTMLForStorage(item.Description)
+			sanitizedHtml, clickableBlockCount, err := feedsSanitizeAndAnnotateHTMLForStorage(item.Description)
 			if err != nil {
 				return 0, err
 			}
 
 			fmt.Println("feedsGetFeedUpdates")
-			fmt.Printf("Counted %v blocks...\n\n", blockCount)
+			fmt.Printf("Counted %v blocks...\n\n", clickableBlockCount)
 
 			output, err := feedsStringifyHTML(sanitizedHtml)
 			if err != nil {
@@ -415,7 +403,7 @@ func feedsGetFeedItemDate(item *gofeed.Item) *time.Time {
 	return nil
 }
 
-func feedsSanitizeAndAnnotateHTMLForStorage(input string) (*html.Node, int, error) {
+func feedsSanitizeAndAnnotateHTMLForStorage(input string) (*html.Node, int64, error) {
 
 	doc, err := html.Parse(strings.NewReader(input))
 	if err != nil {
@@ -462,7 +450,7 @@ func feedsSanitizeAndAnnotateHTMLForStorage(input string) (*html.Node, int, erro
 		}
 	}
 
-	marginNoteID := 0
+	clickableBlockID := 0
 
 	var cleanHTML func(n *html.Node)
 
@@ -526,16 +514,16 @@ func feedsSanitizeAndAnnotateHTMLForStorage(input string) (*html.Node, int, erro
 				if isBlockElement(strings.ToLower(c.Data)) {
 
 					c.Attr = append(c.Attr, html.Attribute{
-						Key: "data-margin-note-id",
-						Val: strconv.Itoa(marginNoteID),
+						Key: "data-clickable-block-id",
+						Val: strconv.Itoa(clickableBlockID),
 					})
 
 					c.Attr = append(c.Attr, html.Attribute{
 						Key: "data-on:click",
-						Val: datastar.GetSSE("/url/%v", marginNoteID),
+						Val: datastar.GetSSE("/url/%v", clickableBlockID),
 					})
 
-					marginNoteID++
+					clickableBlockID++
 				}
 			}
 
@@ -568,9 +556,9 @@ func feedsSanitizeAndAnnotateHTMLForStorage(input string) (*html.Node, int, erro
 	cleanHTML(doc)
 
 	// disambiguate the counter from the count
-	totalMarginNoteCount := marginNoteID
+	clickableBlockCount := int64(clickableBlockID)
 
-	return doc, totalMarginNoteCount, nil
+	return doc, clickableBlockCount, nil
 }
 
 func feedsRemoveOuterHTMLFromSanitizedHTML(doc string) (*html.Node, error) {

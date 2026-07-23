@@ -80,11 +80,13 @@ INSERT INTO article_cache (
 	article_id,
 	link, 
 	article_content, 
+	clickable_block_count,
 	created
 ) VALUES(
 ?,
 ?,
 ?, 
+?,
 CURRENT_TIMESTAMP
 );
 

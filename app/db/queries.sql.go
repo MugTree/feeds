@@ -16,23 +16,31 @@ INSERT INTO article_cache (
 	article_id,
 	link, 
 	article_content, 
+	clickable_block_count,
 	created
 ) VALUES(
 ?,
 ?,
 ?, 
+?,
 CURRENT_TIMESTAMP
 )
 `
 
 type InsertCachedArticleParams struct {
-	ArticleID      int64
-	Link           string
-	ArticleContent sql.NullString
+	ArticleID           int64
+	Link                string
+	ArticleContent      sql.NullString
+	ClickableBlockCount int64
 }
 
 func (q *Queries) InsertCachedArticle(ctx context.Context, arg InsertCachedArticleParams) error {
-	_, err := q.db.ExecContext(ctx, insertCachedArticle, arg.ArticleID, arg.Link, arg.ArticleContent)
+	_, err := q.db.ExecContext(ctx, insertCachedArticle,
+		arg.ArticleID,
+		arg.Link,
+		arg.ArticleContent,
+		arg.ClickableBlockCount,
+	)
 	return err
 }
 
@@ -189,7 +197,7 @@ func (q *Queries) SelectArticlesByFeedID(ctx context.Context, feedID int64) ([]S
 }
 
 const selectCachedArticleByLink = `-- name: SelectCachedArticleByLink :one
-SELECT id, link, article_content, created, article_id FROM article_cache WHERE link = ?
+SELECT id, link, article_content, created, article_id, clickable_block_count FROM article_cache WHERE link = ?
 `
 
 func (q *Queries) SelectCachedArticleByLink(ctx context.Context, link string) (ArticleCache, error) {
@@ -201,6 +209,7 @@ func (q *Queries) SelectCachedArticleByLink(ctx context.Context, link string) (A
 		&i.ArticleContent,
 		&i.Created,
 		&i.ArticleID,
+		&i.ClickableBlockCount,
 	)
 	return i, err
 }
@@ -398,7 +407,7 @@ func (q *Queries) SelectLatest5StarredArticles(ctx context.Context) ([]SelectLat
 }
 
 const selectMarginNotesByArticleID = `-- name: SelectMarginNotesByArticleID :many
-SELECT id, article_id, block_id, note, date_added FROM margin_notes WHERE article_id = ?
+SELECT id, article_id, clickable_block_id, note, date_added FROM margin_notes WHERE article_id = ?
 `
 
 func (q *Queries) SelectMarginNotesByArticleID(ctx context.Context, articleID int64) ([]MarginNote, error) {
@@ -413,7 +422,7 @@ func (q *Queries) SelectMarginNotesByArticleID(ctx context.Context, articleID in
 		if err := rows.Scan(
 			&i.ID,
 			&i.ArticleID,
-			&i.BlockID,
+			&i.ClickableBlockID,
 			&i.Note,
 			&i.DateAdded,
 		); err != nil {
