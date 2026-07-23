@@ -26,16 +26,16 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 
 	sidebar, err := feedsGetSideBarTemplateData(queries, ctx)
 	if err != nil {
-		return td, err
+		return td, errors.New("error getting sidebar template data: " + err.Error())
 	}
 	td.Sidebar = sidebar
 
 	row, err := queries.SelectFeedAndArticletByArticleID(ctx, articleID)
 	if err != nil {
-		return td, err
+		return td, errors.New("error getting article data: " + err.Error())
 	}
 
-	td.ClickableBlockCount = row.ClickableBlockCount
+	// td.ClickableBlockCount = row.ClickableBlockCount
 
 	td.PageTitle = row.ArticleTitle
 	td.FeedTitle = row.FeedTitle
@@ -60,17 +60,18 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 	td.ArticlesRead = alreadyRead
 	td.ArticlesToRead = toRead
 
-	hasContent, cachedContent, err := feedsGetArticleIfCached(queries, td.Link, row.ArticleID, ctx)
+	hasContent, cachedContent, clickableBlocksCount, err := feedsGetArticleIfCached(queries, td.Link, row.ArticleID, ctx)
 	if err != nil {
 		return td, err
 	}
 
 	if hasContent {
 		td.PageContent = cachedContent
+		td.ClickableBlockCount = clickableBlocksCount
 		td.IsCache = true
 	} else {
 
-		newContent, err := feedsRetrieveArticleHTMLFromWeb(queries, row, ctx)
+		newContent, clickableBlocksCount, err := feedsRetrieveArticleHTMLFromWeb(queries, row, ctx)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				return td, err
@@ -78,11 +79,8 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 			return td, err
 		}
 		td.PageContent = newContent
+		td.ClickableBlockCount = clickableBlocksCount
 	}
-
-	// fmt.Printf("FeedTitle: %v\n", td.FeedTitle)
-	// fmt.Printf("AlreadyRead: %v\n", len(td.AlreadyRead))
-	// fmt.Printf("ToRead: %v\n", len(td.ToRead))
 
 	return td, nil
 }
@@ -205,32 +203,36 @@ func feedsGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Con
 	return alreadyRead, toRead, nil
 }
 
-func feedsGetArticleIfCached(queries *db.Queries, articleLink string, _ int64, ctx context.Context) (bool, string, error) {
+func feedsGetArticleIfCached(queries *db.Queries, articleLink string, _ int64, ctx context.Context) (bool, string, int64, error) {
+
+	var clickableBlocks int64 = 0
 
 	lc, err := queries.SelectCachedArticleByLink(ctx, articleLink)
 	if err == nil {
 
 		article, err := feedsRemoveOuterHTMLFromSanitizedHTML(lc.ArticleContent.String)
 		if err != nil {
-			return false, "", err
+			return false, "", clickableBlocks, err
 		}
 
 		articleStr, err := feedsStringifyHTML(article)
 		if err != nil {
-			return false, "", err
+			return false, "", clickableBlocks, err
 		}
 
-		return true, articleStr, nil
+		clickableBlocks := lc.ClickableBlockCount
+
+		return true, articleStr, clickableBlocks, nil
 	}
 	if err == sql.ErrNoRows {
-		return false, "", nil
+		return false, "", clickableBlocks, nil
 	}
 
-	return false, "", err
+	return false, "", clickableBlocks, err
 
 }
 
-func feedsRetrieveArticleHTMLFromWeb(queries *db.Queries, afd db.SelectFeedAndArticletByArticleIDRow, ctx context.Context) (string, error) {
+func feedsRetrieveArticleHTMLFromWeb(queries *db.Queries, afd db.SelectFeedAndArticletByArticleIDRow, ctx context.Context) (string, int64, error) {
 
 	pageHtmlContent := ""
 
@@ -263,21 +265,22 @@ func feedsRetrieveArticleHTMLFromWeb(queries *db.Queries, afd db.SelectFeedAndAr
 	})
 
 	if err := c.Visit(afd.ArticleLink); err != nil {
-		return "", fmt.Errorf("error using colly to visit page: %v - %v", afd.ArticleLink, err)
+		return "", 0, fmt.Errorf("error using colly to visit page: %v - %v", afd.ArticleLink, err)
 	}
 
 	sanitizedHtml, clickableBlockCount, err := feedsSanitizeAndAnnotateHTMLForStorage(pageHtmlContent)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	fmt.Println("feedsGetArticleHTMLFromWeb")
 	fmt.Printf("Counted %v clickable blocks...\n\n", clickableBlockCount)
 
 	stringifiedHTML, err := feedsStringifyHTML(sanitizedHtml)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
+	// this needs to be an INSERT SELECT
 	insertErr := queries.InsertCachedArticle(ctx,
 		db.InsertCachedArticleParams{
 			ArticleID:           afd.ArticleID,
@@ -288,10 +291,10 @@ func feedsRetrieveArticleHTMLFromWeb(queries *db.Queries, afd db.SelectFeedAndAr
 	)
 
 	if insertErr != nil {
-		return "", fmt.Errorf("error adding to article cache: %v", insertErr)
+		return "", 0, fmt.Errorf("error adding to article cache: %v", insertErr)
 	}
 
-	return stringifiedHTML, nil
+	return stringifiedHTML, clickableBlockCount, nil
 }
 
 func feedsExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelector string) string {

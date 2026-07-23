@@ -1,11 +1,11 @@
 package app
 
 import (
-	"crypto/sha256"
-	"crypto/subtle"
+	"bytes"
 	"embed"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"runtime"
 	"strconv"
@@ -25,15 +25,16 @@ func HttpSetupServer(queries *db.Queries, user string, password string) chi.Rout
 
 	r := chi.NewRouter()
 	r.Handle("/public/*", httpNeuterDirectory(http.FileServer(http.FS(staticFS))))
-	r.Group(func(site chi.Router) {
-		site.Use(httpBasicAuthHandler(user, password))
-		httpFrontEndRoutes(r, queries)
-		httpAdminRoutes(r, queries)
+
+	r.Group(func(pages chi.Router) {
+		pages.Use(httpDebugHttpRequest)
+		httpFrontEndRoutes(pages, queries)
+		httpAdminRoutes(pages, queries)
 	})
 	return r
 }
 
-func httpFrontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
+func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 
 	r.Get("/fake-route", func(w http.ResponseWriter, r *http.Request) {
 		SeparationOfConcernsBlahBlahTemplate(queries, r.Context()).Render(r.Context(), w)
@@ -269,7 +270,7 @@ func httpFrontEndRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
 	return r
 }
 
-func httpAdminRoutes(r *chi.Mux, queries *db.Queries) *chi.Mux {
+func httpAdminRoutes(r chi.Router, queries *db.Queries) chi.Router {
 
 	r.Get("/admin/feeds/list", func(w http.ResponseWriter, r *http.Request) {
 
@@ -341,30 +342,77 @@ func httpNeuterDirectory(next http.Handler) http.Handler {
 	})
 }
 
-func httpBasicAuthHandler(user string, user_password string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			username, password, ok := r.BasicAuth()
+// func httpBasicAuthHandler(user string, user_password string) func(http.Handler) http.Handler {
+// 	return func(next http.Handler) http.Handler {
+// 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 			username, password, ok := r.BasicAuth()
 
-			if ok {
-				usernameHash := sha256.Sum256([]byte(username))
-				passwordHash := sha256.Sum256([]byte(password))
-				expectedUsernameHash := sha256.Sum256([]byte(user))
-				expectedPasswordHash := sha256.Sum256([]byte(user_password))
+// 			if ok {
+// 				usernameHash := sha256.Sum256([]byte(username))
+// 				passwordHash := sha256.Sum256([]byte(password))
+// 				expectedUsernameHash := sha256.Sum256([]byte(user))
+// 				expectedPasswordHash := sha256.Sum256([]byte(user_password))
 
-				usernameMatch := subtle.ConstantTimeCompare(usernameHash[:], expectedUsernameHash[:]) == 1
-				passwordMatch := subtle.ConstantTimeCompare(passwordHash[:], expectedPasswordHash[:]) == 1
+// 				usernameMatch := subtle.ConstantTimeCompare(usernameHash[:], expectedUsernameHash[:]) == 1
+// 				passwordMatch := subtle.ConstantTimeCompare(passwordHash[:], expectedPasswordHash[:]) == 1
 
-				if usernameMatch && passwordMatch {
-					next.ServeHTTP(w, r)
-					return
-				}
-			}
+// 				if usernameMatch && passwordMatch {
+// 					next.ServeHTTP(w, r)
+// 					return
+// 				}
+// 			}
 
-			w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		})
+// 			w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
+// 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+// 		})
+// 	}
+// }
+
+func httpDebugHttpRequest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		httpDumpRequest(r, false, false)
+		next.ServeHTTP(w, r)
+	})
+}
+
+func httpDumpRequest(r *http.Request, readHeaders bool, readJsonBody bool) {
+
+	fmt.Printf("\n=== %s %s ===\n", r.Method, r.URL)
+
+	routeCtx := chi.RouteContext(r.Context())
+	if routeCtx != nil {
+		fmt.Println("Path params:")
+		for i, key := range routeCtx.URLParams.Keys {
+			fmt.Printf("  %s = %s\n", key, routeCtx.URLParams.Values[i])
+		}
 	}
+
+	fmt.Println("Query params:")
+	for key, values := range r.URL.Query() {
+		fmt.Printf("  %s = %v\n", key, values)
+	}
+
+	if err := r.ParseForm(); err == nil {
+		fmt.Println("Form values:")
+		for key, values := range r.PostForm {
+			fmt.Printf("  %s = %v\n", key, values)
+		}
+	}
+
+	if readHeaders {
+		fmt.Println("Headers:")
+		for key, values := range r.Header {
+			fmt.Printf("  %s = %v\n", key, values)
+		}
+	}
+
+	if readJsonBody {
+		fmt.Println("JSON body:")
+		body, _ := io.ReadAll(r.Body)
+		fmt.Println(string(body))
+		r.Body = io.NopCloser(bytes.NewBuffer(body))
+	}
+
 }
 
 func httpRequireNonZeroInt64(value string, key string, w http.ResponseWriter, r *http.Request) (int64, bool) {

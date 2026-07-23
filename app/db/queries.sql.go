@@ -227,12 +227,9 @@ SELECT
 	f.css_sel_container as feed_css_sel_container, 
 	f.css_sel_start as feed_css_sel_start, 
 	f.css_sel_stop as feed_css_sel_stop, 
-	f.html_extraction_strategy as feed_html_extraction_strategy,
-	ac.clickable_block_count    
+	f.html_extraction_strategy as feed_html_extraction_strategy
 FROM 
 	articles a 
-INNER JOIN article_cache ac
-ON a.id = ac.article_id
 INNER JOIN feeds f 
 ON f.id = a.feed_id where a.id = ?
 `
@@ -250,7 +247,6 @@ type SelectFeedAndArticletByArticleIDRow struct {
 	FeedCssSelStart            sql.NullString
 	FeedCssSelStop             sql.NullString
 	FeedHtmlExtractionStrategy sql.NullString
-	ClickableBlockCount        int64
 }
 
 func (q *Queries) SelectFeedAndArticletByArticleID(ctx context.Context, id int64) (SelectFeedAndArticletByArticleIDRow, error) {
@@ -269,7 +265,6 @@ func (q *Queries) SelectFeedAndArticletByArticleID(ctx context.Context, id int64
 		&i.FeedCssSelStart,
 		&i.FeedCssSelStop,
 		&i.FeedHtmlExtractionStrategy,
-		&i.ClickableBlockCount,
 	)
 	return i, err
 }
