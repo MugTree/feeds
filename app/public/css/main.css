@@ -92,4 +92,5 @@ span {
 }
 
 .editor div {
+  flex: 1;
 }

@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"github.com/mugtree/feeds/app/db"
 	"github.com/starfederation/datastar-go/datastar"
 )
 
@@ -46,7 +47,9 @@ templ TemplateArticlePage(td ArticlePageTemplateData) {
 		<div>
 			@templ.Raw(td.PageContent)
 		</div>
-		<div></div>
+		<div>
+			@TemplateArticleNoteView("Some text", 0)
+		</div>
 	</section>
 	@TemplateLikeArticle(td.FeedID, td.ArticleId, td.StarValue)
 	/**
@@ -65,4 +68,24 @@ templ TemplateArticlePage(td ArticlePageTemplateData) {
 
 templ TemplateLikeArticle(feedID int64, articleID int64, starsValue int64) {
 	<div id="star-value" data-on:click={ datastar.PutSSE(`/article/%v/%v/like/%v`, feedID, articleID, starsValue) }>Starred: <img width="60px" src={ templ.SafeURL(fmt.Sprintf("/public/img/%v-star.png", starsValue)) }/> </div>
+}
+
+templ TemplateArticleNotes(notes []db.MarginNote) {
+}
+
+templ TemplateArticleNoteAdd(articleID int64, blockID int64) {
+	<div class="article-note" data-block-ref={ blockID }>
+		<form>
+			<textarea name="note"></textarea>
+			{{ url := fmt.Sprintf(`@put("/article/%v/%v/note/add", {contentType: 'form'})`, articleID, blockID) }}
+			<button data-on:click={ url }>Comment</button>
+		</form>
+	</div>
+}
+
+// these will likely have an id value
+templ TemplateArticleNoteView(note string, blockId int64) {
+	<div class="article-note" data-block-ref={ blockId }>
+		{ note }
+	</div>
 }

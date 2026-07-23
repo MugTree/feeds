@@ -16,6 +16,7 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/mmcdole/gofeed"
 	"github.com/mugtree/feeds/app/db"
+	"github.com/starfederation/datastar-go/datastar"
 	"golang.org/x/net/html"
 )
 
@@ -55,7 +56,13 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 	td.FeedID = row.FeedID
 	td.StarValue = row.ArticleStars
 	td.ArticlePublished = row.ArticlePublished.Format(layoutISO)
-	//td.Annotations = FAKE_getAnnotations()
+
+	notes, err := queries.SelectMarginNotesByArticleID(ctx, articleID)
+	if err != nil {
+		return td, err
+	}
+
+	td.MarginNotes = notes
 
 	alreadyRead, toRead, err := feedsGetArticlesByFeedID(queries, feedID, ctx)
 	if err != nil {
@@ -64,7 +71,7 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 	td.ArticlesRead = alreadyRead
 	td.ArticlesToRead = toRead
 
-	hasContent, cachedContent, err := feedsIsArticleCached(queries, td.Link, ctx)
+	hasContent, cachedContent, err := feedsGetArticleIfCached(queries, td.Link, row.ArticleID, ctx)
 	if err != nil {
 		return td, err
 	}
@@ -74,7 +81,7 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 		td.IsCache = true
 	} else {
 
-		newContent, err := feedsGetArticleHTMLFromWeb(queries, row, ctx)
+		newContent, err := feedsRetrieveArticleHTMLFromWeb(queries, row, ctx)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				return td, err
@@ -209,11 +216,22 @@ func feedsGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Con
 	return alreadyRead, toRead, nil
 }
 
-func feedsIsArticleCached(queries *db.Queries, articleLink string, ctx context.Context) (bool, string, error) {
+func feedsGetArticleIfCached(queries *db.Queries, articleLink string, _ int64, ctx context.Context) (bool, string, error) {
 
 	lc, err := queries.SelectCachedArticleByLink(ctx, articleLink)
 	if err == nil {
-		return true, lc.ArticleContent.String, nil
+
+		article, err := feedsRemoveOuterHTMLFromSanitizedHTML(lc.ArticleContent.String)
+		if err != nil {
+			return false, "", err
+		}
+
+		articleStr, err := feedsStringifyHTML(article)
+		if err != nil {
+			return false, "", err
+		}
+
+		return true, articleStr, nil
 	}
 	if err == sql.ErrNoRows {
 		return false, "", nil
@@ -223,7 +241,7 @@ func feedsIsArticleCached(queries *db.Queries, articleLink string, ctx context.C
 
 }
 
-func feedsGetArticleHTMLFromWeb(queries *db.Queries, afd db.SelectFeedAndArticletByArticleIDRow, ctx context.Context) (string, error) {
+func feedsRetrieveArticleHTMLFromWeb(queries *db.Queries, afd db.SelectFeedAndArticletByArticleIDRow, ctx context.Context) (string, error) {
 
 	pageHtmlContent := ""
 
@@ -259,12 +277,14 @@ func feedsGetArticleHTMLFromWeb(queries *db.Queries, afd db.SelectFeedAndArticle
 		return "", fmt.Errorf("error using colly to visit page: %v - %v", afd.ArticleLink, err)
 	}
 
-	sanitizedHtml, err := feedsSanitizeHTMLForStorage(pageHtmlContent)
+	sanitizedHtml, blockCount, err := feedsSanitizeAndAnnotateHTMLForStorage(pageHtmlContent)
 	if err != nil {
 		return "", err
 	}
+	fmt.Println("feedsGetArticleHTMLFromWeb")
+	fmt.Printf("Counted %v blocks...\n\n", blockCount)
 
-	output, err := feedsStringifyHTMLForStorage(sanitizedHtml, "article")
+	output, err := feedsStringifyHTML(sanitizedHtml)
 	if err != nil {
 		return "", err
 	}
@@ -351,12 +371,15 @@ func feedsGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error
 
 			now := time.Now()
 
-			sanitizedHtml, err := feedsSanitizeHTMLForStorage(item.Description)
+			sanitizedHtml, blockCount, err := feedsSanitizeAndAnnotateHTMLForStorage(item.Description)
 			if err != nil {
 				return 0, err
 			}
 
-			output, err := feedsStringifyHTMLForStorage(sanitizedHtml, "div")
+			fmt.Println("feedsGetFeedUpdates")
+			fmt.Printf("Counted %v blocks...\n\n", blockCount)
+
+			output, err := feedsStringifyHTML(sanitizedHtml)
 			if err != nil {
 				return 0, err
 			}
@@ -392,11 +415,11 @@ func feedsGetFeedItemDate(item *gofeed.Item) *time.Time {
 	return nil
 }
 
-func feedsSanitizeHTMLForStorage(input string) (*html.Node, error) {
+func feedsSanitizeAndAnnotateHTMLForStorage(input string) (*html.Node, int, error) {
 
 	doc, err := html.Parse(strings.NewReader(input))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	allowedAttrs := func(tag string) map[string]struct{} {
@@ -428,6 +451,7 @@ func feedsSanitizeHTMLForStorage(input string) (*html.Node, error) {
 			//"h3",
 			//"h4",
 			//"div",
+			"figure",
 			"blockquote",
 			"ul",
 			"ol",
@@ -438,7 +462,7 @@ func feedsSanitizeHTMLForStorage(input string) (*html.Node, error) {
 		}
 	}
 
-	blockID := 0
+	marginNoteID := 0
 
 	var cleanHTML func(n *html.Node)
 
@@ -498,17 +522,20 @@ func feedsSanitizeHTMLForStorage(input string) (*html.Node, error) {
 
 				c.Attr = attrs
 
-				//
-				// Add application block ID
-				//
+				// Enrich document with attributes required for tront end
 				if isBlockElement(strings.ToLower(c.Data)) {
 
 					c.Attr = append(c.Attr, html.Attribute{
-						Key: "data-block-id",
-						Val: strconv.Itoa(blockID),
+						Key: "data-margin-note-id",
+						Val: strconv.Itoa(marginNoteID),
 					})
 
-					blockID++
+					c.Attr = append(c.Attr, html.Attribute{
+						Key: "data-on:click",
+						Val: datastar.GetSSE("/url/%v", marginNoteID),
+					})
+
+					marginNoteID++
 				}
 			}
 
@@ -540,11 +567,59 @@ func feedsSanitizeHTMLForStorage(input string) (*html.Node, error) {
 
 	cleanHTML(doc)
 
-	return doc, nil
+	// disambiguate the counter from the count
+	totalMarginNoteCount := marginNoteID
+
+	return doc, totalMarginNoteCount, nil
+}
+
+func feedsRemoveOuterHTMLFromSanitizedHTML(doc string) (*html.Node, error) {
+
+	body, err := html.Parse(strings.NewReader(doc))
+	if err != nil {
+		return nil, err
+	}
+
+	var walk func(*html.Node)
+
+	walk = func(n *html.Node) {
+		if body != nil {
+			return
+		}
+
+		if n.Type == html.ElementNode && n.Data == "body" {
+			body = n
+			return
+		}
+
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+
+	walk(body)
+
+	if body == nil {
+		return nil, fmt.Errorf("body element not found")
+	}
+
+	article := &html.Node{
+		Type: html.ElementNode,
+		Data: "article",
+	}
+
+	// Move every child from <body> into <article>.
+	for body.FirstChild != nil {
+		child := body.FirstChild
+		body.RemoveChild(child)
+		article.AppendChild(child)
+	}
+
+	return article, nil
 }
 
 // article for the article, div for the desc from feeds
-func feedsStringifyHTMLForStorage(doc *html.Node, holdingTag string) (string, error) {
+func feedsStringifyHTML(doc *html.Node) (string, error) {
 
 	var b strings.Builder
 
@@ -554,12 +629,7 @@ func feedsStringifyHTMLForStorage(doc *html.Node, holdingTag string) (string, er
 		return "", err
 	}
 
-	s := strings.Replace(b.String(), "<html><head></head><body>", "<"+holdingTag+">", 1)
-	s = strings.Replace(s, "</body></html>", "</"+holdingTag+">", 1)
-	s = strings.ReplaceAll(s, "\n", "")
-	s = strings.ReplaceAll(s, "\t", "")
-
-	return s, nil
+	return b.String(), nil
 }
 
 type feedsArticle struct {
@@ -650,6 +720,7 @@ type ArticlePageTemplateData struct {
 	StarValue        int64
 	Sidebar          []feedsSidebarLink
 	ArticlePublished string
+	MarginNotes      []db.MarginNote
 	//Annotations      []feedsAnnotation
 }
 

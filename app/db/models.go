@@ -9,16 +9,6 @@ import (
 	"time"
 )
 
-type Annotation struct {
-	ID        int64
-	ArticleID int64
-	StartData string
-	EndData   string
-	Snippet   string
-	Note      string
-	DateAdded *time.Time
-}
-
 type Article struct {
 	ID        int64
 	FeedID    int64
@@ -48,4 +38,12 @@ type Feed struct {
 	CssSelStart            sql.NullString
 	CssSelStop             sql.NullString
 	HtmlExtractionStrategy sql.NullString
+}
+
+type MarginNote struct {
+	ID        int64
+	ArticleID int64
+	BlockID   int64
+	Note      string
+	DateAdded time.Time
 }

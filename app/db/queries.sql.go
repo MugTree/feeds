@@ -11,30 +11,6 @@ import (
 	"time"
 )
 
-const insertArticleAnnotation = `-- name: InsertArticleAnnotation :exec
-INSERT INTO annotations (article_id, start_data, end_data, note, snippet, date_added) 
-VALUES (?,?,?,?,?, CURRENT_TIMESTAMP)
-`
-
-type InsertArticleAnnotationParams struct {
-	ArticleID int64
-	StartData string
-	EndData   string
-	Note      string
-	Snippet   string
-}
-
-func (q *Queries) InsertArticleAnnotation(ctx context.Context, arg InsertArticleAnnotationParams) error {
-	_, err := q.db.ExecContext(ctx, insertArticleAnnotation,
-		arg.ArticleID,
-		arg.StartData,
-		arg.EndData,
-		arg.Note,
-		arg.Snippet,
-	)
-	return err
-}
-
 const insertCachedArticle = `-- name: InsertCachedArticle :exec
 INSERT INTO article_cache (
 	article_id,
@@ -129,41 +105,6 @@ func (q *Queries) SelectAllFeeds(ctx context.Context) ([]Feed, error) {
 			&i.CssSelStart,
 			&i.CssSelStop,
 			&i.HtmlExtractionStrategy,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const selectArticleAnnotationsByID = `-- name: SelectArticleAnnotationsByID :many
-SELECT id, article_id, start_data, end_data, snippet, note, date_added FROM annotations WHERE article_id = ?
-`
-
-func (q *Queries) SelectArticleAnnotationsByID(ctx context.Context, articleID int64) ([]Annotation, error) {
-	rows, err := q.db.QueryContext(ctx, selectArticleAnnotationsByID, articleID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Annotation
-	for rows.Next() {
-		var i Annotation
-		if err := rows.Scan(
-			&i.ID,
-			&i.ArticleID,
-			&i.StartData,
-			&i.EndData,
-			&i.Snippet,
-			&i.Note,
-			&i.DateAdded,
 		); err != nil {
 			return nil, err
 		}
@@ -442,6 +383,39 @@ func (q *Queries) SelectLatest5StarredArticles(ctx context.Context) ([]SelectLat
 			&i.Read,
 			&i.Starred,
 			&i.FeedTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectMarginNotesByArticleID = `-- name: SelectMarginNotesByArticleID :many
+SELECT id, article_id, block_id, note, date_added FROM margin_notes WHERE article_id = ?
+`
+
+func (q *Queries) SelectMarginNotesByArticleID(ctx context.Context, articleID int64) ([]MarginNote, error) {
+	rows, err := q.db.QueryContext(ctx, selectMarginNotesByArticleID, articleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MarginNote
+	for rows.Next() {
+		var i MarginNote
+		if err := rows.Scan(
+			&i.ID,
+			&i.ArticleID,
+			&i.BlockID,
+			&i.Note,
+			&i.DateAdded,
 		); err != nil {
 			return nil, err
 		}

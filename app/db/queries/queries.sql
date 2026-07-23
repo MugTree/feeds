@@ -69,6 +69,8 @@ FROM
 INNER JOIN feeds f 
 ON f.id = a.feed_id where a.id = ?;
 
+-- name: SelectMarginNotesByArticleID :many
+SELECT * FROM margin_notes WHERE article_id = ?;
 
 -- name: SelectCachedArticleByLink :one
 SELECT * FROM article_cache WHERE link = ?;
@@ -119,12 +121,9 @@ UPDATE articles SET read = 1 WHERE id = ?;
 -- name: UpdateArticleSetStarredValue :exec
 UPDATE articles SET starred = ? WHERE id = ?;
 
--- name: InsertArticleAnnotation :exec
-INSERT INTO annotations (article_id, start_data, end_data, note, snippet, date_added) 
-VALUES (?,?,?,?,?, CURRENT_TIMESTAMP);
 
--- name: SelectArticleAnnotationsByID :many
-SELECT * FROM annotations WHERE article_id = ?;
+
+
 
 -- name: SelectArticleContentFromArticleCache :one
 SELECT article_content FROM article_cache WHERE article_id = ?;
