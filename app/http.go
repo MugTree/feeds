@@ -36,10 +36,6 @@ func HttpSetupServer(queries *db.Queries, user string, password string) chi.Rout
 
 func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 
-	r.Get("/fake-route", func(w http.ResponseWriter, r *http.Request) {
-		SeparationOfConcernsBlahBlahTemplate(queries, r.Context()).Render(r.Context(), w)
-	})
-
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
