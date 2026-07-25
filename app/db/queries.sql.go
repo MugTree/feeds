@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const insertCachedArticle = `-- name: InsertCachedArticle :exec
+const insertAndReturnCachedArticle = `-- name: InsertAndReturnCachedArticle :one
 INSERT INTO article_cache (
 	article_id,
 	link, 
@@ -24,24 +24,33 @@ INSERT INTO article_cache (
 ?, 
 ?,
 CURRENT_TIMESTAMP
-)
+) RETURNING id, link, article_content, created, article_id, clickable_block_count
 `
 
-type InsertCachedArticleParams struct {
+type InsertAndReturnCachedArticleParams struct {
 	ArticleID           int64
 	Link                string
 	ArticleContent      sql.NullString
 	ClickableBlockCount int64
 }
 
-func (q *Queries) InsertCachedArticle(ctx context.Context, arg InsertCachedArticleParams) error {
-	_, err := q.db.ExecContext(ctx, insertCachedArticle,
+func (q *Queries) InsertAndReturnCachedArticle(ctx context.Context, arg InsertAndReturnCachedArticleParams) (ArticleCache, error) {
+	row := q.db.QueryRowContext(ctx, insertAndReturnCachedArticle,
 		arg.ArticleID,
 		arg.Link,
 		arg.ArticleContent,
 		arg.ClickableBlockCount,
 	)
-	return err
+	var i ArticleCache
+	err := row.Scan(
+		&i.ID,
+		&i.Link,
+		&i.ArticleContent,
+		&i.Created,
+		&i.ArticleID,
+		&i.ClickableBlockCount,
+	)
+	return i, err
 }
 
 const insertOrIgnoreArticle = `-- name: InsertOrIgnoreArticle :exec

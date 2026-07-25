@@ -46,13 +46,6 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 	td.StarValue = row.ArticleStars
 	td.ArticlePublished = row.ArticlePublished.Format(layoutISO)
 
-	notes, err := queries.SelectMarginNotesByArticleID(ctx, articleID)
-	if err != nil {
-		return td, err
-	}
-
-	td.MarginNotes = notes
-
 	alreadyRead, toRead, err := feedsGetArticlesByFeedID(queries, feedID, ctx)
 	if err != nil {
 		return td, err
@@ -60,27 +53,52 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 	td.ArticlesRead = alreadyRead
 	td.ArticlesToRead = toRead
 
-	hasContent, cachedContent, clickableBlocksCount, err := feedsGetArticleIfCached(queries, td.Link, row.ArticleID, ctx)
+	hasContent, preCachedHTML, clickableBlocksCount, err := feedsGetArticleContentIfCached(queries, td.Link, row.ArticleID, ctx)
 	if err != nil {
 		return td, err
 	}
 
 	if hasContent {
-		td.PageContent = cachedContent
+
+		td.PageContent = preCachedHTML
 		td.ClickableBlockCount = clickableBlocksCount
 		td.IsCache = true
-	} else {
 
-		newContent, clickableBlocksCount, err := feedsRetrieveArticleHTMLFromWeb(queries, row, ctx)
+		notes, err := queries.SelectMarginNotesByArticleID(ctx, articleID)
 		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
-				return td, err
-			}
 			return td, err
 		}
-		td.PageContent = newContent
-		td.ClickableBlockCount = clickableBlocksCount
+
+		// these need to be used as a lookup in the template
+		notesMap := libSliceToMap(notes, func(n db.MarginNote) int64 {
+			return n.ID
+		})
+
+		td.MarginNotes = notesMap
+		return td, nil
 	}
+
+	newHTML, clickableBlocksCount, err := feedsRetrieveAndSanitizeArticleHTMLFromWeb(queries, row, ctx)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return td, err
+		}
+		return td, err
+	}
+
+	newlyCached, err := queries.InsertAndReturnCachedArticle(ctx, db.InsertAndReturnCachedArticleParams{
+		ArticleID:           articleID,
+		Link:                td.Link,
+		ArticleContent:      sql.NullString{String: newHTML, Valid: true},
+		ClickableBlockCount: clickableBlocksCount,
+	})
+
+	if err != nil {
+		return td, err
+	}
+
+	td.PageContent = newlyCached.ArticleContent.String
+	td.ClickableBlockCount = newlyCached.ClickableBlockCount
 
 	return td, nil
 }
@@ -203,7 +221,7 @@ func feedsGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Con
 	return alreadyRead, toRead, nil
 }
 
-func feedsGetArticleIfCached(queries *db.Queries, articleLink string, _ int64, ctx context.Context) (bool, string, int64, error) {
+func feedsGetArticleContentIfCached(queries *db.Queries, articleLink string, _ int64, ctx context.Context) (bool, string, int64, error) {
 
 	var clickableBlocks int64 = 0
 
@@ -232,7 +250,7 @@ func feedsGetArticleIfCached(queries *db.Queries, articleLink string, _ int64, c
 
 }
 
-func feedsRetrieveArticleHTMLFromWeb(queries *db.Queries, afd db.SelectFeedAndArticletByArticleIDRow, ctx context.Context) (string, int64, error) {
+func feedsRetrieveAndSanitizeArticleHTMLFromWeb(_ *db.Queries, afd db.SelectFeedAndArticletByArticleIDRow, _ context.Context) (string, int64, error) {
 
 	pageHtmlContent := ""
 
@@ -278,20 +296,6 @@ func feedsRetrieveArticleHTMLFromWeb(queries *db.Queries, afd db.SelectFeedAndAr
 	stringifiedHTML, err := feedsStringifyHTML(sanitizedHtml)
 	if err != nil {
 		return "", 0, err
-	}
-
-	// this needs to be an INSERT SELECT
-	insertErr := queries.InsertCachedArticle(ctx,
-		db.InsertCachedArticleParams{
-			ArticleID:           afd.ArticleID,
-			Link:                afd.ArticleLink,
-			ArticleContent:      sql.NullString{String: stringifiedHTML, Valid: true},
-			ClickableBlockCount: clickableBlockCount,
-		},
-	)
-
-	if insertErr != nil {
-		return "", 0, fmt.Errorf("error adding to article cache: %v", insertErr)
 	}
 
 	return stringifiedHTML, clickableBlockCount, nil
@@ -713,7 +717,7 @@ type ArticlePageTemplateData struct {
 	StarValue           int64
 	Sidebar             []feedsSidebarLink
 	ArticlePublished    string
-	MarginNotes         []db.MarginNote
+	MarginNotes         map[int64]db.MarginNote
 	ClickableBlockCount int64
 
 	//Annotations      []feedsAnnotation

@@ -48,7 +48,7 @@ templ TemplateArticlePage(td ArticlePageTemplateData) {
 			@templ.Raw(td.PageContent)
 		</div>
 		<div>
-			@TemplateArticleNoteView("Some text", 0)
+			@TemplateArticleNotes(td.MarginNotes, td.ClickableBlockCount)
 		</div>
 	</section>
 	@TemplateLikeArticle(td.FeedID, td.ArticleId, td.StarValue)
@@ -70,7 +70,18 @@ templ TemplateLikeArticle(feedID int64, articleID int64, starsValue int64) {
 	<div id="star-value" data-on:click={ datastar.PutSSE(`/article/%v/%v/like/%v`, feedID, articleID, starsValue) }>Starred: <img width="60px" src={ templ.SafeURL(fmt.Sprintf("/public/img/%v-star.png", starsValue)) }/> </div>
 }
 
-templ TemplateArticleNotes(notes []db.MarginNote) {
+templ TemplateArticleNotes(notes map[int64]db.MarginNote, blockCount int64) {
+	<div>
+		There are { blockCount } notes	
+	</div>
+	for i := range blockCount {
+		{{ note, blockHasNote := notes[i] }}
+		if blockHasNote {
+			<div data-note-id={ note.ID }>{ note.Note }</div>
+		} else {
+			<div data-note-id={ note.ID }>{ note.ID }</div>
+		}
+	}
 }
 
 templ TemplateArticleNoteAdd(articleID int64, blockID int64) {

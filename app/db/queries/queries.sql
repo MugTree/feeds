@@ -75,7 +75,7 @@ SELECT * FROM margin_notes WHERE article_id = ?;
 -- name: SelectCachedArticleByLink :one
 SELECT * FROM article_cache WHERE link = ?;
 
--- name: InsertCachedArticle :exec
+-- name: InsertAndReturnCachedArticle :one
 INSERT INTO article_cache (
 	article_id,
 	link, 
@@ -88,7 +88,7 @@ INSERT INTO article_cache (
 ?, 
 ?,
 CURRENT_TIMESTAMP
-);
+) RETURNING *; 
 
 -- name: SelectAllFeeds :many
 SELECT * from feeds;	
