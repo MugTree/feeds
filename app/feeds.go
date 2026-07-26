@@ -16,7 +16,7 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/mmcdole/gofeed"
 	"github.com/mugtree/feeds/app/db"
-	utils "github.com/mugtree/feeds/lib"
+	"github.com/mugtree/feeds/lib"
 	"github.com/starfederation/datastar/sdk/go/datastar"
 	"golang.org/x/net/html"
 )
@@ -74,7 +74,7 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 		}
 
 		// these need to be used as a lookup in the template
-		notesMap := utils.SliceToMap(notes, func(n db.MarginNote) int64 {
+		notesMap := lib.SliceToMap(notes, func(n db.MarginNote) int64 {
 			return n.ID
 		})
 
@@ -165,7 +165,7 @@ func feedsGetHomePageArticleSelections(queries *db.Queries, ctx context.Context)
 			Published: row.Published.Format(layoutISO),
 			DateFound: row.DateFound.Format(layoutISO),
 			Summary:   row.Summary,
-			Read:      utils.IntToBool(row.Read),
+			Read:      lib.IntToBool(row.Read),
 			Liked:     row.Starred,
 			FeedTitle: row.FeedTitle,
 		})
@@ -182,7 +182,7 @@ func feedsGetHomePageArticleSelections(queries *db.Queries, ctx context.Context)
 			Published: row.Published.Format(layoutISO),
 			DateFound: row.Published.Format(layoutISO),
 			Summary:   row.Summary,
-			Read:      utils.IntToBool(row.Read),
+			Read:      lib.IntToBool(row.Read),
 			Liked:     row.Starred,
 			FeedTitle: row.FeedTitle,
 		})
@@ -211,7 +211,7 @@ func feedsGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Con
 			Published: row.Published.Format(layoutISO),
 			DateFound: row.DateFound.Format(layoutISO),
 			Summary:   row.Summary,
-			Read:      utils.IntToBool(row.Read),
+			Read:      lib.IntToBool(row.Read),
 			Liked:     row.Starred,
 			FeedTitle: row.FeedTitle,
 		}
