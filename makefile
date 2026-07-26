@@ -1,6 +1,16 @@
 seed-db:
 	go run ./app/db/seed/generate.go --urls=./app/db/seed/seed.csv --db=./feeds.db
 
+destroy-db:
+	rm feeds.db
+	rm feeds.db-*
+
+recreate-db:
+	touch feeds.db
+	goose status
+	goose up
+	make seed-db 
+
 lint:
 	golangci-lint run .
 

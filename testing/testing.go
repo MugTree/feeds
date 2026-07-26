@@ -2,116 +2,170 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
-	"github.com/starfederation/datastar-go/datastar"
 	"golang.org/x/net/html"
 )
 
-func feedsEnrichSantitizedHTMLWithEvents(input string) (*html.Node, error) {
+func feedsSanitizeAndAnnotateHTMLForStorage(input string) (*html.Node, int64, error) {
 
 	doc, err := html.Parse(strings.NewReader(input))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	var enrichHTML func(n *html.Node)
+	allowedAttrs := func(tag string) map[string]struct{} {
+		switch tag {
+		case "a":
+			return map[string]struct{}{
+				"href": {},
+			}
+		case "img":
+			return map[string]struct{}{
+				"src": {},
+				"alt": {},
+			}
+		case "td", "th":
+			return map[string]struct{}{
+				"colspan": {},
+				"rowspan": {},
+			}
+		default:
+			return nil
+		}
+	}
 
-	enrichHTML = func(n *html.Node) {
+	isBlockElement := func(tag string) bool {
+		switch tag {
+		case "p",
+			//"h1",
+			//"h2",
+			//"h3",
+			//"h4",
+			//"div",
+			"figure",
+			"blockquote",
+			"ul",
+			"ol",
+			"table":
+			return true
+		default:
+			return false
+		}
+	}
+
+	shouldRemoveElement := func(n *html.Node) bool {
+
+		if n.Type != html.ElementNode {
+			return false
+		}
+
+		switch strings.ToLower(n.Data) {
+		case "script", "noscript", "style", "template":
+			return true
+		default:
+			return false
+		}
+	}
+
+	clickableBlockID := 0
+
+	var cleanHTML func(n *html.Node, ancestorIsBlock bool)
+
+	cleanHTML = func(n *html.Node, ancestorIsBlock bool) {
 
 		for c := n.FirstChild; c != nil; {
 
 			next := c.NextSibling
 
-			attrs := c.Attr
-
-			for _, v := range attrs {
-
-				if v.Key == "data-block-id" {
-
-					attrs = append(attrs, html.Attribute{
-						Key: "data-on:click",
-						Val: datastar.PutSSE("/url/%v", v.Val),
-					})
-				}
-
+			if shouldRemoveElement(c) {
+				n.RemoveChild(c)
+				c = next
+				continue
 			}
 
-			// update the attributes
-			c.Attr = attrs
+			if c.Type == html.CommentNode {
+				n.RemoveChild(c)
+				c = next
+				continue
+			}
+
+			childAncestorIsBlock := ancestorIsBlock
+
+			if c.Type == html.ElementNode {
+
+				allowed := allowedAttrs(strings.ToLower(c.Data))
+
+				attrs := c.Attr[:0]
+
+				for _, v := range c.Attr {
+
+					if _, ok := allowed[v.Key]; ok {
+						attrs = append(attrs, v)
+					}
+				}
+
+				c.Attr = attrs
+
+				if isBlockElement(strings.ToLower(c.Data)) && !ancestorIsBlock {
+
+					c.Attr = append(c.Attr, html.Attribute{
+						Key: "data-block-id",
+						Val: strconv.Itoa(clickableBlockID),
+					})
+
+					clickableBlockID++
+					childAncestorIsBlock = true
+				}
+			}
 
 			if c.FirstChild != nil {
-				enrichHTML(c)
+				cleanHTML(c, childAncestorIsBlock)
+			}
+
+			if c.Type == html.ElementNode &&
+				len(c.Attr) == 0 &&
+				c.FirstChild == nil {
+
+				switch strings.ToLower(c.Data) {
+				case "div", "span", "p":
+					n.RemoveChild(c)
+					c = next
+					continue
+				}
 			}
 
 			c = next
 		}
-
 	}
 
-	enrichHTML(doc)
-	return doc, nil
-}
+	cleanHTML(doc, false)
 
-func feedsTransformSanitizedToArticle(doc *html.Node) (*html.Node, error) {
+	// disambiguate the counter from the count
+	clickableBlockCount := int64(clickableBlockID)
 
-	var body *html.Node
-
-	var walk func(*html.Node)
-
-	walk = func(n *html.Node) {
-		if body != nil {
-			return
-		}
-
-		if n.Type == html.ElementNode && n.Data == "body" {
-			body = n
-			return
-		}
-
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-
-	walk(doc)
-
-	if body == nil {
-		return nil, fmt.Errorf("body element not found")
-	}
-
-	article := &html.Node{
-		Type: html.ElementNode,
-		Data: "article",
-	}
-
-	// Move every child from <body> into <article>.
-	for body.FirstChild != nil {
-		child := body.FirstChild
-		body.RemoveChild(child)
-		article.AppendChild(child)
-	}
-
-	return article, nil
+	return doc, clickableBlockCount, nil
 }
 
 func main() {
 
-	str := `<html><head></head><body><p data-block-id="0"><em>Come on boys, stay calm. Everyone stay calm. The principle, the main thing, let’s stay calm boys, stay calm, composure. Let’s just think about playing, stay calm. Let’s forget about everything, eh? Let’s just play, let’s just focus on playing, stay calm. Come on.</em></p><p data-block-id="1">Those words from Messi show how it appears that he and the rest of the Argentina squad learned right before the game that the wind at their backs they’d been enjoying was going to be benefiting Spain. It also explains why they turned their backs on the trophy presentation ceremony; most of the squad are serious Catholics. Why? Well, as one man has demonstrated, it appears the game itself, indeed, the entire tournament, was a Clown World ritual that was set up more than two decades ago.</p><div><figure><img src="https://voxday.net/wp-content/uploads/2026/07/image-11.png" alt=""/></figure></div><p data-block-id="2">There is a lot more than that; the Economist cover is not proof of anything, but it is consistent with the theme, and, of course, we know that FIFA is wholly owned by Clown World, as is most of the so-called “entertainment” industry. And the humiliation ritual of Donald Trump at the end would also appear to have been staged as part of the whole act. Whatever was going on, it was almost certainly a little darker than WWE-style scripting.</p><p data-block-id="3"><em><a href="https://socialgalactic.com/micropost/1e165433-4a0c-43ca-8c5d-370f3d54c165">DISCUSS ON SG</a></em></p></body></html>`
-	htmlDoc, err := feedsEnrichSantitizedHTMLWithEvents(str)
+	str := `<html><head></head><body>
+	<blockquote><p class="some-crap">a</p></blockquote>
+	<p>b</p>
+	<p>c</p> 
+	<p>d</p>
+	<p>f</p></body></html>`
+
+	doc, blockCount, err := feedsSanitizeAndAnnotateHTMLForStorage(str)
 	if err != nil {
 		fmt.Print(err.Error())
 		return
 	}
 
-	article, err := feedsTransformSanitizedToArticle(htmlDoc)
-	if err != nil {
-		fmt.Print(err.Error())
-		return
-	}
-
+	fmt.Printf("blockCount: %v\n", blockCount)
 	var b strings.Builder
-	html.Render(&b, article)
+	html.Render(&b, doc)
 
 	fmt.Println(b.String())
 

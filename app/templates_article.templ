@@ -79,7 +79,7 @@ templ TemplateArticleNotes(notes map[int64]db.MarginNote, blockCount int64) {
 		if blockHasNote {
 			<div data-note-id={ note.ID }>{ note.Note }</div>
 		} else {
-			<div data-note-id={ note.ID }>{ note.ID }</div>
+			<div data-note-id={ note.ID }>blank </div>
 		}
 	}
 }
