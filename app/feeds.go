@@ -732,13 +732,6 @@ type feedsSidebarLink struct {
 	FeedId int
 }
 
-// func int64ToBool(i int64) bool {
-// 	if i == 0 {
-// 		return false
-// 	}
-// 	return true
-// }
-
 type ArticlePageTemplateData struct {
 	FeedID              int64
 	PageTitle           string
@@ -755,40 +748,12 @@ type ArticlePageTemplateData struct {
 	ArticlePublished    string
 	MarginNotes         map[int64]db.MarginNote
 	ClickableBlockCount int64
-
-	//Annotations      []feedsAnnotation
 }
-
-// type feedsUpdateParms struct {
-// 	FeedId   int64
-// 	PageType string
-// }
 
 type FeedFormTemplateData struct {
 	ButtonText string
 	UrlAction  string
 	Feed       db.Feed
 }
-
-// type feedsAnnotation struct {
-// 	ID        int64               `json:"id"`
-// 	ArticleID int64               `json:"article_id"`
-// 	StartData feedsAnnotationData `json:"start_data"`
-// 	EndData   feedsAnnotationData `json:"end_data"`
-// 	Snippet   string              `json:"snippet"`
-// 	Note      string              `json:"note"`
-// 	DateAdded string              `json:"date_added"`
-// }
-
-// type feedsAnnotationData struct {
-// 	Path   []int64 `json:"path"`
-// 	Offset int64   `json:"offset"`
-// }
-
-// type TextNode struct {
-// 	Node  *html.Node
-// 	Start int
-// 	End   int
-// }
 
 const layoutISO = "2006-01-02"
