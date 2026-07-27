@@ -11,6 +11,12 @@ import (
 	"github.com/mugtree/feeds/app/db"
 )
 
+/*
+
+This file contains functions that reach out to the net to do stuff
+
+*/
+
 func feedsNetRetrieveAndSanitizeArticleHTML(_ *db.Queries, afd db.SelectFeedAndArticletByArticleIDRow, _ context.Context) (string, int64, error) {
 
 	pageHtmlContent := ""
