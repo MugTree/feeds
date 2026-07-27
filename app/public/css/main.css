@@ -94,3 +94,9 @@ span {
 .editor div {
   flex: 1;
 }
+
+.have-read-article {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+}

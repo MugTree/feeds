@@ -57,6 +57,7 @@ SELECT
 	a.title as article_title,
 	a.starred as article_stars,
 	a.published as article_published,
+	a.read as article_read,
 	f.id as feed_id, 
 	f.title as feed_title,
 	f.url as feed_url,

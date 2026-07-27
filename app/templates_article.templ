@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/goforj/godump"
 	"github.com/mugtree/feeds/app/db"
@@ -17,34 +18,12 @@ templ TemplateArticlePage(td ArticlePageTemplateData) {
 			@TemplateLikeArticle(td.FeedID, td.ArticleId, td.StarValue)
 		</li>
 	</ul>
-	/**
-	---------------------------------------------------
-	ANNOTATION DIALOG 
-	---------------------------------------------------
-	*/
-	// <dialog id="annotateDialog">
-	// 	<form>
-	// 		<div id="annotation-selection-preview"></div>
-	// 		<input type="hidden" id="annotation-start" name="start"/>
-	// 		<input type="hidden" id="annotation-end" name="end"/>
-	// 		<input type="hidden" id="annotation-selection" name="selection"/>
-	// 		<label for="note">
-	// 			Note: 
-	// 			<textarea id="annotation-note" name="note"></textarea>
-	// 		</label>
-	// 		<menu>
-	// 			<button type="button" data-on:click="resetState()">Cancel</button>
-	// 			{{ annotationURL := fmt.Sprintf("@put('/article/%d/%d/annotate',  {contentType: 'form'}); resetState();", td.FeedID, td.ArticleId) }}
-	// 			<button data-on:click={ annotationURL }>
-	// 				Post anotation	
-	// 			</button>
-	// 		</menu>
-	// 	</form>
-	// </dialog>
-	/**
-	Annotate page	
-	*/
-	<section class="editor">
+	{{
+		type endArticle struct{ endArticle bool }
+		ea := endArticle{endArticle: false}
+		endArticleSignals, _ := json.Marshal(ea)
+	}}
+	<section class="editor" data-signals={ string(endArticleSignals) }>
 		<div>
 			@templ.Raw(td.PageContent)
 		</div>
@@ -53,14 +32,14 @@ templ TemplateArticlePage(td ArticlePageTemplateData) {
 		</div>
 	</section>
 	@TemplateLikeArticle(td.FeedID, td.ArticleId, td.StarValue)
-	/**
-	Set the read value ...	
-	*/
-	<div data-on-intersect={ datastar.PutSSE("/article/%d/%d/set-read", td.FeedID, td.ArticleId) }>
+	<div>
 		@TemplateToRead(td.ArticlesToRead)
-		<h3>Older articles</h3>
+		<h3 data-on-intersect="$endArticle = true">Older articles</h3>
 		@TemplateAlreadyRead(td.ArticlesRead)
 		<hr/>
+		if !td.AlreadyRead() {
+			<button class="have-read-article" data-show="$endArticle" data-on:click={ datastar.PutSSE("/article/%d/%d/set-read", td.FeedID, td.ArticleId) }>Mark as read</button>
+		}
 		@TemplateNav(td.Sidebar)
 		<p><a href="#pagetop">Back to top</a></p>
 	</div>

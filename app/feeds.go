@@ -40,6 +40,8 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 	td.Link = fa.ArticleLink
 	td.ArticleId = fa.ArticleID
 	td.FeedID = fa.FeedID
+	td.ArticleRead = fa.ArticleRead
+
 	td.StarValue = fa.ArticleStars
 	td.ArticlePublished = fa.ArticlePublished.Format(layoutISO)
 
@@ -628,8 +630,13 @@ type ArticlePageTemplateData struct {
 	StarValue           int64
 	Sidebar             []feedsSidebarLink
 	ArticlePublished    string
+	ArticleRead         int64
 	MarginNotes         map[int64]db.MarginNote
 	ClickableBlockCount int64
+}
+
+func (ae ArticlePageTemplateData) AlreadyRead() bool {
+	return lib.IntToBool(ae.ArticleRead)
 }
 
 type FeedFormTemplateData struct {
