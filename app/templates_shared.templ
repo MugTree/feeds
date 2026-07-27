@@ -30,24 +30,6 @@ templ TemplateLayout(pageTitle string, Main templ.Component) {
 	</html>
 }
 
-templ FAKE_AnnotationTestTemplate() {
-	<h1>Annotation testing page</h1>
-	<main id="base" onmouseup="data = getSelectionRangeData(); console.log(data)">
-		<p>ABC</p>
-		<ul>
-			<li>DEF</li>
-			<li>GHI</li>
-			<li>JKL</li>
-		</ul>
-		<p>MNO</p>
-		<table>
-			<tr><th>abc</th></tr>
-			<tr><td>123</td></tr>
-		</table>
-	</main>
-	<script src="/public/js/test.js"></script>
-}
-
 templ TemplateToRead(toRead []feedsArticle) {
 	<div id="to-read">
 		if (len(toRead) > 0) {

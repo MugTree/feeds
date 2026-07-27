@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"github.com/goforj/godump"
 	"github.com/mugtree/feeds/app/db"
 	"github.com/starfederation/datastar-go/datastar"
 )
@@ -63,7 +64,7 @@ templ TemplateArticlePage(td ArticlePageTemplateData) {
 		@TemplateNav(td.Sidebar)
 		<p><a href="#pagetop">Back to top</a></p>
 	</div>
-	<script src="/public/js/script.js"></script>
+	<script src="/public/js/feeds.js"></script>
 }
 
 templ TemplateLikeArticle(feedID int64, articleID int64, starsValue int64) {
@@ -71,15 +72,16 @@ templ TemplateLikeArticle(feedID int64, articleID int64, starsValue int64) {
 }
 
 templ TemplateArticleNotes(notes map[int64]db.MarginNote, blockCount int64) {
+	{{ godump.Dump(notes) }}
 	<div>
 		There are { blockCount } notes	
 	</div>
 	for i := range blockCount {
 		{{ note, blockHasNote := notes[i] }}
 		if blockHasNote {
-			<div data-note-id={ note.ID }>{ note.Note }</div>
+			<div data-note-id={ i }>{ note.Note }</div>
 		} else {
-			<div data-note-id={ note.ID }>blank </div>
+			<div data-note-id={ i }>blank </div>
 		}
 	}
 }

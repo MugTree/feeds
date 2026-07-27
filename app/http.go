@@ -27,7 +27,7 @@ func HttpSetupServer(queries *db.Queries, user string, password string) chi.Rout
 	r.Handle("/public/*", httpNeuterDirectory(http.FileServer(http.FS(staticFS))))
 
 	r.Group(func(pages chi.Router) {
-		pages.Use(httpDebugHttpRequest)
+		//pages.Use(httpDebugHttpRequest)
 		httpFrontEndRoutes(pages, queries)
 		httpAdminRoutes(pages, queries)
 	})

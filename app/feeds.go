@@ -31,19 +31,19 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 	}
 	td.Sidebar = sidebar
 
-	row, err := queries.SelectFeedAndArticletByArticleID(ctx, articleID)
+	fa, err := queries.SelectFeedAndArticletByArticleID(ctx, articleID)
 	if err != nil {
 		return td, errors.New("error getting article data: " + err.Error())
 	}
 
-	td.PageTitle = row.ArticleTitle
-	td.FeedTitle = row.FeedTitle
-	td.FeedUrl = row.FeedUrl
-	td.Link = row.ArticleLink
-	td.ArticleId = row.ArticleID
-	td.FeedID = row.FeedID
-	td.StarValue = row.ArticleStars
-	td.ArticlePublished = row.ArticlePublished.Format(layoutISO)
+	td.PageTitle = fa.ArticleTitle
+	td.FeedTitle = fa.FeedTitle
+	td.FeedUrl = fa.FeedUrl
+	td.Link = fa.ArticleLink
+	td.ArticleId = fa.ArticleID
+	td.FeedID = fa.FeedID
+	td.StarValue = fa.ArticleStars
+	td.ArticlePublished = fa.ArticlePublished.Format(layoutISO)
 
 	alreadyRead, toRead, err := feedsGetArticlesByFeedID(queries, feedID, ctx)
 	if err != nil {
@@ -52,7 +52,7 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 	td.ArticlesRead = alreadyRead
 	td.ArticlesToRead = toRead
 
-	hasContent, preCachedHTML, clickableBlocksCount, err := feedsGetArticleContentIfCached(queries, td.Link, row.ArticleID, ctx)
+	hasContent, preCachedHTML, clickableBlocksCount, err := feedsGetArticleContentIfCached(queries, td.Link, fa.ArticleID, ctx)
 	if err != nil {
 		return td, err
 	}
@@ -82,7 +82,7 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 		return td, nil
 	}
 
-	newHTML, clickableBlocksCount, err := feedsRetrieveAndSanitizeArticleHTMLFromWeb(queries, row, ctx)
+	newHTML, clickableBlocksCount, err := feedsRetrieveAndSanitizeArticleHTMLFromWeb(queries, fa, ctx)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return td, err
