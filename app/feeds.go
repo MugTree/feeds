@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/gocolly/colly/v2"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/mmcdole/gofeed"
 	"github.com/mugtree/feeds/app/db"
@@ -59,12 +61,12 @@ func feedsGetArticlePageState(queries *db.Queries, ctx context.Context, articleI
 
 	if hasContent {
 
-		enrichedHTMLForUser, err := feedsEnrichHTMLOutput(preCachedHTML)
+		enrichedHTML, err := feedsEnrichHTMLOutput(preCachedHTML)
 		if err != nil {
 			return td, err
 		}
 
-		td.PageContent = enrichedHTMLForUser
+		td.PageContent = enrichedHTML
 		td.ClickableBlockCount = clickableBlocksCount
 		td.IsCache = true
 
@@ -82,7 +84,7 @@ func feedsGetArticlePageState(queries *db.Queries, ctx context.Context, articleI
 		return td, nil
 	}
 
-	newHTML, clickableBlocksCount, err := feedsNetRetrieveArticleHTML(queries, fa, ctx)
+	scrapedHTML, err := feedsScrapeSiteHTML(queries, fa, ctx)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return td, err
@@ -90,7 +92,7 @@ func feedsGetArticlePageState(queries *db.Queries, ctx context.Context, articleI
 		return td, err
 	}
 
-	processedHTML, clickableBlocksCount, err := feedsProcessScrapedHTML(newHTML)
+	processedHTML, clickableBlocksCount, err := feedsProcessScrapedHTML(scrapedHTML)
 	if err != nil {
 		return td, err
 	}
@@ -314,6 +316,65 @@ func feedsGetFeedItemDate(item *gofeed.Item) *time.Time {
 
 /* returns the fully processed information plus some data about the processing */
 func feedsProcessScrapedHTML(input string) (string, int64, error) {
+
+	enrichHTML := func(doc *html.Node) int64 {
+
+		isBlockElement := func(tag string) bool {
+			switch tag {
+			case "p",
+				// "h1",
+				// "h2",
+				// "h3",
+				// "h4",
+				// "div",
+				"figure",
+				"blockquote",
+				"ul",
+				"ol",
+				"table":
+				return true
+			default:
+				return false
+			}
+		}
+
+		id := 0
+
+		var walk func(*html.Node, bool)
+
+		walk = func(n *html.Node, ancestorIsBlock bool) {
+
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+
+				childAncestorIsBlock := ancestorIsBlock
+
+				if c.Type == html.ElementNode {
+
+					tag := strings.ToLower(c.Data)
+
+					if isBlockElement(tag) && !ancestorIsBlock {
+
+						c.Attr = append(c.Attr, html.Attribute{
+							Key: "data-block-id",
+							Val: strconv.Itoa(id),
+						})
+
+						id++
+						childAncestorIsBlock = true
+					}
+				}
+
+				if c.FirstChild != nil {
+					walk(c, childAncestorIsBlock)
+				}
+			}
+		}
+
+		walk(doc, false)
+
+		return int64(id)
+	}
+
 	doc, err := html.Parse(strings.NewReader(input))
 	if err != nil {
 		return "", 0, err
@@ -321,7 +382,7 @@ func feedsProcessScrapedHTML(input string) (string, int64, error) {
 
 	_feedsSanitizeHTMLInput(doc)
 
-	clickableBlockCount := _feedsEnrichHTMLInput(doc)
+	clickableBlockCount := enrichHTML(doc)
 
 	stringifiedHTML, err := feedsStringifyHTML(doc)
 	if err != nil {
@@ -372,13 +433,53 @@ func feedsEnrichHTMLOutput(htmlStr string) (string, error) {
 
 	}
 
+	removeOuterHTMLShell := func(doc *html.Node) (*html.Node, error) {
+
+		var walk func(*html.Node)
+
+		walk = func(n *html.Node) {
+			// if doc != nil {
+			// 	return
+			// }
+
+			if n.Type == html.ElementNode && n.Data == "body" {
+				doc = n
+				return
+			}
+
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				walk(c)
+			}
+		}
+
+		walk(doc)
+
+		if doc == nil {
+			return nil, fmt.Errorf("body element not found")
+		}
+
+		article := &html.Node{
+			Type: html.ElementNode,
+			Data: "article",
+		}
+
+		// Move every child from <body> into <article>.
+		for doc.FirstChild != nil {
+			child := doc.FirstChild
+			doc.RemoveChild(child)
+			article.AppendChild(child)
+		}
+
+		return article, nil
+	}
+
 	htmlNodes, err := html.Parse(strings.NewReader(htmlStr))
 	if err != nil {
 		return "", err
 	}
 
 	htmlNodes = addDataAtrtibutes(htmlNodes)
-	htmlNodes, err = _feedsRemoveOuterHTMLShell(htmlNodes)
+	htmlNodes, err = removeOuterHTMLShell(htmlNodes)
 	if err != nil {
 		return "", err
 	}
@@ -407,45 +508,6 @@ func feedsStringifyHTML(doc *html.Node) (string, error) {
 }
 
 /* remove the outer shell so we can place it into the users HTML without breaking the layout */
-func _feedsRemoveOuterHTMLShell(doc *html.Node) (*html.Node, error) {
-
-	var walk func(*html.Node)
-
-	walk = func(n *html.Node) {
-		// if doc != nil {
-		// 	return
-		// }
-
-		if n.Type == html.ElementNode && n.Data == "body" {
-			doc = n
-			return
-		}
-
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-
-	walk(doc)
-
-	if doc == nil {
-		return nil, fmt.Errorf("body element not found")
-	}
-
-	article := &html.Node{
-		Type: html.ElementNode,
-		Data: "article",
-	}
-
-	// Move every child from <body> into <article>.
-	for doc.FirstChild != nil {
-		child := doc.FirstChild
-		doc.RemoveChild(child)
-		article.AppendChild(child)
-	}
-
-	return article, nil
-}
 
 /* most of the data that we scrape comes with a lot of stuff attached that we dont want*/
 func _feedsSanitizeHTMLInput(doc *html.Node) {
@@ -557,64 +619,111 @@ func _feedsSanitizeHTMLInput(doc *html.Node) {
 	clean(doc)
 }
 
-/* adding some properties to the HTML coming that we are ingesting */
-func _feedsEnrichHTMLInput(doc *html.Node) int64 {
+func feedsScrapeSiteHTML(_ *db.Queries, afd db.SelectFeedAndArticletByArticleIDRow, _ context.Context) (string, error) {
 
-	isBlockElement := func(tag string) bool {
-		switch tag {
-		case "p",
-			// "h1",
-			// "h2",
-			// "h3",
-			// "h4",
-			// "div",
-			"figure",
-			"blockquote",
-			"ul",
-			"ol",
-			"table":
-			return true
-		default:
-			return false
-		}
+	pageHtmlContent := ""
+
+	type extractionParams struct {
+		Container      string
+		ClipStartPoint string
+		ClipEndPoint   string
 	}
 
-	id := 0
+	ep := extractionParams{}
+	ep.Container = afd.FeedCssSelContainer.String
 
-	var walk func(*html.Node, bool)
-
-	walk = func(n *html.Node, ancestorIsBlock bool) {
-
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-
-			childAncestorIsBlock := ancestorIsBlock
-
-			if c.Type == html.ElementNode {
-
-				tag := strings.ToLower(c.Data)
-
-				if isBlockElement(tag) && !ancestorIsBlock {
-
-					c.Attr = append(c.Attr, html.Attribute{
-						Key: "data-block-id",
-						Val: strconv.Itoa(id),
-					})
-
-					id++
-					childAncestorIsBlock = true
-				}
-			}
-
-			if c.FirstChild != nil {
-				walk(c, childAncestorIsBlock)
-			}
-		}
+	switch afd.FeedHtmlExtractionStrategy.String {
+	case "no-clip":
+		break
+	case "clip-start":
+		ep.ClipStartPoint = afd.FeedCssSelStart.String
+	case "clip-end":
+		ep.ClipEndPoint = afd.FeedCssSelStop.String
+	case "clip-between":
+		ep.ClipStartPoint = afd.FeedCssSelStart.String
+		ep.ClipEndPoint = afd.FeedCssSelStop.String
 	}
 
-	walk(doc, false)
+	//TODO - need to add some timeout values here really
+	c := colly.NewCollector()
 
-	return int64(id)
+	c.OnHTML(ep.Container, func(h *colly.HTMLElement) {
+		pageHtmlContent = feedsExtractHTMLRangeFlat(h.DOM, ep.ClipStartPoint, ep.ClipEndPoint)
+	})
+
+	if err := c.Visit(afd.ArticleLink); err != nil {
+		return "", fmt.Errorf("error using colly to visit page: %v - %v", afd.ArticleLink, err)
+	}
+
+	return pageHtmlContent, nil
+
 }
+
+func feedsNetGetFeedUpdatesFromNet(queries *db.Queries, ctx context.Context) (int64, error) {
+
+	feeds, err := queries.SelectAllFeeds(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("get feeds: %w", err)
+	}
+
+	parser := gofeed.NewParser()
+	parser.Client = &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	for _, feed := range feeds {
+
+		goFeed, err := parser.ParseURL(fmt.Sprintf("%s/feed/", feed.Url))
+		if err != nil {
+			return 0, fmt.Errorf("parse feed %s: %w", feed.Url, err)
+		}
+
+		if goFeed == nil {
+			continue
+		}
+
+		for _, item := range goFeed.Items {
+
+			select {
+			case <-ctx.Done():
+				return 0, ctx.Err()
+			default:
+			}
+
+			now := time.Now()
+
+			doc, err := html.Parse(strings.NewReader(item.Description))
+			if err != nil {
+				return 0, err
+			}
+
+			_feedsSanitizeHTMLInput(doc)
+
+			output, err := feedsStringifyHTML(doc)
+			if err != nil {
+				return 0, err
+			}
+
+			err = queries.InsertOrIgnoreArticle(ctx, db.InsertOrIgnoreArticleParams{
+				FeedID:    feed.ID,
+				Title:     item.Title,
+				Link:      item.Link,
+				Published: feedsGetFeedItemDate(item),
+				DateFound: &now,
+				Summary:   output,
+				Read:      0,
+				Starred:   0,
+			})
+			if err != nil {
+				return 0, fmt.Errorf("insert article: %w", err)
+			}
+		}
+	}
+
+	return int64(len(feeds)), nil
+}
+
+/* adding some properties to the HTML coming that we are ingesting */
 
 type feedsArticle struct {
 	Id        int64  `json:"id" db:"id"`
