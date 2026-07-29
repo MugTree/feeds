@@ -239,24 +239,24 @@ func feedsGetArticleContentIfCached(queries *db.Queries, articleLink string, _ i
 	lc, err := queries.SelectCachedArticleByLink(ctx, articleLink)
 	if err == nil {
 
-		parsedHTML, err := html.Parse(strings.NewReader(lc.ArticleContent.String))
-		if err != nil {
-			return false, "", 0, err
-		}
+		// parsedHTML, err := html.Parse(strings.NewReader(lc.ArticleContent.String))
+		// if err != nil {
+		// 	return false, "", 0, err
+		// }
 
-		article, err := feedsRemoveOuterHTMLShell(parsedHTML)
-		if err != nil {
-			return false, "", clickableBlocks, err
-		}
+		// article, err := feedsRemoveOuterHTMLShell(parsedHTML)
+		// if err != nil {
+		// 	return false, "", clickableBlocks, err
+		// }
 
-		articleStr, err := feedsStringifyHTML(article)
-		if err != nil {
-			return false, "", clickableBlocks, err
-		}
+		// articleStr, err := feedsStringifyHTML(article)
+		// if err != nil {
+		// 	return false, "", clickableBlocks, err
+		// }
 
 		clickableBlocks := lc.ClickableBlockCount
 
-		return true, articleStr, clickableBlocks, nil
+		return true, lc.ArticleContent.String, clickableBlocks, nil
 	}
 	if err == sql.ErrNoRows {
 		return false, "", clickableBlocks, nil
@@ -322,12 +322,8 @@ func feedsProcessScrapedHTML(input string) (string, int64, error) {
 	_feedsSanitizeHTMLInput(doc)
 
 	clickableBlockCount := _feedsEnrichHTMLInput(doc)
-	sanitizedHtmlMinusBody, err := feedsRemoveOuterHTMLShell(doc)
-	if err != nil {
-		return "", 0, err
-	}
 
-	stringifiedHTML, err := feedsStringifyHTML(sanitizedHtmlMinusBody)
+	stringifiedHTML, err := feedsStringifyHTML(doc)
 	if err != nil {
 		return "", 0, err
 	}
@@ -382,7 +378,7 @@ func feedsEnrichHTMLOutput(htmlStr string) (string, error) {
 	}
 
 	htmlNodes = addDataAtrtibutes(htmlNodes)
-	htmlNodes, err = feedsRemoveOuterHTMLShell(htmlNodes)
+	htmlNodes, err = _feedsRemoveOuterHTMLShell(htmlNodes)
 	if err != nil {
 		return "", err
 	}
@@ -396,8 +392,22 @@ func feedsEnrichHTMLOutput(htmlStr string) (string, error) {
 
 }
 
-/* in the db we only want to save the article nodes wrapped in an <article/ > tag */
-func feedsRemoveOuterHTMLShell(doc *html.Node) (*html.Node, error) {
+// article for the article, div for the desc from feeds
+func feedsStringifyHTML(doc *html.Node) (string, error) {
+
+	var b strings.Builder
+
+	err := html.Render(&b, doc)
+
+	if err != nil {
+		return "", err
+	}
+
+	return b.String(), nil
+}
+
+/* remove the outer shell so we can place it into the users HTML without breaking the layout */
+func _feedsRemoveOuterHTMLShell(doc *html.Node) (*html.Node, error) {
 
 	var walk func(*html.Node)
 
@@ -435,20 +445,6 @@ func feedsRemoveOuterHTMLShell(doc *html.Node) (*html.Node, error) {
 	}
 
 	return article, nil
-}
-
-// article for the article, div for the desc from feeds
-func feedsStringifyHTML(doc *html.Node) (string, error) {
-
-	var b strings.Builder
-
-	err := html.Render(&b, doc)
-
-	if err != nil {
-		return "", err
-	}
-
-	return b.String(), nil
 }
 
 /* most of the data that we scrape comes with a lot of stuff attached that we dont want*/
