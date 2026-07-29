@@ -27,7 +27,7 @@ func HttpSetupServer(queries *db.Queries, user string, password string) chi.Rout
 	r.Handle("/public/*", httpNeuterDirectory(http.FileServer(http.FS(staticFS))))
 
 	r.Group(func(pages chi.Router) {
-		//pages.Use(httpDebugHttpRequest)
+		pages.Use(httpDebugHttpRequest)
 		httpFrontEndRoutes(pages, queries)
 		httpAdminRoutes(pages, queries)
 	})
@@ -107,15 +107,15 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return
 		}
 
-		td, err := feedsGetArticlePageTemplateData(queries, ctx, articleID, feedID)
+		ps, err := feedsGetArticlePageState(queries, ctx, articleID, feedID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
 		}
 
 		TemplateLayout(
-			td.PageTitle,
-			TemplateArticlePage(td)).Render(
+			ps.PageTitle,
+			TemplateArticlePage(ps)).Render(
 			r.Context(),
 			w,
 		)
@@ -139,19 +139,18 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return
 		}
 
-		td, err := feedsGetArticlePageTemplateData(queries, ctx, articleID, feedID)
+		ps, err := feedsGetArticlePageState(queries, ctx, articleID, feedID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
 		}
 
 		sse := datastar.NewSSE(w, r)
-		sse.PatchElementTempl(
-			TemplateLayout(
-				td.PageTitle,
-				TemplateArticlePage(td),
-			),
-		)
+		sse.PatchElementTempl(TemplateArticlePage(ps))
+
+		/* call an existing JS function  when the new data is morphed in*/
+		sse.ExecuteScript("feedsBalanceArticleLayout()")
+
 	})
 
 	r.Put("/article/{feedID}/{articleID}/like/{value}", func(w http.ResponseWriter, r *http.Request) {
@@ -184,20 +183,16 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return
 		}
 
-		td, err := feedsGetArticlePageTemplateData(queries, ctx, articleID, feedID)
+		ps, err := feedsGetArticlePageState(queries, ctx, articleID, feedID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
 		}
 
 		sse := datastar.NewSSE(w, r)
-		sse.PatchElementTempl(
-			TemplateLayout(
-				td.PageTitle,
-				TemplateArticlePage(td),
-			),
-		)
-
+		sse.PatchElementTempl(TemplateArticlePage(ps))
+		/* call an existing JS function  when the new data is morphed in*/
+		sse.ExecuteScript("feedsBalanceArticleLayout()")
 	})
 
 	r.Put("/article/{feedID}/{articleID}/annotate", func(w http.ResponseWriter, r *http.Request) {

@@ -1,7 +1,7 @@
 seed-db:
 	go run ./app/db/seed/generate.go --urls=./app/db/seed/seed.csv --db=./feeds.db
 
-destroy-db:
+drop-db:
 	rm feeds.db
 	rm feeds.db-*
 

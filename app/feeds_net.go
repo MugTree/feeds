@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gocolly/colly/v2"
 	"github.com/mmcdole/gofeed"
 	"github.com/mugtree/feeds/app/db"
+	"golang.org/x/net/html"
 )
 
 /*
@@ -17,7 +19,7 @@ This file contains functions that reach out to the net to do stuff
 
 */
 
-func feedsNetRetrieveAndSanitizeArticleHTML(_ *db.Queries, afd db.SelectFeedAndArticletByArticleIDRow, _ context.Context) (string, int64, error) {
+func feedsNetRetrieveArticleHTML(_ *db.Queries, afd db.SelectFeedAndArticletByArticleIDRow, _ context.Context) (string, int64, error) {
 
 	pageHtmlContent := ""
 
@@ -53,19 +55,8 @@ func feedsNetRetrieveAndSanitizeArticleHTML(_ *db.Queries, afd db.SelectFeedAndA
 		return "", 0, fmt.Errorf("error using colly to visit page: %v - %v", afd.ArticleLink, err)
 	}
 
-	sanitizedHtml, clickableBlockCount, err := feedsSanitizeAndAnnotateHTMLForStorage(pageHtmlContent)
-	if err != nil {
-		return "", 0, err
-	}
-	fmt.Println("feedsGetArticleHTMLFromWeb")
-	fmt.Printf("Counted %v clickable blocks...\n\n", clickableBlockCount)
+	return pageHtmlContent, 0, nil
 
-	stringifiedHTML, err := feedsStringifyHTML(sanitizedHtml)
-	if err != nil {
-		return "", 0, err
-	}
-
-	return stringifiedHTML, clickableBlockCount, nil
 }
 
 func feedsNetGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
@@ -101,15 +92,14 @@ func feedsNetGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, er
 
 			now := time.Now()
 
-			sanitizedHtml, clickableBlockCount, err := feedsSanitizeAndAnnotateHTMLForStorage(item.Description)
+			doc, err := html.Parse(strings.NewReader(item.Description))
 			if err != nil {
 				return 0, err
 			}
 
-			fmt.Println("feedsGetFeedUpdates")
-			fmt.Printf("Counted %v blocks...\n\n", clickableBlockCount)
+			_feedsSanitizeHTMLInput(doc)
 
-			output, err := feedsStringifyHTML(sanitizedHtml)
+			output, err := feedsStringifyHTML(doc)
 			if err != nil {
 				return 0, err
 			}

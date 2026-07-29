@@ -3,66 +3,69 @@ package app
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/goforj/godump"
 	"github.com/mugtree/feeds/app/db"
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-templ TemplateArticlePage(td ArticlePageTemplateData) {
-	<h2 id="article-top">{ td.FeedTitle } - { td.PageTitle }</h2>
-	<ul>
-		<li><b>{ td.FeedTitle }</b></li>
-		<li>{ td.ArticlePublished }</li>
-		<li>{ td.IsCache }</li>
-		<li>
-			@TemplateLikeArticle(td.FeedID, td.ArticleId, td.StarValue)
-		</li>
-	</ul>
-	{{
-		type endArticle struct{ endArticle bool }
-		ea := endArticle{endArticle: false}
-		endArticleSignals, _ := json.Marshal(ea)
-	}}
-	<section class="editor" data-signals={ string(endArticleSignals) }>
-		<div>
-			@templ.Raw(td.PageContent)
-		</div>
-		<div>
-			@TemplateArticleNotes(td.MarginNotes, td.ClickableBlockCount)
-		</div>
-	</section>
-	@TemplateLikeArticle(td.FeedID, td.ArticleId, td.StarValue)
-	<div>
-		@TemplateToRead(td.ArticlesToRead)
-		<h3 data-on-intersect="$endArticle = true">Older articles</h3>
-		@TemplateAlreadyRead(td.ArticlesRead)
-		<hr/>
-		if !td.AlreadyRead() {
-			<button class="have-read-article" data-show="$endArticle" data-on:click={ datastar.PutSSE("/article/%d/%d/set-read", td.FeedID, td.ArticleId) }>Mark as read</button>
-		}
-		@TemplateNav(td.Sidebar)
-		<p><a href="#pagetop">Back to top</a></p>
-	</div>
-	<script src="/public/js/feeds.js"></script>
+func getArticleReadSignals(hasBeenRead bool) string {
+	ea := ArticleStatus{HasBeenRead: hasBeenRead}
+	articleStatusSignals, _ := json.Marshal(&ea)
+	return string(articleStatusSignals)
 }
 
-templ TemplateLikeArticle(feedID int64, articleID int64, starsValue int64) {
-	<div id="star-value" data-on:click={ datastar.PutSSE(`/article/%v/%v/like/%v`, feedID, articleID, starsValue) }>Starred: <img width="60px" src={ templ.SafeURL(fmt.Sprintf("/public/img/%v-star.png", starsValue)) }/> </div>
+templ TemplateArticlePage(td ArticlePageState) {
+	<div id="article-page">
+		<h2 id="article-top">{ td.FeedTitle } - { td.PageTitle }</h2>
+		<ul>
+			<li><b>{ td.FeedTitle }</b></li>
+			<li>{ td.ArticlePublished }</li>
+			<li>{ td.IsCache }</li>
+			<li>
+				@TemplateLikeArticle("star-value-top", td.FeedID, td.ArticleId, td.StarValue)
+			</li>
+		</ul>
+		<section class="editor" data-signals={ getArticleReadSignals(td.ArticleHasBeenRead()) }>
+			{{ /* Main content */ }}
+			@templ.Raw(td.PageContent)
+			{{ /* Notes */ }}
+			@TemplateArticleNotes(td.MarginNotes, td.ClickableBlockCount)
+		</section>
+		@TemplateLikeArticle("star-value-bottom", td.FeedID, td.ArticleId, td.StarValue)
+		<section>
+			@TemplateToRead(td.ArticlesToRead)
+			<h3 data-on-intersect="$HasBeenRead = true">Older articles</h3>
+			@TemplateAlreadyRead(td.ArticlesRead)
+			<hr/>
+			{{ /* Show Mark a read button */ }}
+			{{ setArticleReadURL := datastar.PutSSE("/article/%d/%d/set-read", td.FeedID, td.ArticleId) }}
+			<button class="have-read-article" data-show="$HasBeenRead" data-on:click={ setArticleReadURL }>Mark as read</button>
+			@TemplateNav(td.Sidebar)
+			<p><a href="#pagetop">Back to top</a></p>
+		</section>
+		<script src="/public/js/feeds.js"></script>
+	</div>
+}
+
+templ TemplateLikeArticle(htmlID string, feedID int64, articleID int64, starsValue int64) {
+	{{ likeArticleURL := datastar.PutSSE(`/article/%v/%v/like/%v`, feedID, articleID, starsValue) }}
+	{{ starsGraphic := templ.SafeURL(fmt.Sprintf("/public/img/%v-star.png", starsValue)) }}
+	<div id={ htmlID } data-on:click={ likeArticleURL }>Starred: <img width="60px" src={ starsGraphic }/> </div>
 }
 
 templ TemplateArticleNotes(notes map[int64]db.MarginNote, blockCount int64) {
-	{{ godump.Dump(notes) }}
-	<div>
-		There are { blockCount } notes	
-	</div>
-	for i := range blockCount {
-		{{ note, blockHasNote := notes[i] }}
-		if blockHasNote {
-			<div data-note-id={ i }>{ note.Note }</div>
-		} else {
-			<div data-note-id={ i }>blank </div>
+	<aside>
+		<div>
+			There are { blockCount } notes	
+		</div>
+		for i := range blockCount {
+			{{ note, blockHasNote := notes[i] }}
+			if blockHasNote {
+				<p data-note-id={ i }>{ note.Note }</p>
+			} else {
+				<p data-note-id={ i }>blank </p>
+			}
 		}
-	}
+	</aside>
 }
 
 templ TemplateArticleNoteAdd(articleID int64, blockID int64) {

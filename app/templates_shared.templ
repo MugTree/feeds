@@ -65,7 +65,7 @@ templ TemplateAlreadyRead(alreadyRead []feedsArticle) {
 }
 
 templ TemplateNav(links []feedsSidebarLink) {
-	<nav>
+	<nav id="sites-nav">
 		<ul>
 			for _, l := range links {
 				{{ link := templ.URL(l.Link) }}

@@ -19,9 +19,9 @@ import (
 	"golang.org/x/net/html"
 )
 
-func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageTemplateData, error) {
+func feedsGetArticlePageState(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageState, error) {
 
-	td := ArticlePageTemplateData{}
+	td := ArticlePageState{}
 
 	sidebar, err := feedsGetSideBarTemplateData(queries, ctx)
 	if err != nil {
@@ -59,7 +59,7 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 
 	if hasContent {
 
-		enrichedHTMLForUser, err := feedsEnrichHTML(preCachedHTML)
+		enrichedHTMLForUser, err := feedsEnrichHTMLOutput(preCachedHTML)
 		if err != nil {
 			return td, err
 		}
@@ -82,7 +82,7 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 		return td, nil
 	}
 
-	newHTML, clickableBlocksCount, err := feedsNetRetrieveAndSanitizeArticleHTML(queries, fa, ctx)
+	newHTML, clickableBlocksCount, err := feedsNetRetrieveArticleHTML(queries, fa, ctx)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return td, err
@@ -90,10 +90,15 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 		return td, err
 	}
 
+	processedHTML, clickableBlocksCount, err := feedsProcessScrapedHTML(newHTML)
+	if err != nil {
+		return td, err
+	}
+
 	newlyCached, err := queries.InsertAndReturnCachedArticle(ctx, db.InsertAndReturnCachedArticleParams{
 		ArticleID:           articleID,
 		Link:                td.Link,
-		ArticleContent:      sql.NullString{String: newHTML, Valid: true},
+		ArticleContent:      sql.NullString{String: processedHTML, Valid: true},
 		ClickableBlockCount: clickableBlocksCount,
 	})
 
@@ -101,7 +106,7 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 		return td, err
 	}
 
-	enrichedHTMLForUser, err := feedsEnrichHTML(newlyCached.ArticleContent.String)
+	enrichedHTMLForUser, err := feedsEnrichHTMLOutput(newlyCached.ArticleContent.String)
 
 	td.PageContent = enrichedHTMLForUser
 	td.ClickableBlockCount = newlyCached.ClickableBlockCount
@@ -239,7 +244,7 @@ func feedsGetArticleContentIfCached(queries *db.Queries, articleLink string, _ i
 			return false, "", 0, err
 		}
 
-		article, err := feedsRemoveOuterHTML(parsedHTML)
+		article, err := feedsRemoveOuterHTMLShell(parsedHTML)
 		if err != nil {
 			return false, "", clickableBlocks, err
 		}
@@ -307,17 +312,77 @@ func feedsGetFeedItemDate(item *gofeed.Item) *time.Time {
 	return nil
 }
 
-// we store the HTML without the datastar attributes so we need to add those
-// plus we store a complete HTML doc so we need to remove the outer html shell
-func feedsEnrichHTML(htmlStr string) (string, error) {
+/* returns the fully processed information plus some data about the processing */
+func feedsProcessScrapedHTML(input string) (string, int64, error) {
+	doc, err := html.Parse(strings.NewReader(input))
+	if err != nil {
+		return "", 0, err
+	}
+
+	_feedsSanitizeHTMLInput(doc)
+
+	clickableBlockCount := _feedsEnrichHTMLInput(doc)
+	sanitizedHtmlMinusBody, err := feedsRemoveOuterHTMLShell(doc)
+	if err != nil {
+		return "", 0, err
+	}
+
+	stringifiedHTML, err := feedsStringifyHTML(sanitizedHtmlMinusBody)
+	if err != nil {
+		return "", 0, err
+	}
+
+	return stringifiedHTML, clickableBlockCount, nil
+}
+
+/* before data is passed to the front end we add some additional properties for interactivity*/
+func feedsEnrichHTMLOutput(htmlStr string) (string, error) {
+
+	addDataAtrtibutes := func(doc *html.Node) *html.Node {
+
+		var walk func(*html.Node)
+
+		walk = func(n *html.Node) {
+
+			if n.Type == html.ElementNode {
+
+				var blockID string
+
+				for _, attr := range n.Attr {
+					if attr.Key == "data-block-id" {
+						blockID = attr.Val
+						break
+					}
+				}
+
+				if blockID != "" {
+					n.Attr = append(n.Attr, html.Attribute{
+						Key: "data-on:click",
+						Val: datastar.GetSSE("/url/%s", blockID),
+					})
+				}
+
+				for c := n.FirstChild; c != nil; c = c.NextSibling {
+					walk(c)
+				}
+
+			}
+
+		}
+
+		walk(doc)
+
+		return doc
+
+	}
 
 	htmlNodes, err := html.Parse(strings.NewReader(htmlStr))
 	if err != nil {
 		return "", err
 	}
 
-	htmlNodes = feedsAddInteractionAttributes(htmlNodes)
-	htmlNodes, err = feedsRemoveOuterHTML(htmlNodes)
+	htmlNodes = addDataAtrtibutes(htmlNodes)
+	htmlNodes, err = feedsRemoveOuterHTMLShell(htmlNodes)
 	if err != nil {
 		return "", err
 	}
@@ -331,52 +396,15 @@ func feedsEnrichHTML(htmlStr string) (string, error) {
 
 }
 
-func feedsAddInteractionAttributes(doc *html.Node) *html.Node {
+/* in the db we only want to save the article nodes wrapped in an <article/ > tag */
+func feedsRemoveOuterHTMLShell(doc *html.Node) (*html.Node, error) {
 
 	var walk func(*html.Node)
 
 	walk = func(n *html.Node) {
-
-		if n.Type == html.ElementNode {
-
-			var blockID string
-
-			for _, attr := range n.Attr {
-				if attr.Key == "data-block-id" {
-					blockID = attr.Val
-					break
-				}
-			}
-
-			if blockID != "" {
-				n.Attr = append(n.Attr, html.Attribute{
-					Key: "data-on:click",
-					Val: datastar.GetSSE("/url/%s", blockID),
-				})
-			}
-
-			for c := n.FirstChild; c != nil; c = c.NextSibling {
-				walk(c)
-			}
-
-		}
-
-	}
-
-	walk(doc)
-
-	return doc
-
-}
-
-func feedsRemoveOuterHTML(doc *html.Node) (*html.Node, error) {
-
-	var walk func(*html.Node)
-
-	walk = func(n *html.Node) {
-		if doc != nil {
-			return
-		}
+		// if doc != nil {
+		// 	return
+		// }
 
 		if n.Type == html.ElementNode && n.Data == "body" {
 			doc = n
@@ -409,12 +437,22 @@ func feedsRemoveOuterHTML(doc *html.Node) (*html.Node, error) {
 	return article, nil
 }
 
-func feedsSanitizeAndAnnotateHTMLForStorage(input string) (*html.Node, int64, error) {
+// article for the article, div for the desc from feeds
+func feedsStringifyHTML(doc *html.Node) (string, error) {
 
-	doc, err := html.Parse(strings.NewReader(input))
+	var b strings.Builder
+
+	err := html.Render(&b, doc)
+
 	if err != nil {
-		return nil, 0, err
+		return "", err
 	}
+
+	return b.String(), nil
+}
+
+/* most of the data that we scrape comes with a lot of stuff attached that we dont want*/
+func _feedsSanitizeHTMLInput(doc *html.Node) {
 
 	allowedAttrs := func(tag string) map[string]struct{} {
 		switch tag {
@@ -437,27 +475,7 @@ func feedsSanitizeAndAnnotateHTMLForStorage(input string) (*html.Node, int64, er
 		}
 	}
 
-	isBlockElement := func(tag string) bool {
-		switch tag {
-		case "p",
-			//"h1",
-			//"h2",
-			//"h3",
-			//"h4",
-			//"div",
-			"figure",
-			"blockquote",
-			"ul",
-			"ol",
-			"table":
-			return true
-		default:
-			return false
-		}
-	}
-
 	shouldRemoveElement := func(n *html.Node) bool {
-
 		if n.Type != html.ElementNode {
 			return false
 		}
@@ -470,61 +488,60 @@ func feedsSanitizeAndAnnotateHTMLForStorage(input string) (*html.Node, int64, er
 		}
 	}
 
-	clickableBlockID := 0
+	var clean func(*html.Node)
 
-	var cleanHTML func(n *html.Node, ancestorIsBlock bool)
-
-	cleanHTML = func(n *html.Node, ancestorIsBlock bool) {
+	clean = func(n *html.Node) {
 
 		for c := n.FirstChild; c != nil; {
 
 			next := c.NextSibling
 
+			// Remove unwanted elements.
 			if shouldRemoveElement(c) {
 				n.RemoveChild(c)
 				c = next
 				continue
 			}
 
+			// Remove comments.
 			if c.Type == html.CommentNode {
 				n.RemoveChild(c)
 				c = next
 				continue
 			}
 
-			childAncestorIsBlock := ancestorIsBlock
+			// Remove whitespace-only text nodes.
+			if c.Type == html.TextNode &&
+				strings.TrimSpace(c.Data) == "" {
+
+				n.RemoveChild(c)
+				c = next
+				continue
+			}
 
 			if c.Type == html.ElementNode {
 
-				allowed := allowedAttrs(strings.ToLower(c.Data))
+				tag := strings.ToLower(c.Data)
+
+				// Strip unwanted attributes.
+				allowed := allowedAttrs(tag)
 
 				attrs := c.Attr[:0]
-
-				for _, v := range c.Attr {
-
-					if _, ok := allowed[v.Key]; ok {
-						attrs = append(attrs, v)
+				for _, attr := range c.Attr {
+					if _, ok := allowed[attr.Key]; ok {
+						attrs = append(attrs, attr)
 					}
 				}
-
 				c.Attr = attrs
-
-				if isBlockElement(strings.ToLower(c.Data)) && !ancestorIsBlock {
-
-					c.Attr = append(c.Attr, html.Attribute{
-						Key: "data-block-id",
-						Val: strconv.Itoa(clickableBlockID),
-					})
-
-					clickableBlockID++
-					childAncestorIsBlock = true
-				}
 			}
 
+			// Recurse first so children are cleaned before
+			// deciding whether this node is empty.
 			if c.FirstChild != nil {
-				cleanHTML(c, childAncestorIsBlock)
+				clean(c)
 			}
 
+			// Remove empty elements.
 			if c.Type == html.ElementNode &&
 				len(c.Attr) == 0 &&
 				c.FirstChild == nil {
@@ -541,26 +558,66 @@ func feedsSanitizeAndAnnotateHTMLForStorage(input string) (*html.Node, int64, er
 		}
 	}
 
-	cleanHTML(doc, false)
-
-	// disambiguate the counter from the count
-	clickableBlockCount := int64(clickableBlockID)
-
-	return doc, clickableBlockCount, nil
+	clean(doc)
 }
 
-// article for the article, div for the desc from feeds
-func feedsStringifyHTML(doc *html.Node) (string, error) {
+/* adding some properties to the HTML coming that we are ingesting */
+func _feedsEnrichHTMLInput(doc *html.Node) int64 {
 
-	var b strings.Builder
-
-	err := html.Render(&b, doc)
-
-	if err != nil {
-		return "", err
+	isBlockElement := func(tag string) bool {
+		switch tag {
+		case "p",
+			// "h1",
+			// "h2",
+			// "h3",
+			// "h4",
+			// "div",
+			"figure",
+			"blockquote",
+			"ul",
+			"ol",
+			"table":
+			return true
+		default:
+			return false
+		}
 	}
 
-	return b.String(), nil
+	id := 0
+
+	var walk func(*html.Node, bool)
+
+	walk = func(n *html.Node, ancestorIsBlock bool) {
+
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+
+			childAncestorIsBlock := ancestorIsBlock
+
+			if c.Type == html.ElementNode {
+
+				tag := strings.ToLower(c.Data)
+
+				if isBlockElement(tag) && !ancestorIsBlock {
+
+					c.Attr = append(c.Attr, html.Attribute{
+						Key: "data-block-id",
+						Val: strconv.Itoa(id),
+					})
+
+					id++
+					childAncestorIsBlock = true
+				}
+			}
+
+			if c.FirstChild != nil {
+				walk(c, childAncestorIsBlock)
+			}
+		}
+	}
+
+	walk(doc, false)
+
+	return int64(id)
 }
 
 type feedsArticle struct {
@@ -616,7 +673,7 @@ type feedsSidebarLink struct {
 	FeedId int
 }
 
-type ArticlePageTemplateData struct {
+type ArticlePageState struct {
 	FeedID              int64
 	PageTitle           string
 	ArticlesRead        []feedsArticle
@@ -635,7 +692,7 @@ type ArticlePageTemplateData struct {
 	ClickableBlockCount int64
 }
 
-func (ae ArticlePageTemplateData) AlreadyRead() bool {
+func (ae ArticlePageState) ArticleHasBeenRead() bool {
 	return lib.IntToBool(ae.ArticleRead)
 }
 
@@ -644,5 +701,7 @@ type FeedFormTemplateData struct {
 	UrlAction  string
 	Feed       db.Feed
 }
+
+type ArticleStatus struct{ HasBeenRead bool }
 
 const layoutISO = "2006-01-02"
