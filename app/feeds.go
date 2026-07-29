@@ -659,7 +659,7 @@ func feedsScrapeSiteHTML(_ *db.Queries, afd db.SelectFeedAndArticletByArticleIDR
 
 }
 
-func feedsNetGetFeedUpdatesFromNet(queries *db.Queries, ctx context.Context) (int64, error) {
+func feedsGetFeedUpdatesFromNet(queries *db.Queries, ctx context.Context) (int64, error) {
 
 	feeds, err := queries.SelectAllFeeds(ctx)
 	if err != nil {

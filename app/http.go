@@ -243,7 +243,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 
 	r.Get("/update-reader", func(w http.ResponseWriter, r *http.Request) {
 
-		_, err := feedsNetGetFeedUpdatesFromNet(queries, r.Context())
+		_, err := feedsGetFeedUpdatesFromNet(queries, r.Context())
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
