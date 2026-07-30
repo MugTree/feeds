@@ -205,6 +205,24 @@ func (q *Queries) SelectArticlesByFeedID(ctx context.Context, feedID int64) ([]S
 	return items, nil
 }
 
+const selectCachedArticleByID = `-- name: SelectCachedArticleByID :one
+SELECT id, link, article_content, created, article_id, clickable_block_count FROM article_cache WHERE article_id = ?
+`
+
+func (q *Queries) SelectCachedArticleByID(ctx context.Context, articleID int64) (ArticleCache, error) {
+	row := q.db.QueryRowContext(ctx, selectCachedArticleByID, articleID)
+	var i ArticleCache
+	err := row.Scan(
+		&i.ID,
+		&i.Link,
+		&i.ArticleContent,
+		&i.Created,
+		&i.ArticleID,
+		&i.ClickableBlockCount,
+	)
+	return i, err
+}
+
 const selectCachedArticleByLink = `-- name: SelectCachedArticleByLink :one
 SELECT id, link, article_content, created, article_id, clickable_block_count FROM article_cache WHERE link = ?
 `

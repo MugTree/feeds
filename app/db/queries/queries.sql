@@ -76,6 +76,9 @@ SELECT * FROM margin_notes WHERE article_id = ?;
 -- name: SelectCachedArticleByLink :one
 SELECT * FROM article_cache WHERE link = ?;
 
+-- name: SelectCachedArticleByID :one
+SELECT * FROM article_cache WHERE article_id = ?;
+
 -- name: InsertAndReturnCachedArticle :one
 INSERT INTO article_cache (
 	article_id,

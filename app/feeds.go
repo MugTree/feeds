@@ -61,7 +61,7 @@ func feedsGetArticlePageState(queries *db.Queries, ctx context.Context, articleI
 
 	if hasContent {
 
-		enrichedHTML, err := feedsEnrichHTMLOutput(preCachedHTML)
+		enrichedHTML, err := feedsEnrichHTMLOutput(preCachedHTML, feedID, articleID)
 		if err != nil {
 			return td, err
 		}
@@ -108,7 +108,7 @@ func feedsGetArticlePageState(queries *db.Queries, ctx context.Context, articleI
 		return td, err
 	}
 
-	enrichedHTMLForUser, err := feedsEnrichHTMLOutput(newlyCached.ArticleContent.String)
+	enrichedHTMLForUser, err := feedsEnrichHTMLOutput(newlyCached.ArticleContent.String, feedID, articleID)
 
 	td.PageContent = enrichedHTMLForUser
 	td.ClickableBlockCount = newlyCached.ClickableBlockCount
@@ -393,19 +393,24 @@ func feedsProcessScrapedHTML(input string) (string, int64, error) {
 }
 
 /* before data is passed to the front end we add some additional properties for interactivity*/
-func feedsEnrichHTMLOutput(htmlStr string) (string, error) {
+func feedsEnrichHTMLOutput(htmlStr string, feedId int64, articleID int64) (string, error) {
 
-	addDataAtrtibutes := func(doc *html.Node) *html.Node {
+	addDataAttributes := func(doc *html.Node) *html.Node {
 
 		var walk func(*html.Node)
 
+		count := 0
+
 		walk = func(n *html.Node) {
+
+			count++
 
 			if n.Type == html.ElementNode {
 
 				var blockID string
 
 				for _, attr := range n.Attr {
+					fmt.Println(attr)
 					if attr.Key == "data-block-id" {
 						blockID = attr.Val
 						break
@@ -413,16 +418,17 @@ func feedsEnrichHTMLOutput(htmlStr string) (string, error) {
 				}
 
 				if blockID != "" {
+					fmt.Println(blockID)
 					n.Attr = append(n.Attr, html.Attribute{
 						Key: "data-on:click",
-						Val: datastar.GetSSE("/url/%s", blockID),
+						Val: datastar.GetSSE("/article/%v/%v/note/edit/%v", feedId, articleID, blockID),
 					})
 				}
 
-				for c := n.FirstChild; c != nil; c = c.NextSibling {
-					walk(c)
-				}
+			}
 
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				walk(c)
 			}
 
 		}
@@ -478,7 +484,8 @@ func feedsEnrichHTMLOutput(htmlStr string) (string, error) {
 		return "", err
 	}
 
-	htmlNodes = addDataAtrtibutes(htmlNodes)
+	htmlNodes = addDataAttributes(htmlNodes)
+
 	htmlNodes, err = removeOuterHTMLShell(htmlNodes)
 	if err != nil {
 		return "", err
@@ -807,6 +814,15 @@ type FeedFormTemplateData struct {
 	Feed       db.Feed
 }
 
-type ArticleStatus struct{ HasBeenRead bool }
+type ArticleStatus struct {
+	HasBeenRead                  bool
+	HasScrolledToBottomOfArticle bool
+}
+
+type ArticleNotesState struct {
+	NoteToEdit       int64
+	IsInitialCall    bool
+	TotalBlocksCount int64
+}
 
 const layoutISO = "2006-01-02"

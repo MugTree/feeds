@@ -3,7 +3,6 @@ package app
 import (
 	"bytes"
 	"embed"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mugtree/feeds/app/db"
+	"github.com/mugtree/feeds/lib"
 	"github.com/starfederation/datastar/sdk/go/datastar"
 )
 
@@ -195,49 +195,52 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 		sse.ExecuteScript("feedsBalanceArticleLayout()")
 	})
 
-	r.Put("/article/{feedID}/{articleID}/annotate", func(w http.ResponseWriter, r *http.Request) {
+	//@get('/article/1/1/note/edit/2')
+	r.Get("/article/{feedID}/{articleID}/note/edit/{blockID}", func(w http.ResponseWriter, r *http.Request) {
 
+		fmt.Println("hitting note edit")
 		ctx := r.Context()
 
 		_, ok := httpRequireIDParam(w, r, "feedID")
 		if !ok {
 			return
 		}
+
 		articleID, ok := httpRequireIDParam(w, r, "articleID")
 		if !ok {
 			return
 		}
 
-		err := r.ParseForm()
+		blockID, ok := httpRequireNumericParam(w, r, "blockID")
+		if !ok {
+			return
+		}
+
+		ca, err := queries.SelectCachedArticleByID(ctx, articleID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
 		}
 
-		start := r.Form.Get("start")
-		end := r.Form.Get("end")
-
-		startPos, err := strconv.Atoi(start)
+		notes, err := queries.SelectMarginNotesByArticleID(ctx, articleID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
 		}
 
-		endPos, err := strconv.Atoi(end)
-		if err != nil {
-			httpLogAndError(w, r, err.Error())
-			return
-		}
+		notesMap := lib.SliceToMap(notes, func(n db.MarginNote) int64 {
+			return n.ID
+		})
 
-		selection := r.Form.Get("selection")
-		if selection < "" {
-			httpLogAndError(w, r, errors.New("selection param is not set?").Error())
-			return
-		}
+		noteID := blockID
 
-		note := r.Form.Get("note")
+		ev := ArticleNotesState{IsInitialCall: false, NoteToEdit: noteID, TotalBlocksCount: ca.ClickableBlockCount}
 
-		fmt.Println(startPos, endPos, note, articleID, ctx)
+		sse := datastar.NewSSE(w, r)
+		sse.PatchElementTempl(TemplateArticleNotes(notesMap, ev))
+
+		/* call an existing JS function  when the new data is morphed in*/
+		sse.ExecuteScript("feedsBalanceArticleLayout()")
 
 	})
 
@@ -426,8 +429,22 @@ func httpRequireNonZeroInt64(value string, key string, w http.ResponseWriter, r 
 	return v, true
 }
 
+func httpRequireInt64Param(value string, w http.ResponseWriter, r *http.Request) (int64, bool) {
+	v, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		httpLogAndError(w, r, err.Error(), http.StatusBadRequest)
+		return 0, false
+	}
+
+	return v, true
+}
+
 func httpRequireIDParam(w http.ResponseWriter, r *http.Request, key string) (int64, bool) {
 	return httpRequireNonZeroInt64(chi.URLParam(r, key), key, w, r)
+}
+
+func httpRequireNumericParam(w http.ResponseWriter, r *http.Request, key string) (int64, bool) {
+	return httpRequireInt64Param(chi.URLParam(r, key), w, r)
 }
 
 // func requirePageType(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
