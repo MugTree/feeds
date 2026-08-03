@@ -94,6 +94,9 @@ INSERT INTO article_cache (
 CURRENT_TIMESTAMP
 ) RETURNING *; 
 
+-- name: InsertAndReturnMarginNote :one
+INSERT INTO margin_notes (article_id, related_clickable_block_id, note, date_added ) VALUES (?,?,?,?) RETURNING *;
+
 -- name: SelectAllFeeds :many
 SELECT * from feeds;	
 

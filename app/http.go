@@ -12,7 +12,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mugtree/feeds/app/db"
-	"github.com/mugtree/feeds/lib"
 	"github.com/starfederation/datastar/sdk/go/datastar"
 )
 
@@ -27,7 +26,7 @@ func HttpSetupServer(queries *db.Queries, user string, password string) chi.Rout
 	r.Handle("/public/*", httpNeuterDirectory(http.FileServer(http.FS(staticFS))))
 
 	r.Group(func(pages chi.Router) {
-		pages.Use(httpDebugHttpRequest)
+		// pages.Use(httpDebugHttpRequest)
 		httpFrontEndRoutes(pages, queries)
 		httpAdminRoutes(pages, queries)
 	})
@@ -195,16 +194,9 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 		sse.ExecuteScript("feedsBalanceArticleLayout()")
 	})
 
-	//@get('/article/1/1/note/edit/2')
-	r.Get("/article/{feedID}/{articleID}/note/edit/{blockID}", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/article/{articleID}/note/edit/{blockID}", func(w http.ResponseWriter, r *http.Request) {
 
-		fmt.Println("hitting note edit")
 		ctx := r.Context()
-
-		_, ok := httpRequireIDParam(w, r, "feedID")
-		if !ok {
-			return
-		}
 
 		articleID, ok := httpRequireIDParam(w, r, "articleID")
 		if !ok {
@@ -216,31 +208,46 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return
 		}
 
-		ca, err := queries.SelectCachedArticleByID(ctx, articleID)
+		mns, err := feedsSelectMarginNotesState(queries, ctx, articleID, blockID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
 		}
-
-		notes, err := queries.SelectMarginNotesByArticleID(ctx, articleID)
-		if err != nil {
-			httpLogAndError(w, r, err.Error())
-			return
-		}
-
-		notesMap := lib.SliceToMap(notes, func(n db.MarginNote) int64 {
-			return n.ID
-		})
-
-		noteID := blockID
-
-		ev := ArticleNotesState{IsInitialCall: false, NoteToEdit: noteID, TotalBlocksCount: ca.ClickableBlockCount}
 
 		sse := datastar.NewSSE(w, r)
-		sse.PatchElementTempl(TemplateArticleNotes(notesMap, ev))
+		sse.PatchElementTempl(TemplateEditMarginNotes(mns))
 
 		/* call an existing JS function  when the new data is morphed in*/
 		sse.ExecuteScript("feedsBalanceArticleLayout()")
+
+	})
+
+	r.Post("/article/{articleID}/note/write/{blockID}", func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
+		articleID, ok := httpRequireIDParam(w, r, "articleID")
+		if !ok {
+			return
+		}
+
+		blockID, ok := httpRequireNumericParam(w, r, "blockID")
+		if !ok {
+			return
+		}
+
+		// might make sense to error here if empty
+		// -------------------------------------------------
+		noteText := r.FormValue("note-text")
+
+		mns, err := feedsWriteMarginNote(queries, ctx, noteText, articleID, blockID)
+		if err != nil {
+			httpLogAndError(w, r, err.Error())
+			return
+		}
+
+		sse := datastar.NewSSE(w, r)
+		sse.PatchElementTempl(TemplateEditMarginNotes(mns))
 
 	})
 

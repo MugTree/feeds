@@ -3,24 +3,23 @@ package app
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/mugtree/feeds/app/db"
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-templ TemplateArticlePage(td ArticlePageState) {
+templ TemplateArticlePage(aps ArticlePageState) {
 	<div id="article-page">
-		<h2 id="article-top">{ td.FeedTitle } - { td.PageTitle }</h2>
+		<h2 id="article-top">{ aps.FeedTitle } - { aps.PageTitle }</h2>
 		<ul>
-			<li><b>{ td.FeedTitle }</b></li>
-			<li>{ td.ArticlePublished }</li>
-			<li>{ td.IsCache }</li>
+			<li><b>{ aps.FeedTitle }</b></li>
+			<li>{ aps.ArticlePublished }</li>
+			<li>{ aps.IsCache }</li>
 			<li>
-				@TemplateLikeArticle("star-value-top", td.FeedID, td.ArticleId, td.StarValue)
+				@TemplateLikeArticle("star-value-top", aps.FeedID, aps.ArticleId, aps.StarValue)
 			</li>
 		</ul>
 		{{
 			ea := ArticleStatus{
-				HasBeenRead:                  td.ArticleHasBeenRead(),
+				HasBeenRead:                  aps.ArticleHasBeenRead(),
 				HasScrolledToBottomOfArticle: false,
 			}
 
@@ -28,27 +27,19 @@ templ TemplateArticlePage(td ArticlePageState) {
 		}}
 		<section class="editor" data-signals={ string(articleStatusSignals) }>
 			{{ /* Main content */ }}
-			@templ.Raw(td.PageContent)
-			{{ /* Notes - on the initial call we dont do anything */ }}
-			{{
-				notesState := ArticleNotesState{
-					NoteToEdit:       -1,
-					IsInitialCall:    true,
-					TotalBlocksCount: td.ClickableBlockCount,
-				}
-			}}
-			@TemplateArticleNotes(td.MarginNotes, notesState)
+			@templ.Raw(aps.PageContent)
+			@TemplateViewMarginNotes(aps.MarginNotesState)
 		</section>
-		@TemplateLikeArticle("star-value-bottom", td.FeedID, td.ArticleId, td.StarValue)
+		@TemplateLikeArticle("star-value-bottom", aps.FeedID, aps.ArticleId, aps.StarValue)
 		<section>
-			@TemplateToRead(td.ArticlesToRead)
+			@TemplateToRead(aps.ArticlesToRead)
 			<h3 data-on-intersect="$HasScrolledToBottomOfArticle = true">Older articles</h3>
 			{{ /* If the article is unread, if the user has scrolled past this point a button will appear */ }}
-			{{ setArticleReadURL := datastar.PutSSE("/article/%d/%d/set-read", td.FeedID, td.ArticleId) }}
+			{{ setArticleReadURL := datastar.PutSSE("/article/%d/%d/set-read", aps.FeedID, aps.ArticleId) }}
 			<button class="have-read-article" data-show="$HasScrolledToBottomOfArticle && !$HasBeenRead" data-on:click={ setArticleReadURL }>Mark as read</button>
-			@TemplateAlreadyRead(td.ArticlesRead)
+			@TemplateAlreadyRead(aps.ArticlesRead)
 			<hr/>
-			@TemplateNav(td.Sidebar)
+			@TemplateNav(aps.Sidebar)
 			<p><a href="#pagetop">Back to top</a></p>
 		</section>
 		<script src="/public/js/feeds.js"></script>
@@ -61,17 +52,16 @@ templ TemplateLikeArticle(htmlID string, feedID int64, articleID int64, starsVal
 	<div id={ htmlID } data-on:click={ likeArticleURL }>Starred: <img width="60px" src={ starsGraphic }/> </div>
 }
 
-templ TemplateArticleNotes(notes map[int64]db.MarginNote, st ArticleNotesState) {
+templ TemplateEditMarginNotes(mns MarginNotesState) {
 	<aside id="article-notes">
-		for i := range st.TotalBlocksCount {
-			{{ note, _ := notes[i] }}
-			if !st.IsInitialCall {
-				if i == st.NoteToEdit {
-					<textarea class="note-edit" name="note-edit" data-note-id={ i }>{ note.Note }</textarea>
-					<button>Edit</button>
-				} else {
-					<p data-note-id={ i }>{ note.Note }</p>
-				}
+		for i := range mns.TotalBlocksCount {
+			{{ note, _ := mns.MarginNotes[i] }}
+			if i == mns.NoteToEdit {
+				<form>
+					<textarea class="note-edit" name="note-text" data-note-id={ i }>{ note.Note }</textarea>
+					{{ url := fmt.Sprintf("@post('/article/%v/note/write/%v', {contentType: 'form'})", mns.ArticleID, mns.NoteToEdit) }}
+					<button data-on:click={ url }>Edit</button>
+				</form>
 			} else {
 				<p data-note-id={ i }>{ note.Note }</p>
 			}
@@ -79,14 +69,13 @@ templ TemplateArticleNotes(notes map[int64]db.MarginNote, st ArticleNotesState) 
 	</aside>
 }
 
-templ TemplateArticleNoteAdd(articleID int64, blockID int64) {
-	<div class="article-note" data-block-ref={ blockID }>
-		<form>
-			<textarea name="note"></textarea>
-			{{ url := fmt.Sprintf(`@put("/article/%v/%v/note/add", {contentType: 'form'})`, articleID, blockID) }}
-			<button data-on:click={ url }>Comment</button>
-		</form>
-	</div>
+templ TemplateViewMarginNotes(mns MarginNotesState) {
+	<aside id="article-notes">
+		for i := range mns.TotalBlocksCount {
+			{{ note, _ := mns.MarginNotes[i] }}
+			<p data-note-id={ i }>{ note.Note }</p>
+		}
+	</aside>
 }
 
 // these will likely have an id value

@@ -13,6 +13,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly/v2"
+	"github.com/goforj/godump"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/mmcdole/gofeed"
 	"github.com/mugtree/feeds/app/db"
@@ -70,17 +71,10 @@ func feedsGetArticlePageState(queries *db.Queries, ctx context.Context, articleI
 		td.ClickableBlockCount = clickableBlocksCount
 		td.IsCache = true
 
-		notes, err := queries.SelectMarginNotesByArticleID(ctx, articleID)
-		if err != nil {
-			return td, err
-		}
+		mns, err := feedsSelectMarginNotesState(queries, ctx, articleID, -1)
 
-		// these need to be used as a lookup in the template
-		notesMap := lib.SliceToMap(notes, func(n db.MarginNote) int64 {
-			return n.ID
-		})
+		td.MarginNotesState = mns
 
-		td.MarginNotes = notesMap
 		return td, nil
 	}
 
@@ -133,6 +127,56 @@ func feedsGetSideBarTemplateData(queries *db.Queries, ctx context.Context) ([]fe
 	}
 
 	return items, nil
+}
+
+func feedsWriteMarginNote(queries *db.Queries, ctx context.Context, noteText string, articleID int64, blockID int64) (MarginNotesState, error) {
+
+	_, err := queries.InsertAndReturnMarginNote(ctx,
+		db.InsertAndReturnMarginNoteParams{
+			Note:                    noteText,
+			ArticleID:               articleID,
+			RelatedClickableBlockID: blockID,
+		},
+	)
+	if err != nil {
+		return MarginNotesState{}, err
+	}
+
+	mns, err := feedsSelectMarginNotesState(queries, ctx, articleID, blockID)
+	if err != nil {
+		return mns, err
+	}
+
+	return mns, nil
+}
+
+func feedsSelectMarginNotesState(queries *db.Queries, ctx context.Context, articleID int64, blockID int64) (MarginNotesState, error) {
+
+	mns := MarginNotesState{}
+
+	// CLARIFY!!!! if this is -1 then its the page render call
+	fmt.Printf("Debugging blockID from feedsSelectMarginNotesState(): %v\n", blockID)
+	mns.NoteToEdit = blockID
+
+	article, err := queries.SelectCachedArticleByID(ctx, articleID)
+	if err != nil {
+		return mns, err
+	}
+	mns.TotalBlocksCount = article.ClickableBlockCount
+	mns.ArticleID = article.ArticleID
+
+	notes, err := queries.SelectMarginNotesByArticleID(ctx, articleID)
+	if err != nil {
+		return mns, err
+	}
+	notesMap := lib.SliceToMap(notes, func(n db.MarginNote) int64 {
+		return n.ID
+	})
+	mns.MarginNotes = notesMap
+
+	godump.Dump(mns)
+
+	return mns, nil
 }
 
 func feedsSetArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
@@ -393,7 +437,7 @@ func feedsProcessScrapedHTML(input string) (string, int64, error) {
 }
 
 /* before data is passed to the front end we add some additional properties for interactivity*/
-func feedsEnrichHTMLOutput(htmlStr string, feedId int64, articleID int64) (string, error) {
+func feedsEnrichHTMLOutput(htmlStr string, _ int64, articleID int64) (string, error) {
 
 	addDataAttributes := func(doc *html.Node) *html.Node {
 
@@ -410,7 +454,6 @@ func feedsEnrichHTMLOutput(htmlStr string, feedId int64, articleID int64) (strin
 				var blockID string
 
 				for _, attr := range n.Attr {
-					fmt.Println(attr)
 					if attr.Key == "data-block-id" {
 						blockID = attr.Val
 						break
@@ -418,10 +461,9 @@ func feedsEnrichHTMLOutput(htmlStr string, feedId int64, articleID int64) (strin
 				}
 
 				if blockID != "" {
-					fmt.Println(blockID)
 					n.Attr = append(n.Attr, html.Attribute{
 						Key: "data-on:click",
-						Val: datastar.GetSSE("/article/%v/%v/note/edit/%v", feedId, articleID, blockID),
+						Val: datastar.GetSSE("/article/%v/note/edit/%v", articleID, blockID),
 					})
 				}
 
@@ -802,6 +844,7 @@ type ArticlePageState struct {
 	ArticleRead         int64
 	MarginNotes         map[int64]db.MarginNote
 	ClickableBlockCount int64
+	MarginNotesState    MarginNotesState
 }
 
 func (ae ArticlePageState) ArticleHasBeenRead() bool {
@@ -819,10 +862,17 @@ type ArticleStatus struct {
 	HasScrolledToBottomOfArticle bool
 }
 
-type ArticleNotesState struct {
+type MarginNotesState struct {
+	ArticleID        int64
 	NoteToEdit       int64
-	IsInitialCall    bool
 	TotalBlocksCount int64
+	MarginNotes      map[int64]db.MarginNote
 }
 
 const layoutISO = "2006-01-02"
+
+// Added to keep hold of go dump otherwise it just keeps getting cleaned out
+// when not being interntionally used
+func ___godumpHelper__ignore() {
+	godump.Dump("helper")
+}

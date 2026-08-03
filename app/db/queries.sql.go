@@ -53,6 +53,35 @@ func (q *Queries) InsertAndReturnCachedArticle(ctx context.Context, arg InsertAn
 	return i, err
 }
 
+const insertAndReturnMarginNote = `-- name: InsertAndReturnMarginNote :one
+INSERT INTO margin_notes (article_id, related_clickable_block_id, note, date_added ) VALUES (?,?,?,?) RETURNING id, article_id, related_clickable_block_id, note, date_added
+`
+
+type InsertAndReturnMarginNoteParams struct {
+	ArticleID               int64
+	RelatedClickableBlockID int64
+	Note                    string
+	DateAdded               time.Time
+}
+
+func (q *Queries) InsertAndReturnMarginNote(ctx context.Context, arg InsertAndReturnMarginNoteParams) (MarginNote, error) {
+	row := q.db.QueryRowContext(ctx, insertAndReturnMarginNote,
+		arg.ArticleID,
+		arg.RelatedClickableBlockID,
+		arg.Note,
+		arg.DateAdded,
+	)
+	var i MarginNote
+	err := row.Scan(
+		&i.ID,
+		&i.ArticleID,
+		&i.RelatedClickableBlockID,
+		&i.Note,
+		&i.DateAdded,
+	)
+	return i, err
+}
+
 const insertOrIgnoreArticle = `-- name: InsertOrIgnoreArticle :exec
 INSERT OR IGNORE INTO articles (
 	feed_id, 
