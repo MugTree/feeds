@@ -105,7 +105,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return
 		}
 
-		ps, err := feedsGetArticlePageState(queries, ctx, articleID, feedID)
+		ps, err := feedsGetArticlePageTemplateData(queries, ctx, articleID, feedID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -137,7 +137,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return
 		}
 
-		ps, err := feedsGetArticlePageState(queries, ctx, articleID, feedID)
+		ps, err := feedsGetArticlePageTemplateData(queries, ctx, articleID, feedID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -181,7 +181,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return
 		}
 
-		ps, err := feedsGetArticlePageState(queries, ctx, articleID, feedID)
+		ps, err := feedsGetArticlePageTemplateData(queries, ctx, articleID, feedID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -207,7 +207,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return
 		}
 
-		mns, err := feedsSelectMarginNotesState(queries, ctx, articleID, blockID)
+		mns, err := feedsSelectMarginNotesTemplateData(queries, ctx, articleID, blockID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -239,7 +239,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 		// -------------------------------------------------
 		noteText := r.FormValue("note-text")
 
-		mns, err := feedsUpdateMarginNoteState(queries, ctx, noteText, articleID, blockID)
+		mns, err := feedsUpdateMarginNotesTemplateData(queries, ctx, noteText, articleID, blockID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return

@@ -73,6 +73,12 @@ ON f.id = a.feed_id where a.id = ?;
 -- name: SelectMarginNotesByArticleID :many
 SELECT * FROM margin_notes WHERE article_id = ?;
 
+-- name: SelectMarginNoteByArticleIDAndBlockID :one
+SELECT * FROM margin_notes WHERE article_id = ? AND block_id = ?;
+
+-- name: UpdateMarginNoteByArticleIDAndBlockID :exec
+UPDATE margin_notes SET note = ? WHERE article_id =? AND block_id = ?;
+
 -- name: SelectCachedArticleByLink :one
 SELECT * FROM article_cache WHERE link = ?;
 
@@ -95,7 +101,7 @@ CURRENT_TIMESTAMP
 ) RETURNING *; 
 
 -- name: InsertAndReturnMarginNote :one
-INSERT INTO margin_notes (article_id, related_clickable_block_id, note, date_added ) VALUES (?,?,?,?) RETURNING *;
+INSERT INTO margin_notes (article_id, block_id, note, date_added ) VALUES (?,?,?,?) RETURNING *;
 
 -- name: SelectAllFeeds :many
 SELECT * from feeds;	

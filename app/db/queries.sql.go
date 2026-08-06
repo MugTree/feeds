@@ -54,20 +54,20 @@ func (q *Queries) InsertAndReturnCachedArticle(ctx context.Context, arg InsertAn
 }
 
 const insertAndReturnMarginNote = `-- name: InsertAndReturnMarginNote :one
-INSERT INTO margin_notes (article_id, related_clickable_block_id, note, date_added ) VALUES (?,?,?,?) RETURNING id, article_id, related_clickable_block_id, note, date_added
+INSERT INTO margin_notes (article_id, block_id, note, date_added ) VALUES (?,?,?,?) RETURNING id, article_id, block_id, note, date_added
 `
 
 type InsertAndReturnMarginNoteParams struct {
-	ArticleID               int64
-	RelatedClickableBlockID int64
-	Note                    string
-	DateAdded               time.Time
+	ArticleID int64
+	BlockID   int64
+	Note      string
+	DateAdded time.Time
 }
 
 func (q *Queries) InsertAndReturnMarginNote(ctx context.Context, arg InsertAndReturnMarginNoteParams) (MarginNote, error) {
 	row := q.db.QueryRowContext(ctx, insertAndReturnMarginNote,
 		arg.ArticleID,
-		arg.RelatedClickableBlockID,
+		arg.BlockID,
 		arg.Note,
 		arg.DateAdded,
 	)
@@ -75,7 +75,7 @@ func (q *Queries) InsertAndReturnMarginNote(ctx context.Context, arg InsertAndRe
 	err := row.Scan(
 		&i.ID,
 		&i.ArticleID,
-		&i.RelatedClickableBlockID,
+		&i.BlockID,
 		&i.Note,
 		&i.DateAdded,
 	)
@@ -465,8 +465,30 @@ func (q *Queries) SelectLatest5StarredArticles(ctx context.Context) ([]SelectLat
 	return items, nil
 }
 
+const selectMarginNoteByArticleIDAndBlockID = `-- name: SelectMarginNoteByArticleIDAndBlockID :one
+SELECT id, article_id, block_id, note, date_added FROM margin_notes WHERE article_id = ? AND block_id = ?
+`
+
+type SelectMarginNoteByArticleIDAndBlockIDParams struct {
+	ArticleID int64
+	BlockID   int64
+}
+
+func (q *Queries) SelectMarginNoteByArticleIDAndBlockID(ctx context.Context, arg SelectMarginNoteByArticleIDAndBlockIDParams) (MarginNote, error) {
+	row := q.db.QueryRowContext(ctx, selectMarginNoteByArticleIDAndBlockID, arg.ArticleID, arg.BlockID)
+	var i MarginNote
+	err := row.Scan(
+		&i.ID,
+		&i.ArticleID,
+		&i.BlockID,
+		&i.Note,
+		&i.DateAdded,
+	)
+	return i, err
+}
+
 const selectMarginNotesByArticleID = `-- name: SelectMarginNotesByArticleID :many
-SELECT id, article_id, related_clickable_block_id, note, date_added FROM margin_notes WHERE article_id = ?
+SELECT id, article_id, block_id, note, date_added FROM margin_notes WHERE article_id = ?
 `
 
 func (q *Queries) SelectMarginNotesByArticleID(ctx context.Context, articleID int64) ([]MarginNote, error) {
@@ -481,7 +503,7 @@ func (q *Queries) SelectMarginNotesByArticleID(ctx context.Context, articleID in
 		if err := rows.Scan(
 			&i.ID,
 			&i.ArticleID,
-			&i.RelatedClickableBlockID,
+			&i.BlockID,
 			&i.Note,
 			&i.DateAdded,
 		); err != nil {
@@ -623,5 +645,20 @@ type UpdateArticleSetStarredValueParams struct {
 
 func (q *Queries) UpdateArticleSetStarredValue(ctx context.Context, arg UpdateArticleSetStarredValueParams) error {
 	_, err := q.db.ExecContext(ctx, updateArticleSetStarredValue, arg.Starred, arg.ID)
+	return err
+}
+
+const updateMarginNoteByArticleIDAndBlockID = `-- name: UpdateMarginNoteByArticleIDAndBlockID :exec
+UPDATE margin_notes SET note = ? WHERE article_id =? AND block_id = ?
+`
+
+type UpdateMarginNoteByArticleIDAndBlockIDParams struct {
+	Note      string
+	ArticleID int64
+	BlockID   int64
+}
+
+func (q *Queries) UpdateMarginNoteByArticleIDAndBlockID(ctx context.Context, arg UpdateMarginNoteByArticleIDAndBlockIDParams) error {
+	_, err := q.db.ExecContext(ctx, updateMarginNoteByArticleIDAndBlockID, arg.Note, arg.ArticleID, arg.BlockID)
 	return err
 }

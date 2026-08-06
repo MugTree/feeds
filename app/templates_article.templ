@@ -6,7 +6,7 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-templ TemplateArticlePage(aps ArticlePageState) {
+templ TemplateArticlePage(aps ArticlePageTemplateData) {
 	<div id="article-page">
 		<h2 id="article-top">{ aps.FeedTitle } - { aps.PageTitle }</h2>
 		<ul>
@@ -28,7 +28,7 @@ templ TemplateArticlePage(aps ArticlePageState) {
 		<section class="editor" data-signals={ string(articleStatusSignals) }>
 			{{ /* Main content */ }}
 			@templ.Raw(aps.PageContent)
-			@TemplateViewMarginNotes(aps.MarginNotesState)
+			@TemplateViewMarginNotes(aps.MarginNotesTemplateData)
 		</section>
 		@TemplateLikeArticle("star-value-bottom", aps.FeedID, aps.ArticleId, aps.StarValue)
 		<section>
@@ -52,7 +52,7 @@ templ TemplateLikeArticle(htmlID string, feedID int64, articleID int64, starsVal
 	<div id={ htmlID } data-on:click={ likeArticleURL }>Starred: <img width="60px" src={ starsGraphic }/> </div>
 }
 
-templ TemplateEditMarginNotes(mns MarginNotesState) {
+templ TemplateEditMarginNotes(mns MarginNotesTemplateData) {
 	<aside id="article-notes">
 		for i := range mns.TotalBlocksCount {
 			{{ note, _ := mns.MarginNotes[i] }}
@@ -69,7 +69,7 @@ templ TemplateEditMarginNotes(mns MarginNotesState) {
 	</aside>
 }
 
-templ TemplateViewMarginNotes(mns MarginNotesState) {
+templ TemplateViewMarginNotes(mns MarginNotesTemplateData) {
 	{{ /* godump.Dump("TEMPLATE: ", mns.MarginNotes) */ }}
 	<aside id="article-notes">
 		for i := range mns.TotalBlocksCount {

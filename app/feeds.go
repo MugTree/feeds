@@ -22,9 +22,9 @@ import (
 	"golang.org/x/net/html"
 )
 
-func feedsGetArticlePageState(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageState, error) {
+func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageTemplateData, error) {
 
-	td := ArticlePageState{}
+	td := ArticlePageTemplateData{}
 
 	sidebar, err := feedsGetSideBarTemplateData(queries, ctx)
 	if err != nil {
@@ -71,11 +71,11 @@ func feedsGetArticlePageState(queries *db.Queries, ctx context.Context, articleI
 		td.ClickableBlockCount = clickableBlocksCount
 		td.IsCache = true
 
-		mns, err := feedsSelectMarginNotesState(queries, ctx, articleID, -1)
+		mns, err := feedsSelectMarginNotesTemplateData(queries, ctx, articleID, -1)
 
 		godump.Dump(mns)
 
-		td.MarginNotesState = mns
+		td.MarginNotesTemplateData = mns
 
 		return td, nil
 	}
@@ -131,12 +131,14 @@ func feedsGetSideBarTemplateData(queries *db.Queries, ctx context.Context) ([]fe
 	return items, nil
 }
 
-/* This*/
-func feedsUpdateMarginNoteState(queries *db.Queries, ctx context.Context, noteText string, articleID int64, blockID int64) (MarginNotesState, error) {
+/* This needs to update or insert a specific margin note and then return all the margin notes */
+func feedsUpdateMarginNotesTemplateData(queries *db.Queries, ctx context.Context, noteText string, articleID int64, blockID int64) (MarginNotesTemplateData, error) {
 
-	mns := MarginNotesState{}
+	mns := MarginNotesTemplateData{}
 
 	fmt.Printf("Updating note state - block: %v article:%v - text:%s\n", blockID, articleID, noteText)
+
+	// Is there an existing note
 
 	existingNote, err := queries.SelectMarginNoteByArticleIDAndBlockID(
 		ctx, db.SelectMarginNoteByArticleIDAndBlockIDParams{
@@ -146,13 +148,14 @@ func feedsUpdateMarginNoteState(queries *db.Queries, ctx context.Context, noteTe
 	)
 
 	//	godump.Dump(existingNote)
-
-	if err != sql.ErrNoRows {
+	if err != nil {
 		return mns, err
 	}
 
-	// is empty record
-	if existingNote == (db.SelectMarginNoteByArticleIDAndBlockIDRow{}) {
+	var td = MarginNotesTemplateData{}
+
+	// is struct its default form - IS THIS RIGHT????
+	if existingNote == (db.MarginNote{}) {
 
 		fmt.Printf("Create a new note - %v - %s\n", blockID, noteText)
 
@@ -164,7 +167,7 @@ func feedsUpdateMarginNoteState(queries *db.Queries, ctx context.Context, noteTe
 			},
 		)
 		if err != nil {
-			return MarginNotesState{}, err
+			return td, err
 		}
 
 	} else {
@@ -180,22 +183,24 @@ func feedsUpdateMarginNoteState(queries *db.Queries, ctx context.Context, noteTe
 		)
 
 		if err != nil {
-			return MarginNotesState{}, err
+			return td, err
 		}
 
 	}
 
-	mns, err = feedsSelectMarginNotesState(queries, ctx, articleID, blockID)
+	mns, err = feedsSelectMarginNotesTemplateData(queries, ctx, articleID, blockID)
 	if err != nil {
 		return mns, err
 	}
 
+	td.TotalBlocksCount = mns.TotalBlocksCount
+
 	return mns, nil
 }
 
-func feedsSelectMarginNotesState(queries *db.Queries, ctx context.Context, articleID int64, blockID int64) (MarginNotesState, error) {
+func feedsSelectMarginNotesTemplateData(queries *db.Queries, ctx context.Context, articleID int64, blockID int64) (MarginNotesTemplateData, error) {
 
-	mns := MarginNotesState{}
+	mns := MarginNotesTemplateData{}
 
 	// CLARIFY!!!! if this is -1 then its the page render call
 	fmt.Printf("Selecting note state: %v\n", blockID)
@@ -872,27 +877,27 @@ type feedsSidebarLink struct {
 	FeedId int
 }
 
-type ArticlePageState struct {
-	FeedID              int64
-	PageTitle           string
-	ArticlesRead        []feedsArticle
-	ArticlesToRead      []feedsArticle
-	FeedTitle           string
-	FeedUrl             string
-	Link                string
-	PageContent         string
-	ArticleId           int64
-	IsCache             bool
-	StarValue           int64
-	Sidebar             []feedsSidebarLink
-	ArticlePublished    string
-	ArticleRead         int64
-	MarginNotes         map[int64]db.MarginNote
-	ClickableBlockCount int64
-	MarginNotesState    MarginNotesState
+type ArticlePageTemplateData struct {
+	FeedID                  int64
+	PageTitle               string
+	ArticlesRead            []feedsArticle
+	ArticlesToRead          []feedsArticle
+	FeedTitle               string
+	FeedUrl                 string
+	Link                    string
+	PageContent             string
+	ArticleId               int64
+	IsCache                 bool
+	StarValue               int64
+	Sidebar                 []feedsSidebarLink
+	ArticlePublished        string
+	ArticleRead             int64
+	MarginNotes             map[int64]db.MarginNote
+	ClickableBlockCount     int64
+	MarginNotesTemplateData MarginNotesTemplateData
 }
 
-func (ae ArticlePageState) ArticleHasBeenRead() bool {
+func (ae ArticlePageTemplateData) ArticleHasBeenRead() bool {
 	return lib.IntToBool(ae.ArticleRead)
 }
 
@@ -907,7 +912,7 @@ type ArticleStatus struct {
 	HasScrolledToBottomOfArticle bool
 }
 
-type MarginNotesState struct {
+type MarginNotesTemplateData struct {
 	ArticleID        int64
 	NoteToEdit       int64
 	TotalBlocksCount int64
