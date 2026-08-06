@@ -70,8 +70,10 @@ templ TemplateEditMarginNotes(mns MarginNotesState) {
 }
 
 templ TemplateViewMarginNotes(mns MarginNotesState) {
+	{{ /* godump.Dump("TEMPLATE: ", mns.MarginNotes) */ }}
 	<aside id="article-notes">
 		for i := range mns.TotalBlocksCount {
+			{{ fmt.Println(i) }}
 			{{ note, _ := mns.MarginNotes[i] }}
 			<p data-note-id={ i }>{ note.Note }</p>
 		}
@@ -79,8 +81,8 @@ templ TemplateViewMarginNotes(mns MarginNotesState) {
 }
 
 // these will likely have an id value
-templ TemplateArticleNoteView(note string, blockId int64) {
-	<div class="article-note" data-block-ref={ blockId }>
-		{ note }
-	</div>
-}
+// templ TemplateArticleNoteView(note string, blockId int64) {
+// 	<div class="article-note" data-block-ref={ blockId }>
+// 		{ note }
+// 	</div>
+// }

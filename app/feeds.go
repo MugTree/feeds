@@ -73,6 +73,8 @@ func feedsGetArticlePageState(queries *db.Queries, ctx context.Context, articleI
 
 		mns, err := feedsSelectMarginNotesState(queries, ctx, articleID, -1)
 
+		godump.Dump(mns)
+
 		td.MarginNotesState = mns
 
 		return td, nil
@@ -129,20 +131,61 @@ func feedsGetSideBarTemplateData(queries *db.Queries, ctx context.Context) ([]fe
 	return items, nil
 }
 
-func feedsWriteMarginNote(queries *db.Queries, ctx context.Context, noteText string, articleID int64, blockID int64) (MarginNotesState, error) {
+/* This*/
+func feedsUpdateMarginNoteState(queries *db.Queries, ctx context.Context, noteText string, articleID int64, blockID int64) (MarginNotesState, error) {
 
-	_, err := queries.InsertAndReturnMarginNote(ctx,
-		db.InsertAndReturnMarginNoteParams{
-			Note:                    noteText,
-			ArticleID:               articleID,
-			RelatedClickableBlockID: blockID,
+	mns := MarginNotesState{}
+
+	fmt.Printf("Updating note state - block: %v article:%v - text:%s\n", blockID, articleID, noteText)
+
+	existingNote, err := queries.SelectMarginNoteByArticleIDAndBlockID(
+		ctx, db.SelectMarginNoteByArticleIDAndBlockIDParams{
+			ArticleID: articleID,
+			BlockID:   blockID,
 		},
 	)
-	if err != nil {
-		return MarginNotesState{}, err
+
+	//	godump.Dump(existingNote)
+
+	if err != sql.ErrNoRows {
+		return mns, err
 	}
 
-	mns, err := feedsSelectMarginNotesState(queries, ctx, articleID, blockID)
+	// is empty record
+	if existingNote == (db.SelectMarginNoteByArticleIDAndBlockIDRow{}) {
+
+		fmt.Printf("Create a new note - %v - %s\n", blockID, noteText)
+
+		_, err := queries.InsertAndReturnMarginNote(ctx,
+			db.InsertAndReturnMarginNoteParams{
+				Note:      noteText,
+				ArticleID: articleID,
+				BlockID:   blockID,
+			},
+		)
+		if err != nil {
+			return MarginNotesState{}, err
+		}
+
+	} else {
+
+		fmt.Printf("Update an existing note - %v - %s\n", blockID, noteText)
+
+		err := queries.UpdateMarginNoteByArticleIDAndBlockID(ctx,
+			db.UpdateMarginNoteByArticleIDAndBlockIDParams{
+				Note:      noteText,
+				ArticleID: articleID,
+				BlockID:   blockID,
+			},
+		)
+
+		if err != nil {
+			return MarginNotesState{}, err
+		}
+
+	}
+
+	mns, err = feedsSelectMarginNotesState(queries, ctx, articleID, blockID)
 	if err != nil {
 		return mns, err
 	}
@@ -155,7 +198,7 @@ func feedsSelectMarginNotesState(queries *db.Queries, ctx context.Context, artic
 	mns := MarginNotesState{}
 
 	// CLARIFY!!!! if this is -1 then its the page render call
-	fmt.Printf("Debugging blockID from feedsSelectMarginNotesState(): %v\n", blockID)
+	fmt.Printf("Selecting note state: %v\n", blockID)
 	mns.NoteToEdit = blockID
 
 	article, err := queries.SelectCachedArticleByID(ctx, articleID)
@@ -169,12 +212,14 @@ func feedsSelectMarginNotesState(queries *db.Queries, ctx context.Context, artic
 	if err != nil {
 		return mns, err
 	}
-	notesMap := lib.SliceToMap(notes, func(n db.MarginNote) int64 {
-		return n.ID
-	})
-	mns.MarginNotes = notesMap
 
-	godump.Dump(mns)
+	// blockIDs are zero indexed but the DB starts at 1
+	getBlockID := func(n db.MarginNote) int64 {
+		return n.ID - 1
+	}
+
+	notesMap := lib.SliceToMap(notes, getBlockID)
+	mns.MarginNotes = notesMap
 
 	return mns, nil
 }

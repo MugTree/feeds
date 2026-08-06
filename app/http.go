@@ -1,16 +1,15 @@
 package app
 
 import (
-	"bytes"
 	"embed"
 	"fmt"
-	"io"
 	"net/http"
 	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/goforj/godump"
 	"github.com/mugtree/feeds/app/db"
 	"github.com/starfederation/datastar/sdk/go/datastar"
 )
@@ -240,14 +239,18 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 		// -------------------------------------------------
 		noteText := r.FormValue("note-text")
 
-		mns, err := feedsWriteMarginNote(queries, ctx, noteText, articleID, blockID)
+		mns, err := feedsUpdateMarginNoteState(queries, ctx, noteText, articleID, blockID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
 		}
 
+		godump.Dump(mns)
+
 		sse := datastar.NewSSE(w, r)
 		sse.PatchElementTempl(TemplateEditMarginNotes(mns))
+
+		sse.ExecuteScript("feedsBalanceArticleLayout()")
 
 	})
 
@@ -369,52 +372,52 @@ func httpNeuterDirectory(next http.Handler) http.Handler {
 // 	}
 // }
 
-func httpDebugHttpRequest(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		httpDumpRequest(r, false, false)
-		next.ServeHTTP(w, r)
-	})
-}
+// func httpDebugHttpRequest(next http.Handler) http.Handler {
+// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		httpDumpRequest(r, false, false)
+// 		next.ServeHTTP(w, r)
+// 	})
+// }
 
-func httpDumpRequest(r *http.Request, readHeaders bool, readJsonBody bool) {
+// func httpDumpRequest(r *http.Request, readHeaders bool, readJsonBody bool) {
 
-	fmt.Printf("\n=== %s %s ===\n", r.Method, r.URL)
+// 	fmt.Printf("\n=== %s %s ===\n", r.Method, r.URL)
 
-	routeCtx := chi.RouteContext(r.Context())
-	if routeCtx != nil {
-		fmt.Println("Path params:")
-		for i, key := range routeCtx.URLParams.Keys {
-			fmt.Printf("  %s = %s\n", key, routeCtx.URLParams.Values[i])
-		}
-	}
+// 	routeCtx := chi.RouteContext(r.Context())
+// 	if routeCtx != nil {
+// 		fmt.Println("Path params:")
+// 		for i, key := range routeCtx.URLParams.Keys {
+// 			fmt.Printf("  %s = %s\n", key, routeCtx.URLParams.Values[i])
+// 		}
+// 	}
 
-	fmt.Println("Query params:")
-	for key, values := range r.URL.Query() {
-		fmt.Printf("  %s = %v\n", key, values)
-	}
+// 	fmt.Println("Query params:")
+// 	for key, values := range r.URL.Query() {
+// 		fmt.Printf("  %s = %v\n", key, values)
+// 	}
 
-	if err := r.ParseForm(); err == nil {
-		fmt.Println("Form values:")
-		for key, values := range r.PostForm {
-			fmt.Printf("  %s = %v\n", key, values)
-		}
-	}
+// 	if err := r.ParseForm(); err == nil {
+// 		fmt.Println("Form values:")
+// 		for key, values := range r.PostForm {
+// 			fmt.Printf("  %s = %v\n", key, values)
+// 		}
+// 	}
 
-	if readHeaders {
-		fmt.Println("Headers:")
-		for key, values := range r.Header {
-			fmt.Printf("  %s = %v\n", key, values)
-		}
-	}
+// 	if readHeaders {
+// 		fmt.Println("Headers:")
+// 		for key, values := range r.Header {
+// 			fmt.Printf("  %s = %v\n", key, values)
+// 		}
+// 	}
 
-	if readJsonBody {
-		fmt.Println("JSON body:")
-		body, _ := io.ReadAll(r.Body)
-		fmt.Println(string(body))
-		r.Body = io.NopCloser(bytes.NewBuffer(body))
-	}
+// 	if readJsonBody {
+// 		fmt.Println("JSON body:")
+// 		body, _ := io.ReadAll(r.Body)
+// 		fmt.Println(string(body))
+// 		r.Body = io.NopCloser(bytes.NewBuffer(body))
+// 	}
 
-}
+// }
 
 func httpRequireNonZeroInt64(value string, key string, w http.ResponseWriter, r *http.Request) (int64, bool) {
 	v, err := strconv.ParseInt(value, 10, 64)
