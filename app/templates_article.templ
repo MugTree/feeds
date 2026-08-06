@@ -56,7 +56,7 @@ templ TemplateEditMarginNotes(mns MarginNotesTemplateData) {
 	<aside id="article-notes">
 		for i := range mns.TotalBlocksCount {
 			{{ note, _ := mns.MarginNotes[i] }}
-			if i == mns.NoteToEdit {
+			if i == mns.NoteToEdit && mns.ShowTextArea {
 				<form>
 					<textarea class="note-edit" name="note-text" data-note-id={ i }>{ note.Note }</textarea>
 					{{ url := fmt.Sprintf("@post('/article/%v/note/write/%v', {contentType: 'form'})", mns.ArticleID, mns.NoteToEdit) }}

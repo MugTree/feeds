@@ -54,23 +54,17 @@ func (q *Queries) InsertAndReturnCachedArticle(ctx context.Context, arg InsertAn
 }
 
 const insertAndReturnMarginNote = `-- name: InsertAndReturnMarginNote :one
-INSERT INTO margin_notes (article_id, block_id, note, date_added ) VALUES (?,?,?,?) RETURNING id, article_id, block_id, note, date_added
+INSERT INTO margin_notes (article_id, block_id, note, date_added ) VALUES (?,?,?, CURRENT_TIMESTAMP) RETURNING id, article_id, block_id, note, date_added
 `
 
 type InsertAndReturnMarginNoteParams struct {
 	ArticleID int64
 	BlockID   int64
 	Note      string
-	DateAdded time.Time
 }
 
 func (q *Queries) InsertAndReturnMarginNote(ctx context.Context, arg InsertAndReturnMarginNoteParams) (MarginNote, error) {
-	row := q.db.QueryRowContext(ctx, insertAndReturnMarginNote,
-		arg.ArticleID,
-		arg.BlockID,
-		arg.Note,
-		arg.DateAdded,
-	)
+	row := q.db.QueryRowContext(ctx, insertAndReturnMarginNote, arg.ArticleID, arg.BlockID, arg.Note)
 	var i MarginNote
 	err := row.Scan(
 		&i.ID,

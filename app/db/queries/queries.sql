@@ -101,7 +101,7 @@ CURRENT_TIMESTAMP
 ) RETURNING *; 
 
 -- name: InsertAndReturnMarginNote :one
-INSERT INTO margin_notes (article_id, block_id, note, date_added ) VALUES (?,?,?,?) RETURNING *;
+INSERT INTO margin_notes (article_id, block_id, note, date_added ) VALUES (?,?,?, CURRENT_TIMESTAMP) RETURNING *;
 
 -- name: SelectAllFeeds :many
 SELECT * from feeds;	

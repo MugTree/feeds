@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/goforj/godump"
 	"github.com/mugtree/feeds/app/db"
 	"github.com/starfederation/datastar/sdk/go/datastar"
 )
@@ -207,15 +206,17 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return
 		}
 
-		mns, err := feedsSelectMarginNotesTemplateData(queries, ctx, articleID, blockID)
+		mns, err := feedsGetMarginNotes(queries, ctx, articleID, blockID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
 		}
 
+		// We're editing at this point
+		mns.ShowTextArea = true
+
 		sse := datastar.NewSSE(w, r)
 		sse.PatchElementTempl(TemplateEditMarginNotes(mns))
-
 		/* call an existing JS function  when the new data is morphed in*/
 		sse.ExecuteScript("feedsBalanceArticleLayout()")
 
@@ -239,19 +240,18 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 		// -------------------------------------------------
 		noteText := r.FormValue("note-text")
 
-		mns, err := feedsUpdateMarginNotesTemplateData(queries, ctx, noteText, articleID, blockID)
+		mns, err := feedsUpdateMarginNotes(queries, ctx, noteText, articleID, blockID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
 		}
 
-		godump.Dump(mns)
+		mns.ShowTextArea = false
 
 		sse := datastar.NewSSE(w, r)
 		sse.PatchElementTempl(TemplateEditMarginNotes(mns))
-
+		/* call an existing JS function  when the new data is morphed in*/
 		sse.ExecuteScript("feedsBalanceArticleLayout()")
-
 	})
 
 	r.Get("/update-reader", func(w http.ResponseWriter, r *http.Request) {

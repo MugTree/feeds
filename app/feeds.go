@@ -71,7 +71,7 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 		td.ClickableBlockCount = clickableBlocksCount
 		td.IsCache = true
 
-		mns, err := feedsSelectMarginNotesTemplateData(queries, ctx, articleID, -1)
+		mns, err := feedsGetMarginNotes(queries, ctx, articleID, -1)
 
 		godump.Dump(mns)
 
@@ -132,34 +132,26 @@ func feedsGetSideBarTemplateData(queries *db.Queries, ctx context.Context) ([]fe
 }
 
 /* This needs to update or insert a specific margin note and then return all the margin notes */
-func feedsUpdateMarginNotesTemplateData(queries *db.Queries, ctx context.Context, noteText string, articleID int64, blockID int64) (MarginNotesTemplateData, error) {
+func feedsUpdateMarginNotes(queries *db.Queries, ctx context.Context, noteText string, articleID int64, blockID int64) (MarginNotesTemplateData, error) {
 
 	mns := MarginNotesTemplateData{}
 
-	fmt.Printf("Updating note state - block: %v article:%v - text:%s\n", blockID, articleID, noteText)
+	fmt.Printf("Does a note already exist - block id: %v - note:%s\n", blockID, noteText)
 
-	// Is there an existing note
-
-	existingNote, err := queries.SelectMarginNoteByArticleIDAndBlockID(
+	_, err := queries.SelectMarginNoteByArticleIDAndBlockID(
 		ctx, db.SelectMarginNoteByArticleIDAndBlockIDParams{
 			ArticleID: articleID,
 			BlockID:   blockID,
 		},
 	)
 
-	//	godump.Dump(existingNote)
-	if err != nil {
-		return mns, err
-	}
+	//  If a note doesn't exist to update we INSERT a new one
+	if err == sql.ErrNoRows {
+		fmt.Println("No!")
+		fmt.Printf("Creating a new note - block id: %v - note:%s and returning all the notes\n", blockID, noteText)
 
-	var td = MarginNotesTemplateData{}
-
-	// is struct its default form - IS THIS RIGHT????
-	if existingNote == (db.MarginNote{}) {
-
-		fmt.Printf("Create a new note - %v - %s\n", blockID, noteText)
-
-		_, err := queries.InsertAndReturnMarginNote(ctx,
+		_, err := queries.InsertAndReturnMarginNote(
+			ctx,
 			db.InsertAndReturnMarginNoteParams{
 				Note:      noteText,
 				ArticleID: articleID,
@@ -167,38 +159,36 @@ func feedsUpdateMarginNotesTemplateData(queries *db.Queries, ctx context.Context
 			},
 		)
 		if err != nil {
-			return td, err
+			return mns, err
 		}
 
-	} else {
-
-		fmt.Printf("Update an existing note - %v - %s\n", blockID, noteText)
-
-		err := queries.UpdateMarginNoteByArticleIDAndBlockID(ctx,
-			db.UpdateMarginNoteByArticleIDAndBlockIDParams{
-				Note:      noteText,
-				ArticleID: articleID,
-				BlockID:   blockID,
-			},
-		)
-
-		if err != nil {
-			return td, err
-		}
-
+		return feedsGetMarginNotes(queries, ctx, articleID, blockID)
 	}
 
-	mns, err = feedsSelectMarginNotesTemplateData(queries, ctx, articleID, blockID)
 	if err != nil {
 		return mns, err
 	}
 
-	td.TotalBlocksCount = mns.TotalBlocksCount
+	fmt.Println("Yes!")
+	fmt.Printf("Updating an existing note - block id: %v - note:%s and returning all the notes\n", blockID, noteText)
 
-	return mns, nil
+	err = queries.UpdateMarginNoteByArticleIDAndBlockID(
+		ctx,
+		db.UpdateMarginNoteByArticleIDAndBlockIDParams{
+			Note:      noteText,
+			ArticleID: articleID,
+			BlockID:   blockID,
+		},
+	)
+	if err != nil {
+		return mns, err
+	}
+
+	return feedsGetMarginNotes(queries, ctx, articleID, blockID)
+
 }
 
-func feedsSelectMarginNotesTemplateData(queries *db.Queries, ctx context.Context, articleID int64, blockID int64) (MarginNotesTemplateData, error) {
+func feedsGetMarginNotes(queries *db.Queries, ctx context.Context, articleID int64, blockID int64) (MarginNotesTemplateData, error) {
 
 	mns := MarginNotesTemplateData{}
 
@@ -913,6 +903,7 @@ type ArticleStatus struct {
 }
 
 type MarginNotesTemplateData struct {
+	ShowTextArea     bool
 	ArticleID        int64
 	NoteToEdit       int64
 	TotalBlocksCount int64
