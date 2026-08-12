@@ -73,7 +73,7 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 
 		mns, err := feedsGetMarginNotes(queries, ctx, articleID, -1)
 
-		godump.Dump(mns)
+		//godump.Dump(mns)
 
 		td.MarginNotesTemplateData = mns
 
@@ -208,9 +208,8 @@ func feedsGetMarginNotes(queries *db.Queries, ctx context.Context, articleID int
 		return mns, err
 	}
 
-	// blockIDs are zero indexed but the DB starts at 1
 	getBlockID := func(n db.MarginNote) int64 {
-		return n.ID - 1
+		return n.BlockID
 	}
 
 	notesMap := lib.SliceToMap(notes, getBlockID)

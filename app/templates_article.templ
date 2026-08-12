@@ -4,19 +4,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/starfederation/datastar-go/datastar"
+	"strings"
 )
 
 templ TemplateArticlePage(aps ArticlePageTemplateData) {
-	<div id="article-page">
-		<h2 id="article-top">{ aps.FeedTitle } - { aps.PageTitle }</h2>
-		<ul>
-			<li><b>{ aps.FeedTitle }</b></li>
-			<li>{ aps.ArticlePublished }</li>
-			<li>{ aps.IsCache }</li>
-			<li>
-				@TemplateLikeArticle("star-value-top", aps.FeedID, aps.ArticleId, aps.StarValue)
-			</li>
-		</ul>
+	<div id="article-page" data-signals:hideTitle="false">
+		<div id="article-top">
+			<h2 data-show="!$hideTitle">{ aps.FeedTitle } - { aps.PageTitle }</h2>
+			<ul>
+				<li><b>{ aps.FeedTitle }</b></li>
+				<li>{ aps.ArticlePublished }</li>
+				<li>{ aps.IsCache }</li>
+				<li data-on:click="$hideTitle = !$hideTitle">Hide title?</li>
+				<li>
+					@TemplateLikeArticle("star-value-top", aps.FeedID, aps.ArticleId, aps.StarValue)
+				</li>
+			</ul>
+		</div>
 		{{
 			ea := ArticleStatus{
 				HasBeenRead:                  aps.ArticleHasBeenRead(),
@@ -53,6 +57,7 @@ templ TemplateLikeArticle(htmlID string, feedID int64, articleID int64, starsVal
 }
 
 templ TemplateEditMarginNotes(mns MarginNotesTemplateData) {
+	{{ /* godump.Dump("edit", mns) */ }}
 	<aside id="article-notes">
 		for i := range mns.TotalBlocksCount {
 			{{ note, _ := mns.MarginNotes[i] }}
@@ -63,26 +68,37 @@ templ TemplateEditMarginNotes(mns MarginNotesTemplateData) {
 					<button data-on:click={ url }>Edit</button>
 				</form>
 			} else {
-				<p data-note-id={ i }>{ note.Note }</p>
+				<div data-note-id={ i }>
+					@FormatSimpleParagraphs(note.Note)
+				</div>
 			}
 		}
 	</aside>
 }
 
 templ TemplateViewMarginNotes(mns MarginNotesTemplateData) {
-	{{ /* godump.Dump("TEMPLATE: ", mns.MarginNotes) */ }}
 	<aside id="article-notes">
 		for i := range mns.TotalBlocksCount {
-			{{ fmt.Println(i) }}
 			{{ note, _ := mns.MarginNotes[i] }}
-			<p data-note-id={ i }>{ note.Note }</p>
+			<div data-note-id={ i }>
+				@FormatSimpleParagraphs(note.Note)
+			</div>
 		}
 	</aside>
 }
 
-// these will likely have an id value
-// templ TemplateArticleNoteView(note string, blockId int64) {
-// 	<div class="article-note" data-block-ref={ blockId }>
-// 		{ note }
-// 	</div>
-// }
+templ FormatSimpleParagraphs(note string) {
+	{{
+		parts := strings.Split(note, "\n\n")
+		for i, p := range parts {
+			fmt.Printf("%v - %v\n", i, p)
+		}
+	}}
+	if len(parts) > 0 {
+		for _, p := range parts {
+			<p>{ p }</p>
+		}
+	} else {
+		<span></span>
+	}
+}
