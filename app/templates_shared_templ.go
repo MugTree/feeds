@@ -47,7 +47,7 @@ func TemplateLayout(pageTitle string, Main templ.Component) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title></head><body><div id=\"pagetop\"><header><a href=\"/\" class=\"home-link\">Home</a><div class=\"action-area\"><button id=\"update-button\" data-indicator:fetching data-attr:disabled=\"$fetching\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title></head><body><div id=\"pagetop\"><header><a href=\"/\" class=\"home-link\">Home</a> | <a href=\"/admin\">Admin</a><div class=\"action-area\"><button id=\"update-button\" data-indicator:fetching data-attr:disabled=\"$fetching\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

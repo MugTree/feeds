@@ -94,6 +94,7 @@ span {
 .editor article,
 .editor aside {
   flex: 1;
+  padding: 0 4px;
 }
 
 .have-read-article {
@@ -102,6 +103,19 @@ span {
   right: 12px;
 }
 
-/* .note-edit {
-  margin: 0;
-} */
+form.note-edit {
+  display: flex;
+  gap: 8px;
+}
+
+.note-edit textarea {
+  flex: 1;
+}
+
+.note-holder p:nth-child(2) {
+  font-weight: bold;
+}
+
+aside.article-notes {
+  padding-left: 12px;
+}

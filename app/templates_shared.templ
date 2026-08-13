@@ -16,7 +16,7 @@ templ TemplateLayout(pageTitle string, Main templ.Component) {
 		<body>
 			<div id="pagetop">
 				<header>
-					<a href="/" class="home-link">Home</a>
+					<a href="/" class="home-link">Home</a> | <a href="/admin">Admin</a>
 					<div class="action-area">
 						<button id="update-button" data-indicator:fetching data-attr:disabled="$fetching" data-on:click={ datastar.GetSSE(`/update-reader`) }>Load</button>
 						<div data-show="$fetching" style="display: none;"><div class="spinner" id="spinner"></div></div>

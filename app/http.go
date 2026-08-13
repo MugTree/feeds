@@ -276,6 +276,10 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 
 func httpAdminRoutes(r chi.Router, queries *db.Queries) chi.Router {
 
+	r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
+
+	})
+
 	r.Get("/admin/feeds/list", func(w http.ResponseWriter, r *http.Request) {
 
 		feeds, err := queries.SelectAllFeeds(r.Context())
@@ -283,7 +287,7 @@ func httpAdminRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			httpLogAndError(w, r, err.Error())
 			return
 		}
-		TemplateAdminPage(TemplateAdminListFeeds(feeds)).Render(r.Context(), w)
+		TemplateLayout("Feeds list", TemplateAdminListFeeds(feeds)).Render(r.Context(), w)
 	})
 
 	r.Get("/admin/feed/{feedID}/view", func(w http.ResponseWriter, r *http.Request) {
@@ -302,7 +306,7 @@ func httpAdminRoutes(r chi.Router, queries *db.Queries) chi.Router {
 		}
 
 		vm := FeedFormTemplateData{Feed: feed, ButtonText: "Update feed"}
-		TemplateAdminPage(TemplateAdminFeedForm(vm)).Render(r.Context(), w)
+		TemplateLayout("Feed view", TemplateAdminFeedForm(vm)).Render(r.Context(), w)
 	})
 
 	r.Put("/admin/feed/{feedID}/update", func(w http.ResponseWriter, r *http.Request) {
@@ -316,12 +320,13 @@ func httpAdminRoutes(r chi.Router, queries *db.Queries) chi.Router {
 
 	r.Get("/admin/feed/create", func(w http.ResponseWriter, r *http.Request) {
 		form := TemplateAdminFeedForm(FeedFormTemplateData{ButtonText: "Create new"})
-		TemplateAdminPage(form).Render(r.Context(), w)
+		TemplateLayout("Create new feed", form).Render(r.Context(), w)
 	})
 
 	r.Post("/admin/feed/create", func(w http.ResponseWriter, r *http.Request) {
 		form := TemplateAdminFeedForm(FeedFormTemplateData{ButtonText: "Create new"})
-		TemplateAdminPage(form).Render(r.Context(), w)
+
+		TemplateLayout("Create new feed", form).Render(r.Context(), w)
 	})
 
 	type FeedCreateUpdateSignals struct {
