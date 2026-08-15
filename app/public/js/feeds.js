@@ -14,7 +14,7 @@ function feedsBalanceArticleLayout() {
       "[data-note-id='" + blockID + "']",
     );
 
-    //  check here to see if right hand content is already higher than the left
+    //  check here to see if right hand content is already taller than the left
     if (relatedNote.offsetHeight < blockHeight) {
       relatedNote.style.height = blockHeight + "px";
     }

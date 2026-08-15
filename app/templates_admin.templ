@@ -56,6 +56,16 @@ templ TemplateAdminFeedForm(td FeedFormTemplateData) {
 	</div>
 }
 
+type DirectInputTemplateData struct{
+	PageUrl string // the actual url that the html is from
+}
+
+templ TemplateAdminDirectInput() {
+
+
+
+}
+
 templ TemplateAdminFeedFormTextInput(title string, id string, placeholder string, value string) {
 	<div class="grid gap-2">
 		<label for={ id }>{ title }</label>

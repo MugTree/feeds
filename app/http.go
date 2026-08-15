@@ -9,8 +9,10 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/goforj/godump"
 	"github.com/mugtree/feeds/app/db"
 	"github.com/starfederation/datastar/sdk/go/datastar"
+	"golang.org/x/net/html"
 )
 
 //go:embed public/css/*.css
@@ -27,6 +29,7 @@ func HttpSetupServer(queries *db.Queries, user string, password string) chi.Rout
 		// pages.Use(httpDebugHttpRequest)
 		httpFrontEndRoutes(pages, queries)
 		httpAdminRoutes(pages, queries)
+		httpApiRoutes(pages, queries)
 	})
 	return r
 }
@@ -274,11 +277,40 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 	return r
 }
 
-func httpAdminRoutes(r chi.Router, queries *db.Queries) chi.Router {
+// api can run locally on feeds.localhost or something like that
 
-	r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
+// Can this will be where the routes that are accessed by the browser plugin live
+func httpApiRoutes(r chi.Router, _ *db.Queries) chi.Router {
+
+	r.Post("/api/html/add", func(w http.ResponseWriter, r *http.Request) {
+
+		htmlInput := "" //r.FormValue("")
+
+		rd := strings.NewReader(htmlInput)
+		tree, err := html.Parse(rd)
+		if err != nil {
+			httpLogAndError(w, r, err.Error())
+			return
+		}
+
+		godump.Dump(tree)
+
+		// echo the html back to the other side of the page
 
 	})
+
+	// needs to display all the fields to allow a user to add a feed
+	r.Post("/api/feed/add", func(w http.ResponseWriter, r *http.Request) {
+
+	})
+
+	// alter an existing feed from the browser
+	r.Get("/api/feed/alter", func(w http.ResponseWriter, r *http.Request) {})
+
+	return r
+}
+
+func httpAdminRoutes(r chi.Router, queries *db.Queries) chi.Router {
 
 	r.Get("/admin/feeds/list", func(w http.ResponseWriter, r *http.Request) {
 
