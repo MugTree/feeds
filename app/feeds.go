@@ -22,24 +22,6 @@ import (
 	"golang.org/x/net/html"
 )
 
-func feedsGetPaginatedArticlesByFeed(queries *db.Queries, ctx context.Context, feedID int64, pageNumber int64) ([]db.SelectArticlesByFeedIDWithLimitRow, error) {
-
-	articlesPerPage := 5
-	offset := (pageNumber - 1) * int64(articlesPerPage)
-
-	articles, err := queries.SelectArticlesByFeedIDWithLimit(ctx, db.SelectArticlesByFeedIDWithLimitParams{FeedID: feedID, Limit: int64(articlesPerPage), Offset: offset})
-
-	if err != nil {
-		return articles, err
-	}
-
-	// numberOfArticlesStored := float64(articles[0].ArticlesPerFeed)
-	// paginationLinksCount := int64(math.Ceil(float64(numberOfArticlesStored) / float64(articlesPerPage)))
-
-	return articles, nil
-
-}
-
 func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageTemplateData, error) {
 
 	td := ArticlePageTemplateData{}

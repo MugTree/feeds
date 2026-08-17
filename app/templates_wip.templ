@@ -20,8 +20,8 @@ templ WIP_TemplateHomePage(td NewHomePageTemplateData) {
 						}
 						<div>
 							for i := range meta.LinksRequired {
-								{{ link := fmt.Sprintf("/home/feed/%v/page/%v/", meta.FeedID, i+1) }}
-								<a href={ link }>{ i + 1 }&nbsp;</a>
+								{{ link := fmt.Sprintf("@get('/home/feed/%v/page/%v/')", meta.FeedID, i+1) }}
+								<a data-on:click={ link }>{ i + 1 }&nbsp;</a>
 							}
 						</div>
 					</div>

@@ -110,17 +110,17 @@ func WIP_TemplateHomePage(td NewHomePageTemplateData) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					for i := range meta.LinksRequired {
-						link := fmt.Sprintf("/home/feed/%v/page/%v/", meta.FeedID, i+1)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<a href=\"")
+						link := fmt.Sprintf("@get('/home/feed/%v/page/%v/')", meta.FeedID, i+1)
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<a data-on:click=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						var templ_7745c5c3_Var5 templ.SafeURL
-						templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(link)
+						var templ_7745c5c3_Var5 string
+						templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(link)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_wip.templ`, Line: 24, Col: 22}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_wip.templ`, Line: 24, Col: 31}
 						}
-						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -131,7 +131,7 @@ func WIP_TemplateHomePage(td NewHomePageTemplateData) templ.Component {
 						var templ_7745c5c3_Var6 string
 						templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(i + 1)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_wip.templ`, Line: 24, Col: 32}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_wip.templ`, Line: 24, Col: 41}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 						if templ_7745c5c3_Err != nil {
