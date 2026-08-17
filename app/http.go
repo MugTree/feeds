@@ -75,14 +75,20 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 
 		// get all of the articles per feed starting at the first page
 		// ----------------------------------------------------------
-		startingPage := 0
 		articlesPerPage := 5
-		offset := int64(startingPage-1) * int64(articlesPerPage)
+		offset := 0
 		allArticles := map[string][]db.SelectArticlesByFeedIDWithLimitRow{}
 
 		for _, f := range feeds {
 
-			articlesByFeed, err := queries.SelectArticlesByFeedIDWithLimit(ctx, db.SelectArticlesByFeedIDWithLimitParams{FeedID: f.ID, Limit: int64(articlesPerPage), Offset: offset})
+			articlesByFeed, err := queries.SelectArticlesByFeedIDWithLimit(
+				ctx,
+				db.SelectArticlesByFeedIDWithLimitParams{
+					FeedID: f.ID,
+					Limit:  int64(articlesPerPage),
+					Offset: int64(offset),
+				},
+			)
 
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
@@ -99,10 +105,10 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 		meta := []FeedDisplayMeta{}
 		for _, name := range feedNames {
 
-			feedID := allArticles[name][0].ArticleFeedID
-
 			fm := FeedDisplayMeta{}
 			fm.Name = name
+
+			feedID := allArticles[name][0].ArticleFeedID
 			fm.FeedID = feedID
 
 			articleCount, err := queries.SelectArticleCountByFeedID(ctx, feedID)
