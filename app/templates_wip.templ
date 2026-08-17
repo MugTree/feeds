@@ -2,36 +2,49 @@ package app
 
 import "fmt"
 
-templ WIP_TemplateHomePage(td NewHomePageTemplateData) {
+templ WIP_TemplateHomePage(fsd []FeedSummary) {
 	<div>
-		for _ , meta:= range td.FeedMeta {
-			<h2 data-on:click="showContent(evt)">{ meta.Name } - { meta.ArticleCount }</h2>
-			{{ articles := td.ArticlesByFeed[meta.Name] }}
-			if len(articles) > 0 {
-				for _, a := range articles {
-					<div class="hidden">
-						<h3 data-on:click="showContent(evt)">{ a.ArticleTitle } </h3>
-						if a.ArticleContent.Valid {
-							<div class="hidden">
-								@templ.Raw(a.ArticleContent.String)
-							</div>
-						} else {
-							<a href="/load-content">Load me</a>
-						}
-						<div>
-							for i := range meta.LinksRequired {
-								{{ link := fmt.Sprintf("@get('/home/feed/%v/page/%v/')", meta.FeedID, i+1) }}
-								<a data-on:click={ link }>{ i + 1 }&nbsp;</a>
-							}
-						</div>
-					</div>
-				}
+		for _ , f:= range fsd {
+			<h2 data-on:click="showContent(evt)">{ f.Name } - { f.ArticleCount }</h2>
+			if len(f.Articles) > 0 {
+				@WIP_Inner(f)
 			}
 		}
 		<script>
 			function showContent(evt) {
-				evt.target.nextElementSibling.classList.toggle("hidden");
+				//evt.target.nextElementSibling.classList.toggle("hidden");
 			}
 		</script>
+	</div>
+}
+
+templ WIP_Inner(summary FeedSummary) {
+	{{ feedID := fmt.Sprintf("feed-%v", summary.FeedID) }}
+	<div class="hidden" id={ feedID }>
+		for _, a := range summary.Articles {
+			<h3 data-on:click="showContent(evt)">{ a.ArticleTitle } </h3>
+			if a.ArticleContent.Valid {
+				<div class="hidden">
+					//	@templ.Raw(a.ArticleContent.String)
+				</div>
+			} else {
+				//<a href="/load-content">Load me</a>
+			}
+		}
+		<div>
+			for i := range summary.LinksRequired {
+				{{ i = i + 1 }}
+				{{
+					className := ""
+					if summary.PageID == i {
+						className = "link underline"
+					} else {
+						className = "link"
+					}
+					link := fmt.Sprintf("@get('/home/feed/%v/page/%v')", summary.FeedID, i)
+				}}
+				<a class={ className } data-on:click={ link }>{ i }&nbsp;</a>
+			}
+		</div>
 	</div>
 }

@@ -6,14 +6,13 @@ import (
 	"math"
 	"net/http"
 	"runtime"
-	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/goforj/godump"
 	"github.com/mugtree/feeds/app/db"
-	"github.com/mugtree/feeds/lib"
 	"github.com/starfederation/datastar/sdk/go/datastar"
 	"golang.org/x/net/html"
 )
@@ -62,7 +61,6 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 		)
 	})
 
-	// messy needs refactoring
 	r.Get("/home", func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -73,15 +71,19 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return
 		}
 
-		// get all of the articles per feed starting at the first page
-		// ----------------------------------------------------------
 		articlesPerPage := 5
 		offset := 0
-		allArticles := map[string][]db.SelectArticlesByFeedIDWithLimitRow{}
+		pageID := 1
+		feedSummaries := []FeedSummary{}
 
 		for _, f := range feeds {
 
-			articlesByFeed, err := queries.SelectArticlesByFeedIDWithLimit(
+			fsd := FeedSummary{}
+			fsd.Name = f.Title
+			fsd.PageID = int64(pageID)
+			fsd.FeedID = f.ID
+
+			articles, err := queries.SelectArticlesByFeedIDWithLimit(
 				ctx,
 				db.SelectArticlesByFeedIDWithLimitParams{
 					FeedID: f.ID,
@@ -89,47 +91,85 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 					Offset: int64(offset),
 				},
 			)
-
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
-			allArticles[f.Title] = articlesByFeed
-		}
-
-		// create some meta data to accompany the articles
-		// ----------------------------------------------------------
-		feedNames := lib.Keys(allArticles)
-		slices.Sort(feedNames)
-
-		meta := []FeedDisplayMeta{}
-		for _, name := range feedNames {
-
-			fm := FeedDisplayMeta{}
-			fm.Name = name
-
-			feedID := allArticles[name][0].ArticleFeedID
-			fm.FeedID = feedID
-
-			articleCount, err := queries.SelectArticleCountByFeedID(ctx, feedID)
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
 			}
 
-			fm.ArticleCount = articleCount
-			fm.PageID = 1
-			fm.LinksRequired = int64(math.Ceil(float64(articleCount) / float64(5)))
-			meta = append(meta, fm)
-			godump.Dump(meta)
+			fsd.Articles = articles
+
+			articleCount, err := queries.SelectArticleCountByFeedID(ctx, fsd.FeedID)
+			if err != nil {
+				httpLogAndError(w, r, err.Error())
+				return
+			}
+
+			fsd.ArticleCount = articleCount
+			fsd.LinksRequired = int64(math.Ceil(float64(articleCount) / float64(5)))
+			feedSummaries = append(feedSummaries, fsd)
 		}
 
-		td := NewHomePageTemplateData{FeedMeta: meta, ArticlesByFeed: allArticles}
+		sort.Slice(feedSummaries, func(i, j int) bool {
+			return feedSummaries[i].Name < feedSummaries[j].Name
+		})
 
-		TemplateLayout("new homepage", WIP_TemplateHomePage(td)).Render(r.Context(), w)
+		TemplateLayout("new homepage", WIP_TemplateHomePage(feedSummaries)).Render(r.Context(), w)
 	})
 
-	r.Get("/home/feed/{id}/{page}", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/home/feed/{feedID}/page/{pageID}", func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
+		feedID, ok := httpRequireIDParam(w, r, "feedID")
+		if !ok {
+			return
+		}
+
+		pageID, ok := httpRequireIDParam(w, r, "pageID")
+		if !ok {
+			return
+		}
+
+		feed, err := queries.SelectFeedByID(ctx, feedID)
+		if err != nil {
+			httpLogAndError(w, r, err.Error())
+			return
+		}
+
+		fsm := FeedSummary{}
+		fsm.FeedID = feed.ID
+		fsm.Name = feed.Title
+		fsm.PageID = pageID
+
+		offset := (pageID - 1) * 5
+
+		articles, err := queries.SelectArticlesByFeedIDWithLimit(
+			ctx,
+			db.SelectArticlesByFeedIDWithLimitParams{
+				FeedID: feedID,
+				Limit:  5,
+				Offset: offset,
+			},
+		)
+		if err != nil {
+			httpLogAndError(w, r, err.Error())
+			return
+		}
+		fsm.Articles = articles
+
+		articleCount, err := queries.SelectArticleCountByFeedID(ctx, fsm.FeedID)
+		if err != nil {
+			httpLogAndError(w, r, err.Error())
+			return
+		}
+
+		fsm.ArticleCount = articleCount
+		fsm.LinksRequired = int64(math.Ceil(float64(articleCount) / float64(5)))
+
+		godump.Dump("summary", fsm)
+
+		sse := datastar.NewSSE(w, r)
+		sse.PatchElementTempl(WIP_Inner(fsm))
 
 	})
 

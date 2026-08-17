@@ -120,6 +120,14 @@ aside.article-notes {
   padding-left: 12px;
 }
 
-.hidden {
+/* .hidden {
   display: none;
+} */
+
+.link {
+  color: blue;
+}
+
+.underline {
+  text-decoration: underline;
 }

@@ -909,16 +909,17 @@ type MarginNotesTemplateData struct {
 	MarginNotes      map[int64]db.MarginNote
 }
 
-type FeedDisplayMeta struct {
+type FeedSummary struct {
 	Name          string
 	ArticleCount  int64
 	FeedID        int64
 	PageID        int64
 	LinksRequired int64
+	Articles      []db.SelectArticlesByFeedIDWithLimitRow
 }
 
 type NewHomePageTemplateData struct {
-	FeedMeta       []FeedDisplayMeta
+	FeedMeta       []FeedSummary
 	ArticlesByFeed map[string][]db.SelectArticlesByFeedIDWithLimitRow
 }
 
