@@ -3,14 +3,17 @@ package app
 import (
 	"embed"
 	"fmt"
+	"math"
 	"net/http"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/goforj/godump"
 	"github.com/mugtree/feeds/app/db"
+	"github.com/mugtree/feeds/lib"
 	"github.com/starfederation/datastar/sdk/go/datastar"
 	"golang.org/x/net/html"
 )
@@ -57,6 +60,67 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			TemplateHomePage(TemplateNav(sidebar), latest, starred)).Render(ctx,
 			w,
 		)
+	})
+
+	// messy needs refactoring
+	r.Get("/home", func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
+		feeds, err := queries.SelectAllFeeds(ctx)
+		if err != nil {
+			httpLogAndError(w, r, err.Error())
+			return
+		}
+
+		// get all of the articles per feed starting at the first page
+		// ----------------------------------------------------------
+		startingPage := 0
+		allArticles := map[string][]db.SelectArticlesByFeedIDWithLimitRow{}
+		for _, f := range feeds {
+
+			articlesByFeed, err := feedsGetPaginatedArticlesByFeed(queries, ctx, f.ID, int64(startingPage))
+			if err != nil {
+				httpLogAndError(w, r, err.Error())
+				return
+			}
+			allArticles[f.Title] = articlesByFeed
+		}
+
+		// create some meta data to accompany the articles
+		// ----------------------------------------------------------
+		feedNames := lib.Keys(allArticles)
+		slices.Sort(feedNames)
+
+		meta := []FeedDisplayMeta{}
+		for _, name := range feedNames {
+
+			feedID := allArticles[name][0].ArticleFeedID
+
+			fm := FeedDisplayMeta{}
+			fm.Name = name
+			fm.FeedID = feedID
+
+			articleCount, err := queries.SelectArticleCountByFeedID(ctx, feedID)
+			if err != nil {
+				httpLogAndError(w, r, err.Error())
+				return
+			}
+
+			fm.ArticleCount = articleCount
+			fm.PageID = 1
+			fm.LinksRequired = int64(math.Ceil(float64(articleCount) / float64(5)))
+			meta = append(meta, fm)
+			godump.Dump(meta)
+		}
+
+		td := NewHomePageTemplateData{FeedMeta: meta, ArticlesByFeed: allArticles}
+
+		TemplateLayout("new homepage", WIP_TemplateHomePage(td)).Render(r.Context(), w)
+	})
+
+	r.Get("/home/feed/{id}/{page}", func(w http.ResponseWriter, r *http.Request) {
+
 	})
 
 	r.Get("/feed/{feedID}/view", func(w http.ResponseWriter, r *http.Request) {

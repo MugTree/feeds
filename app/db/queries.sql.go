@@ -170,6 +170,17 @@ func (q *Queries) SelectArticleContentFromArticleCache(ctx context.Context, arti
 	return article_content, err
 }
 
+const selectArticleCountByFeedID = `-- name: SelectArticleCountByFeedID :one
+SELECT COUNT(*) FROM articles WHERE feed_id = ?
+`
+
+func (q *Queries) SelectArticleCountByFeedID(ctx context.Context, feedID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, selectArticleCountByFeedID, feedID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const selectArticlesByFeedID = `-- name: SelectArticlesByFeedID :many
 SELECT 
 	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
@@ -213,6 +224,79 @@ func (q *Queries) SelectArticlesByFeedID(ctx context.Context, feedID int64) ([]S
 			&i.Summary,
 			&i.Read,
 			&i.Starred,
+			&i.FeedTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectArticlesByFeedIDWithLimit = `-- name: SelectArticlesByFeedIDWithLimit :many
+SELECT
+   a.id as article_id,
+	a.link as article_link,
+	a.title as article_title,
+	a.starred as article_stars,
+	a.published as article_published,
+	a.read as article_read,
+	a.feed_id as article_feed_id,
+    ac.article_content AS article_content,
+    ac.clickable_block_count AS article_clickable_block_count,
+    f.title as feed_title
+FROM articles a
+    LEFT JOIN article_cache ac ON a.id = ac.article_id
+    INNER JOIN feeds f ON f.id = a.feed_id
+WHERE a.feed_id  = ?
+ORDER BY published DESC
+LIMIT ? OFFSET ?
+`
+
+type SelectArticlesByFeedIDWithLimitParams struct {
+	FeedID int64
+	Limit  int64
+	Offset int64
+}
+
+type SelectArticlesByFeedIDWithLimitRow struct {
+	ArticleID                  int64
+	ArticleLink                string
+	ArticleTitle               string
+	ArticleStars               int64
+	ArticlePublished           *time.Time
+	ArticleRead                int64
+	ArticleFeedID              int64
+	ArticleContent             sql.NullString
+	ArticleClickableBlockCount sql.NullInt64
+	FeedTitle                  string
+}
+
+func (q *Queries) SelectArticlesByFeedIDWithLimit(ctx context.Context, arg SelectArticlesByFeedIDWithLimitParams) ([]SelectArticlesByFeedIDWithLimitRow, error) {
+	rows, err := q.db.QueryContext(ctx, selectArticlesByFeedIDWithLimit, arg.FeedID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SelectArticlesByFeedIDWithLimitRow
+	for rows.Next() {
+		var i SelectArticlesByFeedIDWithLimitRow
+		if err := rows.Scan(
+			&i.ArticleID,
+			&i.ArticleLink,
+			&i.ArticleTitle,
+			&i.ArticleStars,
+			&i.ArticlePublished,
+			&i.ArticleRead,
+			&i.ArticleFeedID,
+			&i.ArticleContent,
+			&i.ArticleClickableBlockCount,
 			&i.FeedTitle,
 		); err != nil {
 			return nil, err

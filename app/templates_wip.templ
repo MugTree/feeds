@@ -1,0 +1,37 @@
+package app
+
+import "fmt"
+
+templ WIP_TemplateHomePage(td NewHomePageTemplateData) {
+	<div>
+		for _ , meta:= range td.FeedMeta {
+			<h2 data-on:click="showContent(evt)">{ meta.Name } - { meta.ArticleCount }</h2>
+			{{ articles := td.ArticlesByFeed[meta.Name] }}
+			if len(articles) > 0 {
+				for _, a := range articles {
+					<div class="hidden">
+						<h3 data-on:click="showContent(evt)">{ a.ArticleTitle } </h3>
+						if a.ArticleContent.Valid {
+							<div class="hidden">
+								@templ.Raw(a.ArticleContent.String)
+							</div>
+						} else {
+							<a href="/load-content">Load me</a>
+						}
+						<div>
+							for i := range meta.LinksRequired {
+								{{ link := fmt.Sprintf("/home/feed/%v/page/%v/", meta.FeedID, i+1) }}
+								<a href={ link }>{ i + 1 }&nbsp;</a>
+							}
+						</div>
+					</div>
+				}
+			}
+		}
+		<script>
+			function showContent(evt) {
+				evt.target.nextElementSibling.classList.toggle("hidden");
+			}
+		</script>
+	</div>
+}

@@ -137,8 +137,27 @@ UPDATE articles SET read = 1 WHERE id = ?;
 UPDATE articles SET starred = ? WHERE id = ?;
 
 
-
-
-
 -- name: SelectArticleContentFromArticleCache :one
 SELECT article_content FROM article_cache WHERE article_id = ?;
+
+-- name: SelectArticlesByFeedIDWithLimit :many
+SELECT
+   a.id as article_id,
+	a.link as article_link,
+	a.title as article_title,
+	a.starred as article_stars,
+	a.published as article_published,
+	a.read as article_read,
+	a.feed_id as article_feed_id,
+    ac.article_content AS article_content,
+    ac.clickable_block_count AS article_clickable_block_count,
+    f.title as feed_title
+FROM articles a
+    LEFT JOIN article_cache ac ON a.id = ac.article_id
+    INNER JOIN feeds f ON f.id = a.feed_id
+WHERE a.feed_id  = ?
+ORDER BY published DESC
+LIMIT ? OFFSET ?;
+
+-- name: SelectArticleCountByFeedID :one
+SELECT COUNT(*) FROM articles WHERE feed_id = ?;

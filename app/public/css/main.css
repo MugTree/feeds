@@ -119,3 +119,7 @@ form.note-edit {
 aside.article-notes {
   padding-left: 12px;
 }
+
+.hidden {
+  display: none;
+}

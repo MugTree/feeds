@@ -22,6 +22,24 @@ import (
 	"golang.org/x/net/html"
 )
 
+func feedsGetPaginatedArticlesByFeed(queries *db.Queries, ctx context.Context, feedID int64, pageNumber int64) ([]db.SelectArticlesByFeedIDWithLimitRow, error) {
+
+	articlesPerPage := 5
+	offset := (pageNumber - 1) * int64(articlesPerPage)
+
+	articles, err := queries.SelectArticlesByFeedIDWithLimit(ctx, db.SelectArticlesByFeedIDWithLimitParams{FeedID: feedID, Limit: int64(articlesPerPage), Offset: offset})
+
+	if err != nil {
+		return articles, err
+	}
+
+	// numberOfArticlesStored := float64(articles[0].ArticlesPerFeed)
+	// paginationLinksCount := int64(math.Ceil(float64(numberOfArticlesStored) / float64(articlesPerPage)))
+
+	return articles, nil
+
+}
+
 func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, articleID int64, feedID int64) (ArticlePageTemplateData, error) {
 
 	td := ArticlePageTemplateData{}
@@ -907,6 +925,19 @@ type MarginNotesTemplateData struct {
 	NoteToEdit       int64
 	TotalBlocksCount int64
 	MarginNotes      map[int64]db.MarginNote
+}
+
+type FeedDisplayMeta struct {
+	Name          string
+	ArticleCount  int64
+	FeedID        int64
+	PageID        int64
+	LinksRequired int64
+}
+
+type NewHomePageTemplateData struct {
+	FeedMeta       []FeedDisplayMeta
+	ArticlesByFeed map[string][]db.SelectArticlesByFeedIDWithLimitRow
 }
 
 const layoutISO = "2006-01-02"
