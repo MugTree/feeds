@@ -1,8 +1,10 @@
 package app
 
 import (
+	"bytes"
 	"embed"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"runtime"
@@ -28,7 +30,7 @@ func HttpSetupServer(queries *db.Queries, user string, password string) chi.Rout
 	r.Handle("/public/*", httpNeuterDirectory(http.FileServer(http.FS(staticFS))))
 
 	r.Group(func(pages chi.Router) {
-		// pages.Use(httpDebugHttpRequest)
+		pages.Use(httpDebugHttpRequest)
 		httpFrontEndRoutes(pages, queries)
 		httpAdminRoutes(pages, queries)
 		httpApiRoutes(pages, queries)
@@ -38,32 +40,40 @@ func HttpSetupServer(queries *db.Queries, user string, password string) chi.Rout
 
 func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+	// r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 
-		ctx := r.Context()
+	// 	ctx := r.Context()
 
-		latest, starred, err := feedsGetHomePageArticleSelections(queries, ctx)
-		if err != nil {
-			httpLogAndError(w, r, err.Error())
-			return
-		}
+	// 	latest, starred, err := feedsGetHomePageArticleSelections(queries, ctx)
+	// 	if err != nil {
+	// 		httpLogAndError(w, r, err.Error())
+	// 		return
+	// 	}
 
-		sidebar, err := feedsGetSideBarTemplateData(queries, ctx)
-		if err != nil {
-			httpLogAndError(w, r, err.Error())
-			return
-		}
+	// 	sidebar, err := feedsGetSideBarTemplateData(queries, ctx)
+	// 	if err != nil {
+	// 		httpLogAndError(w, r, err.Error())
+	// 		return
+	// 	}
 
-		TemplateLayout(
-			"Homepage",
-			TemplateHomePage(TemplateNav(sidebar), latest, starred)).Render(ctx,
-			w,
-		)
-	})
+	// 	TemplateLayout(
+	// 		"Homepage",
+	// 		TemplateHomePage(TemplateNav(sidebar), latest, starred)).Render(ctx,
+	// 		w,
+	// 	)
+	// })
 
 	r.Get("/home", func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
+
+		fps := FrontPageSignals{}
+
+		err := datastar.ReadSignals(r, &fps)
+		if err != nil {
+			httpLogAndError(w, r, err.Error())
+			return
+		}
 
 		feeds, err := queries.SelectAllFeeds(ctx)
 		if err != nil {
@@ -82,6 +92,8 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			fsd.Name = f.Title
 			fsd.PageID = int64(pageID)
 			fsd.FeedID = f.ID
+
+			//fsd.ShowArticles = false
 
 			articles, err := queries.SelectArticlesByFeedIDWithLimit(
 				ctx,
@@ -113,7 +125,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return feedSummaries[i].Name < feedSummaries[j].Name
 		})
 
-		TemplateLayout("new homepage", WIP_TemplateHomePage(feedSummaries)).Render(r.Context(), w)
+		TemplateLayout("new homepage", WIP_TemplateHomePage(feedSummaries, fps)).Render(r.Context(), w)
 	})
 
 	r.Get("/home/feed/{feedID}/page/{pageID}", func(w http.ResponseWriter, r *http.Request) {
@@ -136,10 +148,19 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return
 		}
 
+		fps := FrontPageSignals{}
+
+		err = datastar.ReadSignals(r, &fps)
+		if err != nil {
+			httpLogAndError(w, r, err.Error())
+			return
+		}
+
 		fsm := FeedSummary{}
 		fsm.FeedID = feed.ID
 		fsm.Name = feed.Title
 		fsm.PageID = pageID
+		fsm.ShowArticles = true
 
 		offset := (pageID - 1) * 5
 
@@ -155,6 +176,9 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			httpLogAndError(w, r, err.Error())
 			return
 		}
+
+		godump.Dump("articles", articles, len(articles), "------------------------------------")
+
 		fsm.Articles = articles
 
 		articleCount, err := queries.SelectArticleCountByFeedID(ctx, fsm.FeedID)
@@ -166,48 +190,46 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 		fsm.ArticleCount = articleCount
 		fsm.LinksRequired = int64(math.Ceil(float64(articleCount) / float64(5)))
 
-		godump.Dump("summary", fsm)
-
 		sse := datastar.NewSSE(w, r)
-		sse.PatchElementTempl(WIP_Inner(fsm))
+		sse.PatchElementTempl(WIP_Inner(fsm, fps), datastar.WithModeReplace())
 
 	})
 
-	r.Get("/feed/{feedID}/view", func(w http.ResponseWriter, r *http.Request) {
+	// r.Get("/feed/{feedID}/view", func(w http.ResponseWriter, r *http.Request) {
 
-		ctx := r.Context()
-		feedID, ok := httpRequireIDParam(w, r, "feedID")
-		if !ok {
-			return
-		}
+	// 	ctx := r.Context()
+	// 	feedID, ok := httpRequireIDParam(w, r, "feedID")
+	// 	if !ok {
+	// 		return
+	// 	}
 
-		feed, err := queries.SelectFeedByID(ctx, feedID)
-		if err != nil {
-			httpLogAndError(w, r, err.Error())
-			return
-		}
-		pageTitle := feed.Title
+	// 	feed, err := queries.SelectFeedByID(ctx, feedID)
+	// 	if err != nil {
+	// 		httpLogAndError(w, r, err.Error())
+	// 		return
+	// 	}
+	// 	pageTitle := feed.Title
 
-		alreadyRead, toRead, err := feedsGetArticlesByFeedID(queries, feedID, ctx)
-		if err != nil {
-			httpLogAndError(w, r, err.Error())
-			return
-		}
+	// 	alreadyRead, toRead, err := feedsGetArticlesByFeedID(queries, feedID, ctx)
+	// 	if err != nil {
+	// 		httpLogAndError(w, r, err.Error())
+	// 		return
+	// 	}
 
-		sidebar, err := feedsGetSideBarTemplateData(queries, ctx)
-		if err != nil {
-			httpLogAndError(w, r, err.Error())
-			return
-		}
+	// 	sidebar, err := feedsGetSideBarTemplateData(queries, ctx)
+	// 	if err != nil {
+	// 		httpLogAndError(w, r, err.Error())
+	// 		return
+	// 	}
 
-		TemplateLayout(
-			pageTitle,
-			TemplateFeedPage(TemplateNav(sidebar), pageTitle, alreadyRead, toRead)).Render(
-			r.Context(),
-			w,
-		)
+	// 	TemplateLayout(
+	// 		pageTitle,
+	// 		TemplateFeedPage(TemplateNav(sidebar), pageTitle, alreadyRead, toRead)).Render(
+	// 		r.Context(),
+	// 		w,
+	// 	)
 
-	})
+	// })
 
 	r.Get("/article/{feedID}/{articleID}/view", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -523,52 +545,52 @@ func httpNeuterDirectory(next http.Handler) http.Handler {
 // 	}
 // }
 
-// func httpDebugHttpRequest(next http.Handler) http.Handler {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		httpDumpRequest(r, false, false)
-// 		next.ServeHTTP(w, r)
-// 	})
-// }
+func httpDebugHttpRequest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		httpDumpRequest(r, false, false)
+		next.ServeHTTP(w, r)
+	})
+}
 
-// func httpDumpRequest(r *http.Request, readHeaders bool, readJsonBody bool) {
+func httpDumpRequest(r *http.Request, readHeaders bool, readJsonBody bool) {
 
-// 	fmt.Printf("\n=== %s %s ===\n", r.Method, r.URL)
+	fmt.Printf("\n=== %s %s ===\n", r.Method, r.URL)
 
-// 	routeCtx := chi.RouteContext(r.Context())
-// 	if routeCtx != nil {
-// 		fmt.Println("Path params:")
-// 		for i, key := range routeCtx.URLParams.Keys {
-// 			fmt.Printf("  %s = %s\n", key, routeCtx.URLParams.Values[i])
-// 		}
-// 	}
+	routeCtx := chi.RouteContext(r.Context())
+	if routeCtx != nil {
+		fmt.Println("Path params:")
+		for i, key := range routeCtx.URLParams.Keys {
+			fmt.Printf("  %s = %s\n", key, routeCtx.URLParams.Values[i])
+		}
+	}
 
-// 	fmt.Println("Query params:")
-// 	for key, values := range r.URL.Query() {
-// 		fmt.Printf("  %s = %v\n", key, values)
-// 	}
+	fmt.Println("Query params:")
+	for key, values := range r.URL.Query() {
+		fmt.Printf("  %s = %v\n", key, values)
+	}
 
-// 	if err := r.ParseForm(); err == nil {
-// 		fmt.Println("Form values:")
-// 		for key, values := range r.PostForm {
-// 			fmt.Printf("  %s = %v\n", key, values)
-// 		}
-// 	}
+	if err := r.ParseForm(); err == nil {
+		fmt.Println("Form values:")
+		for key, values := range r.PostForm {
+			fmt.Printf("  %s = %v\n", key, values)
+		}
+	}
 
-// 	if readHeaders {
-// 		fmt.Println("Headers:")
-// 		for key, values := range r.Header {
-// 			fmt.Printf("  %s = %v\n", key, values)
-// 		}
-// 	}
+	if readHeaders {
+		fmt.Println("Headers:")
+		for key, values := range r.Header {
+			fmt.Printf("  %s = %v\n", key, values)
+		}
+	}
 
-// 	if readJsonBody {
-// 		fmt.Println("JSON body:")
-// 		body, _ := io.ReadAll(r.Body)
-// 		fmt.Println(string(body))
-// 		r.Body = io.NopCloser(bytes.NewBuffer(body))
-// 	}
+	if readJsonBody {
+		fmt.Println("JSON body:")
+		body, _ := io.ReadAll(r.Body)
+		fmt.Println(string(body))
+		r.Body = io.NopCloser(bytes.NewBuffer(body))
+	}
 
-// }
+}
 
 func httpRequireNonZeroInt64(value string, key string, w http.ResponseWriter, r *http.Request) (int64, bool) {
 	v, err := strconv.ParseInt(value, 10, 64)

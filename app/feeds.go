@@ -13,7 +13,6 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly/v2"
-	"github.com/goforj/godump"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/mmcdole/gofeed"
 	"github.com/mugtree/feeds/app/db"
@@ -73,7 +72,7 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 
 		mns, err := feedsGetMarginNotes(queries, ctx, articleID, -1)
 
-		//godump.Dump(mns)
+		//godump.Dump()
 
 		td.MarginNotesTemplateData = mns
 
@@ -239,50 +238,50 @@ func feedsSetArticleLike(queries *db.Queries, starredValue int64, articleID int6
 	return nil
 }
 
-func feedsGetHomePageArticleSelections(queries *db.Queries, ctx context.Context) (latest []feedsArticle, starred []feedsArticle, err error) {
+// func feedsGetHomePageArticleSelections(queries *db.Queries, ctx context.Context) (latest []feedsArticle, starred []feedsArticle, err error) {
 
-	latest5Articles, err := queries.SelectLatest5Articles(ctx)
-	if err != nil {
-		return latest, starred, err
-	}
+// 	latest5Articles, err := queries.SelectLatest5Articles(ctx)
+// 	if err != nil {
+// 		return latest, starred, err
+// 	}
 
-	for _, row := range latest5Articles {
-		latest = append(latest, feedsArticle{
-			Id:        row.ID,
-			FeedId:    row.FeedID,
-			Title:     row.Title,
-			Link:      row.Link,
-			Published: row.Published.Format(layoutISO),
-			DateFound: row.DateFound.Format(layoutISO),
-			Summary:   row.Summary,
-			Read:      lib.IntToBool(row.Read),
-			Liked:     row.Starred,
-			FeedTitle: row.FeedTitle,
-		})
-	}
+// 	for _, row := range latest5Articles {
+// 		latest = append(latest, feedsArticle{
+// 			Id:        row.ID,
+// 			FeedId:    row.FeedID,
+// 			Title:     row.Title,
+// 			Link:      row.Link,
+// 			Published: row.Published.Format(layoutISO),
+// 			DateFound: row.DateFound.Format(layoutISO),
+// 			Summary:   row.Summary,
+// 			Read:      lib.IntToBool(row.Read),
+// 			Liked:     row.Starred,
+// 			FeedTitle: row.FeedTitle,
+// 		})
+// 	}
 
-	starredArticles, err := queries.SelectLatest5StarredArticles(ctx)
+// 	starredArticles, err := queries.SelectLatest5StarredArticles(ctx)
 
-	for _, row := range starredArticles {
-		starred = append(starred, feedsArticle{
-			Id:        row.ID,
-			FeedId:    row.FeedID,
-			Title:     row.Title,
-			Link:      row.Link,
-			Published: row.Published.Format(layoutISO),
-			DateFound: row.Published.Format(layoutISO),
-			Summary:   row.Summary,
-			Read:      lib.IntToBool(row.Read),
-			Liked:     row.Starred,
-			FeedTitle: row.FeedTitle,
-		})
-	}
+// 	for _, row := range starredArticles {
+// 		starred = append(starred, feedsArticle{
+// 			Id:        row.ID,
+// 			FeedId:    row.FeedID,
+// 			Title:     row.Title,
+// 			Link:      row.Link,
+// 			Published: row.Published.Format(layoutISO),
+// 			DateFound: row.Published.Format(layoutISO),
+// 			Summary:   row.Summary,
+// 			Read:      lib.IntToBool(row.Read),
+// 			Liked:     row.Starred,
+// 			FeedTitle: row.FeedTitle,
+// 		})
+// 	}
 
-	fmt.Printf("starred: %v", len(starred))
+// 	fmt.Printf("starred: %v", len(starred))
 
-	return latest, starred, err
+// 	return latest, starred, err
 
-}
+// }
 
 func feedsGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []feedsArticle, toRead []feedsArticle, err error) {
 
@@ -916,6 +915,7 @@ type FeedSummary struct {
 	PageID        int64
 	LinksRequired int64
 	Articles      []db.SelectArticlesByFeedIDWithLimitRow
+	ShowArticles  bool
 }
 
 type NewHomePageTemplateData struct {
@@ -925,8 +925,7 @@ type NewHomePageTemplateData struct {
 
 const layoutISO = "2006-01-02"
 
-// Added to keep hold of go dump otherwise it just keeps getting cleaned out
-// when not being interntionally used
-func ___godumpHelper__ignore() {
-	godump.Dump("helper")
+type FrontPageSignals struct {
+	ArticlesOpen []int64 `json:"articlesOpen"`
+	FeedsOpen    []int64 `json:"feedsOpen"`
 }
