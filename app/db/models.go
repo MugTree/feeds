@@ -17,6 +17,7 @@ type Article struct {
 	Published           *time.Time
 	DateFound           *time.Time
 	ArticleContent      sql.NullString
+	ScrapedHtml         sql.NullString
 	ClickableBlockCount int64
 	Summary             string
 	Read                int64

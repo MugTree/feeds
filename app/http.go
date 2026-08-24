@@ -15,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/goforj/godump"
 	"github.com/mugtree/feeds/app/db"
+	"github.com/mugtree/feeds/app/scraper"
 	"github.com/starfederation/datastar/sdk/go/datastar"
 	"golang.org/x/net/html"
 )
@@ -382,7 +383,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 
 	r.Get("/update-reader", func(w http.ResponseWriter, r *http.Request) {
 
-		_, err := feedsGetFeedUpdatesFromNet(queries, r.Context())
+		_, err := scraper.GetFeedUpdates(queries, r.Context())
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return

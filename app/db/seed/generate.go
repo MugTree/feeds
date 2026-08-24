@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"context"
+	"database/sql"
 	"flag"
 	"fmt"
 	"log"
@@ -9,8 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/mmcdole/gofeed"
+
+	"github.com/mugtree/feeds/app/db"
+	"github.com/mugtree/feeds/app/scraper"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -61,15 +65,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	//godump.Dump(feeds)
-
-	db, err := sqlx.Open("sqlite3", *dbPtr)
+	dbhandle, err := sql.Open("sqlite3", *dbPtr)
 	if err != nil {
 		log.Fatalf("failed to open database: %v", err)
 	}
-	defer db.Close()
+	defer dbhandle.Close()
+
+	queries := db.New(dbhandle)
 
 	p := gofeed.NewParser()
+
+	ctx := context.Background()
 
 	for _, fi := range feeds {
 
@@ -78,38 +84,41 @@ func main() {
 			log.Fatalf("error parsing: %v", err)
 		}
 
-		feedSqlRes, err := db.Exec(
-			`INSERT INTO feeds (
-				url, 
-				title, 
-				css_sel_container,
-				css_sel_start,
-				css_sel_stop,
-				html_extraction_strategy,
-				last_fetched
-				) VALUES (
-				?, 
-				?, 
-				?, 
-				?, 
-				?, 
-				?, 
-				CURRENT_TIMESTAMP
-				);`,
-			goFeed.Link,
-			goFeed.Title,
-			fi.CSSSelectorContainer,
-			fi.CSSSelectorStart,
-			fi.CSSSelectorStop,
-			fi.HTMLExtractionStrategy)
+		insertedFeed, err := queries.InsertFeed(ctx, db.InsertFeedParams{
+			Url:                    goFeed.Link,
+			Title:                  goFeed.Title,
+			CssSelContainer:        sql.NullString{String: fi.CSSSelectorContainer},
+			CssSelStart:            sql.NullString{String: fi.CSSSelectorStart},
+			CssSelStop:             sql.NullString{String: fi.CSSSelectorStop},
+			HtmlExtractionStrategy: sql.NullString{String: fi.HTMLExtractionStrategy},
+		})
+		// feedSqlRes, err := db.Exec(
+		// 	`INSERT INTO feeds (
+		// 		url,
+		// 		title,
+		// 		css_sel_container,
+		// 		css_sel_start,
+		// 		css_sel_stop,
+		// 		html_extraction_strategy,
+		// 		last_fetched
+		// 		) VALUES (
+		// 		?,
+		// 		?,
+		// 		?,
+		// 		?,
+		// 		?,
+		// 		?,
+		// 		CURRENT_TIMESTAMP
+		// 		);`,
+		// 	goFeed.Link,
+		// 	goFeed.Title,
+		// 	fi.CSSSelectorContainer,
+		// 	fi.CSSSelectorStart,
+		// 	fi.CSSSelectorStop,
+		// 	fi.HTMLExtractionStrategy)
 
 		if err != nil {
 			log.Fatalf("error opening the db: %v", err)
-		}
-
-		id, err := feedSqlRes.LastInsertId()
-		if err != nil {
-			log.Fatalf("error getting last insert id: %v", err)
 		}
 
 		for _, v := range goFeed.Items {
@@ -117,43 +126,70 @@ func main() {
 			publishedDate := feedItemDate(v)
 			dateFound := time.Now()
 
-			_, err = db.Exec(`
-				INSERT INTO articles (
-				feed_id, 
-				title, 
-				link, 
-				published, 
-				date_found, 
-				summary, 
-				read, 
-				starred
-				) VALUES (
-				 ?, 
-				 ?, 
-				 ?, 
-				 ?, 
-				 ?, 
-				 ?, 
-				 ?,
-				 ?
-				 );`,
-				id,
-				v.Title,
-				v.Link,
-				publishedDate,
-				dateFound,
-				v.Description,
-				0,
-				0,
-			)
-
+			html, err := scraper.ScrapeSiteHTML(scraper.PageScrapeParams{
+				Link:           v.Link,
+				Container:      insertedFeed.CssSelContainer.String,
+				ClipStartPoint: insertedFeed.CssSelStart.String,
+				ClipEndPoint:   insertedFeed.CssSelStop.String,
+			})
 			if err != nil {
-				log.Fatalf("error inserting article: %v", err)
+				log.Fatalf("error getting site html: %v", err)
 			}
 
-		}
+			processed, _, err := scraper.ProcessScrapedHTML(html)
 
-		// get all the articles one by one and loop through them adding the html
+			if err != nil {
+				log.Fatalf("error getting site html: %v", err)
+			}
+
+			queries.InsertArticle(ctx, db.InsertArticleParams{
+				FeedID:         insertedFeed.ID,
+				Title:          v.Title,
+				Link:           v.Link,
+				Published:      publishedDate,
+				DateFound:      &dateFound,
+				Summary:        v.Description,
+				ScrapedHtml:    sql.NullString{String: html},
+				ArticleContent: sql.NullString{String: processed},
+				Read:           0,
+				Starred:        0,
+			})
+
+			// _, err = db.Exec(`
+			// 	INSERT INTO articles (
+			// 	feed_id,
+			// 	title,
+			// 	link,
+			// 	published,
+			// 	date_found,
+			// 	summary,
+			// 	read,
+			// 	starred
+			// 	) VALUES (
+			// 	 ?,
+			// 	 ?,
+			// 	 ?,
+			// 	 ?,
+			// 	 ?,
+			// 	 ?,
+			// 	 ?,
+			// 	 ?
+			// 	 );`,
+			// 	insertedFeed.ID,
+			// 	v.Title,
+			// 	v.Link,
+			// 	publishedDate,
+			// 	dateFound,
+			// 	v.Description,
+			// 	0,
+			// 	0,
+			// )
+
+			// if err != nil {
+			// 	log.Fatalf("error inserting article: %v", err)
+			// }
+
+		}
 
 	}
 }

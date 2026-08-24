@@ -7,6 +7,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly/v2"
+	"github.com/mugtree/feeds/app/scraper"
 )
 
 /*
@@ -39,7 +40,7 @@ func Test_ExtractHTMLRangeFlat(t *testing.T) {
 
 		c.OnHTML("#all", func(h *colly.HTMLElement) {
 			theDom = h.DOM
-			result = feedsExtractHTMLRangeFlat(theDom, "p:first-of-type", "")
+			result = scraper.ExtractHTMLRangeFlat(theDom, "p:first-of-type", "")
 		})
 
 		if err := c.Visit(ts.URL); err != nil {
@@ -55,7 +56,7 @@ func Test_ExtractHTMLRangeFlat(t *testing.T) {
 
 		// return unclipped
 		//----------------------------------------
-		result = feedsExtractHTMLRangeFlat(theDom, "", "")
+		result = scraper.ExtractHTMLRangeFlat(theDom, "", "")
 
 		expected = unclippedString
 
@@ -65,7 +66,7 @@ func Test_ExtractHTMLRangeFlat(t *testing.T) {
 
 		// return with the end clipped
 		//----------------------------------------
-		result = feedsExtractHTMLRangeFlat(theDom, "", "#nasty-ads")
+		result = scraper.ExtractHTMLRangeFlat(theDom, "", "#nasty-ads")
 
 		expected = clippedEndString
 
@@ -75,7 +76,7 @@ func Test_ExtractHTMLRangeFlat(t *testing.T) {
 
 		// return  clipped between
 		//----------------------------------------
-		result = feedsExtractHTMLRangeFlat(theDom, "p:first-of-type", "#nasty-ads")
+		result = scraper.ExtractHTMLRangeFlat(theDom, "p:first-of-type", "#nasty-ads")
 
 		expected = clippedBetweenString
 

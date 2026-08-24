@@ -81,6 +81,50 @@ SELECT * FROM margin_notes WHERE article_id = ? AND block_id = ?;
 -- name: UpdateMarginNoteByArticleIDAndBlockID :exec
 UPDATE margin_notes SET note = ? WHERE article_id =? AND block_id = ?;
 
+-- name: InsertArticle :one
+INSERT INTO articles (
+	feed_id, 
+	title, 
+	link, 
+	published, 
+	date_found, 
+	summary,
+	scraped_html,
+	article_content,
+	read, 
+	starred
+) VALUES (
+	 ?, 
+	 ?, 
+	 ?, 
+	 ?, 
+	 ?, 
+	 ?, 
+	 ?, 
+	 ?, 
+	 ?,
+	 ?
+ ) RETURNING * ;
+
+-- name: InsertFeed :one
+ INSERT INTO feeds (
+	url, 
+	title, 
+	css_sel_container,
+	css_sel_start,
+	css_sel_stop,
+	html_extraction_strategy,
+	last_fetched
+) VALUES (
+	?, 
+	?, 
+	?, 
+	?, 
+	?, 
+	?, 
+	CURRENT_TIMESTAMP
+) RETURNING *;
+
 -- name: InsertAndReturnMarginNote :one
 INSERT INTO margin_notes (article_id, block_id, note, date_added ) VALUES (?,?,?, CURRENT_TIMESTAMP) RETURNING *;
 
