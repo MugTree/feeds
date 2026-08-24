@@ -7,7 +7,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"time"
 )
 
@@ -67,8 +66,8 @@ type InsertArticleParams struct {
 	Published      *time.Time
 	DateFound      *time.Time
 	Summary        string
-	ScrapedHtml    sql.NullString
-	ArticleContent sql.NullString
+	ScrapedHtml    string
+	ArticleContent string
 	Read           int64
 	Starred        int64
 }
@@ -129,10 +128,10 @@ const insertFeed = `-- name: InsertFeed :one
 type InsertFeedParams struct {
 	Url                    string
 	Title                  string
-	CssSelContainer        sql.NullString
-	CssSelStart            sql.NullString
-	CssSelStop             sql.NullString
-	HtmlExtractionStrategy sql.NullString
+	CssSelContainer        string
+	CssSelStart            string
+	CssSelStop             string
+	HtmlExtractionStrategy string
 }
 
 func (q *Queries) InsertFeed(ctx context.Context, arg InsertFeedParams) (Feed, error) {
@@ -294,8 +293,8 @@ type SelectArticlesByFeedIDRow struct {
 	Link                string
 	Published           *time.Time
 	DateFound           *time.Time
-	ArticleContent      sql.NullString
-	ScrapedHtml         sql.NullString
+	ArticleContent      string
+	ScrapedHtml         string
 	ClickableBlockCount int64
 	Summary             string
 	Read                int64
@@ -373,7 +372,7 @@ type SelectArticlesByFeedIDWithLimitRow struct {
 	ArticlePublished           *time.Time
 	ArticleRead                int64
 	ArticleFeedID              int64
-	ArticleContent             sql.NullString
+	ArticleContent             string
 	ArticleClickableBlockCount int64
 	FeedTitle                  string
 }
@@ -442,15 +441,15 @@ type SelectFeedAndArticletByArticleIDRow struct {
 	ArticleStars               int64
 	ArticlePublished           *time.Time
 	ArticleRead                int64
-	ArticleContent             sql.NullString
+	ArticleContent             string
 	ArticleClickableBlockCount int64
 	FeedID                     int64
 	FeedTitle                  string
 	FeedUrl                    string
-	FeedCssSelContainer        sql.NullString
-	FeedCssSelStart            sql.NullString
-	FeedCssSelStop             sql.NullString
-	FeedHtmlExtractionStrategy sql.NullString
+	FeedCssSelContainer        string
+	FeedCssSelStart            string
+	FeedCssSelStop             string
+	FeedHtmlExtractionStrategy string
 }
 
 func (q *Queries) SelectFeedAndArticletByArticleID(ctx context.Context, id int64) (SelectFeedAndArticletByArticleIDRow, error) {
@@ -514,8 +513,8 @@ type SelectLatest5ArticlesRow struct {
 	Link                string
 	Published           *time.Time
 	DateFound           *time.Time
-	ArticleContent      sql.NullString
-	ScrapedHtml         sql.NullString
+	ArticleContent      string
+	ScrapedHtml         string
 	ClickableBlockCount int64
 	Summary             string
 	Read                int64
@@ -579,8 +578,8 @@ type SelectLatest5StarredArticlesRow struct {
 	Link                string
 	Published           *time.Time
 	DateFound           *time.Time
-	ArticleContent      sql.NullString
-	ScrapedHtml         sql.NullString
+	ArticleContent      string
+	ScrapedHtml         string
 	ClickableBlockCount int64
 	Summary             string
 	Read                int64
@@ -745,8 +744,8 @@ type SelectUnreadArticlesByFeedIDRow struct {
 	Link                string
 	Published           *time.Time
 	DateFound           *time.Time
-	ArticleContent      sql.NullString
-	ScrapedHtml         sql.NullString
+	ArticleContent      string
+	ScrapedHtml         string
 	ClickableBlockCount int64
 	Summary             string
 	Read                int64

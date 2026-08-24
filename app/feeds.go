@@ -51,8 +51,8 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 
 	td.ClickableBlockCount = fa.ArticleClickableBlockCount
 
-	if fa.ArticleContent.Valid {
-		td.PageContent = fa.ArticleContent.String
+	if fa.ArticleContent != "" {
+		td.PageContent = fa.ArticleContent
 	} else {
 		td.PageContent = "<html><head></head><body><p>some dummy content</p></body>"
 	}
@@ -347,9 +347,9 @@ func feedsGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Con
 func feedsEnrichArticles(articles []db.SelectArticlesByFeedIDWithLimitRow) ([]db.SelectArticlesByFeedIDWithLimitRow, error) {
 
 	for i := range articles {
-		if articles[i].ArticleContent.Valid {
+		if articles[i].ArticleContent != "" {
 			enrichedContent, err := feedsEnrichHTMLOutput(
-				articles[i].ArticleContent.String,
+				articles[i].ArticleContent,
 				0,
 				articles[i].ArticleID,
 			)
@@ -358,7 +358,7 @@ func feedsEnrichArticles(articles []db.SelectArticlesByFeedIDWithLimitRow) ([]db
 				return articles, err
 			}
 
-			articles[i].ArticleContent.String = enrichedContent
+			articles[i].ArticleContent = enrichedContent
 		}
 	}
 

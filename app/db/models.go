@@ -5,7 +5,6 @@
 package db
 
 import (
-	"database/sql"
 	"time"
 )
 
@@ -16,8 +15,8 @@ type Article struct {
 	Link                string
 	Published           *time.Time
 	DateFound           *time.Time
-	ArticleContent      sql.NullString
-	ScrapedHtml         sql.NullString
+	ArticleContent      string
+	ScrapedHtml         string
 	ClickableBlockCount int64
 	Summary             string
 	Read                int64
@@ -29,10 +28,10 @@ type Feed struct {
 	Url                    string
 	Title                  string
 	LastFetched            time.Time
-	CssSelContainer        sql.NullString
-	CssSelStart            sql.NullString
-	CssSelStop             sql.NullString
-	HtmlExtractionStrategy sql.NullString
+	CssSelContainer        string
+	CssSelStart            string
+	CssSelStop             string
+	HtmlExtractionStrategy string
 }
 
 type MarginNote struct {

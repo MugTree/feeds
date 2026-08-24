@@ -172,9 +172,9 @@ func TemplateAdminFeedForm(td FeedFormTemplateData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(td.Feed.CssSelContainer.String)
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(td.Feed.CssSelContainer)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 44, Col: 133}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 44, Col: 126}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 		if templ_7745c5c3_Err != nil {
@@ -185,9 +185,9 @@ func TemplateAdminFeedForm(td FeedFormTemplateData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
-		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(td.Feed.CssSelStart.String)
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(td.Feed.CssSelStart)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 48, Col: 117}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 48, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
@@ -198,9 +198,9 @@ func TemplateAdminFeedForm(td FeedFormTemplateData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
-		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(td.Feed.CssSelStop.String)
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(td.Feed.CssSelStop)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 52, Col: 110}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 52, Col: 103}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
@@ -297,7 +297,7 @@ func TemplateAdminFeedFormTextInput(title string, id string, placeholder string,
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 71, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 68, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
@@ -310,7 +310,7 @@ func TemplateAdminFeedFormTextInput(title string, id string, placeholder string,
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 71, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 68, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -323,7 +323,7 @@ func TemplateAdminFeedFormTextInput(title string, id string, placeholder string,
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 72, Col: 16}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 69, Col: 16}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 		if templ_7745c5c3_Err != nil {
@@ -336,7 +336,7 @@ func TemplateAdminFeedFormTextInput(title string, id string, placeholder string,
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(placeholder)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 72, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 69, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 		if templ_7745c5c3_Err != nil {
@@ -349,7 +349,7 @@ func TemplateAdminFeedFormTextInput(title string, id string, placeholder string,
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(value)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 72, Col: 94}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_admin.templ`, Line: 69, Col: 94}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 		if templ_7745c5c3_Err != nil {

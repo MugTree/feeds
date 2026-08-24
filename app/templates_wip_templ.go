@@ -328,8 +328,8 @@ func WIP_ArticleContent(a db.SelectArticlesByFeedIDWithLimitRow, signals FrontPa
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if a.ArticleContent.Valid {
-			templ_7745c5c3_Err = templ.Raw(a.ArticleContent.String).Render(ctx, templ_7745c5c3_Buffer)
+		if a.ArticleContent != "" {
+			templ_7745c5c3_Err = templ.Raw(a.ArticleContent).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

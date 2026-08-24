@@ -68,8 +68,8 @@ templ WIP_ArticleContent(a db.SelectArticlesByFeedIDWithLimitRow, signals FrontP
 		}
 	}}
 	<div class={ className }>
-		if a.ArticleContent.Valid {
-			@templ.Raw(a.ArticleContent.String)
+		if a.ArticleContent != "" {
+			@templ.Raw(a.ArticleContent)
 		}
 	</div>
 }

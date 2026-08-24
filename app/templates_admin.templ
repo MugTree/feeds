@@ -41,29 +41,26 @@ templ TemplateAdminFeedForm(td FeedFormTemplateData) {
 	</div>
 	<div class="grid gap-2">
 		<label for="CssContainer">Css Selector Container</label>
-		<input id="CssContainer" placeholder="Css container" data-bind-css-sel-container type="text" value={ td.Feed.CssSelContainer.String }/>
+		<input id="CssContainer" placeholder="Css container" data-bind-css-sel-container type="text" value={ td.Feed.CssSelContainer }/>
 	</div>
 	<div class="grid gap-2">
 		<label for="CssStart">Css Selector Start</label>
-		<input id="CssStart" placeholder="Css start" data-bind-css-sel-start type="text" value={ td.Feed.CssSelStart.String }/>
+		<input id="CssStart" placeholder="Css start" data-bind-css-sel-start type="text" value={ td.Feed.CssSelStart }/>
 	</div>
 	<div class="grid gap-2">
 		<label for="CssEnd">Css Selector Stop</label>
-		<input id="CssEnd" placeholder="Css end" data-bind-css-sel-end type="text" value={ td.Feed.CssSelStop.String }/>
+		<input id="CssEnd" placeholder="Css end" data-bind-css-sel-end type="text" value={ td.Feed.CssSelStop }/>
 	</div>
 	<div>
 		<button data-on-click={ datastar.PostSSE("%v", td.UrlAction) }>{ td.ButtonText }</button>
 	</div>
 }
 
-type DirectInputTemplateData struct{
+type DirectInputTemplateData struct {
 	PageUrl string // the actual url that the html is from
 }
 
 templ TemplateAdminDirectInput() {
-
-
-
 }
 
 templ TemplateAdminFeedFormTextInput(title string, id string, placeholder string, value string) {

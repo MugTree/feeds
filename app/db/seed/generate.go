@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/goforj/godump"
 	"github.com/mmcdole/gofeed"
 
 	"github.com/mugtree/feeds/app/db"
@@ -87,11 +88,13 @@ func main() {
 		insertedFeed, err := queries.InsertFeed(ctx, db.InsertFeedParams{
 			Url:                    goFeed.Link,
 			Title:                  goFeed.Title,
-			CssSelContainer:        sql.NullString{String: fi.CSSSelectorContainer},
-			CssSelStart:            sql.NullString{String: fi.CSSSelectorStart},
-			CssSelStop:             sql.NullString{String: fi.CSSSelectorStop},
-			HtmlExtractionStrategy: sql.NullString{String: fi.HTMLExtractionStrategy},
+			CssSelContainer:        fi.CSSSelectorContainer, //fi.CSSSelectorContainer},
+			CssSelStart:            fi.CSSSelectorStart,
+			CssSelStop:             fi.CSSSelectorStop,
+			HtmlExtractionStrategy: fi.HTMLExtractionStrategy,
 		})
+
+		godump.Dump(insertedFeed)
 		// feedSqlRes, err := db.Exec(
 		// 	`INSERT INTO feeds (
 		// 		url,
@@ -126,31 +129,33 @@ func main() {
 			publishedDate := feedItemDate(v)
 			dateFound := time.Now()
 
+			fmt.Println("getting link: ", v.Link)
 			html, err := scraper.ScrapeSiteHTML(scraper.PageScrapeParams{
 				Link:           v.Link,
-				Container:      insertedFeed.CssSelContainer.String,
-				ClipStartPoint: insertedFeed.CssSelStart.String,
-				ClipEndPoint:   insertedFeed.CssSelStop.String,
+				Container:      insertedFeed.CssSelContainer,
+				ClipStartPoint: insertedFeed.CssSelStart,
+				ClipEndPoint:   insertedFeed.CssSelStop,
 			})
 			if err != nil {
 				log.Fatalf("error getting site html: %v", err)
 			}
 
+			fmt.Println("processing html for: ", v.Link)
 			processed, _, err := scraper.ProcessScrapedHTML(html)
-
 			if err != nil {
 				log.Fatalf("error getting site html: %v", err)
 			}
 
-			queries.InsertArticle(ctx, db.InsertArticleParams{
+			fmt.Println("inserting record for: ", v.Link)
+			_, err = queries.InsertArticle(ctx, db.InsertArticleParams{
 				FeedID:         insertedFeed.ID,
 				Title:          v.Title,
 				Link:           v.Link,
 				Published:      publishedDate,
 				DateFound:      &dateFound,
 				Summary:        v.Description,
-				ScrapedHtml:    sql.NullString{String: html},
-				ArticleContent: sql.NullString{String: processed},
+				ScrapedHtml:    html,
+				ArticleContent: processed,
 				Read:           0,
 				Starred:        0,
 			})
@@ -185,9 +190,9 @@ func main() {
 			// 	0,
 			// )
 
-			// if err != nil {
-			// 	log.Fatalf("error inserting article: %v", err)
-			// }
+			if err != nil {
+				log.Fatalf("error inserting article: %v", err)
+			}
 
 		}
 
