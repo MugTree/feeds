@@ -40,29 +40,6 @@ func HttpSetupServer(queries *db.Queries, user string, password string) chi.Rout
 
 func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 
-	// r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-
-	// 	ctx := r.Context()
-
-	// 	latest, starred, err := feedsGetHomePageArticleSelections(queries, ctx)
-	// 	if err != nil {
-	// 		httpLogAndError(w, r, err.Error())
-	// 		return
-	// 	}
-
-	// 	sidebar, err := feedsGetSideBarTemplateData(queries, ctx)
-	// 	if err != nil {
-	// 		httpLogAndError(w, r, err.Error())
-	// 		return
-	// 	}
-
-	// 	TemplateLayout(
-	// 		"Homepage",
-	// 		TemplateHomePage(TemplateNav(sidebar), latest, starred)).Render(ctx,
-	// 		w,
-	// 	)
-	// })
-
 	r.Get("/home", func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -103,6 +80,12 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 					Offset: int64(offset),
 				},
 			)
+			if err != nil {
+				httpLogAndError(w, r, err.Error())
+				return
+			}
+
+			articles, err = feedsEnrichArticles(articles)
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
@@ -177,7 +160,11 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return
 		}
 
-		godump.Dump("articles", articles, len(articles), "------------------------------------")
+		articles, err = feedsEnrichArticles(articles)
+		if err != nil {
+			httpLogAndError(w, r, err.Error())
+			return
+		}
 
 		fsm.Articles = articles
 
@@ -191,7 +178,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 		fsm.LinksRequired = int64(math.Ceil(float64(articleCount) / float64(5)))
 
 		sse := datastar.NewSSE(w, r)
-		sse.PatchElementTempl(WIP_Inner(fsm, fps), datastar.WithModeReplace())
+		sse.PatchElementTempl(WIP_Inner(fsm, fps))
 
 	})
 

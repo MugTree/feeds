@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS articles
     link      TEXT NOT NULL DEFAULT '',
     published DATETIME NULL,
     date_found DATETIME NULL,
+    article_content      TEXT DEFAULT '',
     summary   TEXT NOT NULL DEFAULT '',
     read      INTEGER NOT NULL DEFAULT 0,
     starred   INTEGER NOT NULL DEFAULT 0,

@@ -57,7 +57,10 @@ templ WIP_Inner(summary FeedSummary, signals FrontPageSignals) {
 
 templ WIP_ArticleContent(a db.SelectArticlesByFeedIDWithLimitRow, signals FrontPageSignals) {
 	{{ url := fmt.Sprintf(`$articlesOpen = setOpenStatus($articlesOpen, %v); @get("/home")`, a.ArticleID) }}
-	<h3 data-on:click={ url }>{ a.ArticleTitle }</h3>
+	{{ id := fmt.Sprintf("feed-%v-%v", a.ArticleFeedID, a.ArticleID) }}
+	<div id={ id }>
+		<h3 data-on:click={ url }>{ a.ArticleTitle }</h3>
+	</div>
 	{{
 		className := "hidden"
 		if slices.Contains(signals.ArticlesOpen, a.ArticleID) {

@@ -474,6 +474,28 @@ func feedsProcessScrapedHTML(input string) (string, int64, error) {
 	return stringifiedHTML, clickableBlockCount, nil
 }
 
+func feedsEnrichArticles(articles []db.SelectArticlesByFeedIDWithLimitRow) ([]db.SelectArticlesByFeedIDWithLimitRow, error) {
+
+	for i := range articles {
+		if articles[i].ArticleContent.Valid {
+			enrichedContent, err := feedsEnrichHTMLOutput(
+				articles[i].ArticleContent.String,
+				0,
+				articles[i].ArticleID,
+			)
+
+			if err != nil {
+				return articles, err
+			}
+
+			articles[i].ArticleContent.String = enrichedContent
+		}
+	}
+
+	return articles, nil
+
+}
+
 /* before data is passed to the front end we add some additional properties for interactivity*/
 func feedsEnrichHTMLOutput(htmlStr string, _ int64, articleID int64) (string, error) {
 
