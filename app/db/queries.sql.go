@@ -11,48 +11,6 @@ import (
 	"time"
 )
 
-const insertAndReturnCachedArticle = `-- name: InsertAndReturnCachedArticle :one
-INSERT INTO article_cache (
-	article_id,
-	link, 
-	article_content, 
-	clickable_block_count,
-	created
-) VALUES(
-?,
-?,
-?, 
-?,
-CURRENT_TIMESTAMP
-) RETURNING id, link, article_content, created, article_id, clickable_block_count
-`
-
-type InsertAndReturnCachedArticleParams struct {
-	ArticleID           int64
-	Link                string
-	ArticleContent      sql.NullString
-	ClickableBlockCount int64
-}
-
-func (q *Queries) InsertAndReturnCachedArticle(ctx context.Context, arg InsertAndReturnCachedArticleParams) (ArticleCache, error) {
-	row := q.db.QueryRowContext(ctx, insertAndReturnCachedArticle,
-		arg.ArticleID,
-		arg.Link,
-		arg.ArticleContent,
-		arg.ClickableBlockCount,
-	)
-	var i ArticleCache
-	err := row.Scan(
-		&i.ID,
-		&i.Link,
-		&i.ArticleContent,
-		&i.Created,
-		&i.ArticleID,
-		&i.ClickableBlockCount,
-	)
-	return i, err
-}
-
 const insertAndReturnMarginNote = `-- name: InsertAndReturnMarginNote :one
 INSERT INTO margin_notes (article_id, block_id, note, date_added ) VALUES (?,?,?, CURRENT_TIMESTAMP) RETURNING id, article_id, block_id, note, date_added
 `
@@ -159,15 +117,27 @@ func (q *Queries) SelectAllFeeds(ctx context.Context) ([]Feed, error) {
 	return items, nil
 }
 
-const selectArticleContentFromArticleCache = `-- name: SelectArticleContentFromArticleCache :one
-SELECT article_content FROM article_cache WHERE article_id = ?
+const selectArticleByID = `-- name: SelectArticleByID :one
+SELECT id, feed_id, title, link, published, date_found, article_content, clickable_block_count, summary, read, starred FROM articles where id = ?
 `
 
-func (q *Queries) SelectArticleContentFromArticleCache(ctx context.Context, articleID int64) (sql.NullString, error) {
-	row := q.db.QueryRowContext(ctx, selectArticleContentFromArticleCache, articleID)
-	var article_content sql.NullString
-	err := row.Scan(&article_content)
-	return article_content, err
+func (q *Queries) SelectArticleByID(ctx context.Context, id int64) (Article, error) {
+	row := q.db.QueryRowContext(ctx, selectArticleByID, id)
+	var i Article
+	err := row.Scan(
+		&i.ID,
+		&i.FeedID,
+		&i.Title,
+		&i.Link,
+		&i.Published,
+		&i.DateFound,
+		&i.ArticleContent,
+		&i.ClickableBlockCount,
+		&i.Summary,
+		&i.Read,
+		&i.Starred,
+	)
+	return i, err
 }
 
 const selectArticleCountByFeedID = `-- name: SelectArticleCountByFeedID :one
@@ -183,7 +153,7 @@ func (q *Queries) SelectArticleCountByFeedID(ctx context.Context, feedID int64) 
 
 const selectArticlesByFeedID = `-- name: SelectArticlesByFeedID :many
 SELECT 
-	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
+	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.article_content, a.clickable_block_count, a.summary, a.read, a.starred, 
 	f.title as feed_title 
 FROM articles a 
 INNER JOIN feeds f 
@@ -193,16 +163,18 @@ ORDER BY COALESCE(a.published, a.date_found) DESC
 `
 
 type SelectArticlesByFeedIDRow struct {
-	ID        int64
-	FeedID    int64
-	Title     string
-	Link      string
-	Published *time.Time
-	DateFound *time.Time
-	Summary   string
-	Read      int64
-	Starred   int64
-	FeedTitle string
+	ID                  int64
+	FeedID              int64
+	Title               string
+	Link                string
+	Published           *time.Time
+	DateFound           *time.Time
+	ArticleContent      sql.NullString
+	ClickableBlockCount int64
+	Summary             string
+	Read                int64
+	Starred             int64
+	FeedTitle           string
 }
 
 func (q *Queries) SelectArticlesByFeedID(ctx context.Context, feedID int64) ([]SelectArticlesByFeedIDRow, error) {
@@ -221,6 +193,8 @@ func (q *Queries) SelectArticlesByFeedID(ctx context.Context, feedID int64) ([]S
 			&i.Link,
 			&i.Published,
 			&i.DateFound,
+			&i.ArticleContent,
+			&i.ClickableBlockCount,
 			&i.Summary,
 			&i.Read,
 			&i.Starred,
@@ -248,11 +222,10 @@ SELECT
 	a.published as article_published,
 	a.read as article_read,
 	a.feed_id as article_feed_id,
-    ac.article_content AS article_content,
-    ac.clickable_block_count AS article_clickable_block_count,
+    a.article_content AS article_content,
+    a.clickable_block_count AS article_clickable_block_count,
     f.title as feed_title
 FROM articles a
-    LEFT JOIN article_cache ac ON a.id = ac.article_id
     INNER JOIN feeds f ON f.id = a.feed_id
 WHERE a.feed_id  = ?
 ORDER BY published DESC
@@ -274,7 +247,7 @@ type SelectArticlesByFeedIDWithLimitRow struct {
 	ArticleRead                int64
 	ArticleFeedID              int64
 	ArticleContent             sql.NullString
-	ArticleClickableBlockCount sql.NullInt64
+	ArticleClickableBlockCount int64
 	FeedTitle                  string
 }
 
@@ -312,42 +285,6 @@ func (q *Queries) SelectArticlesByFeedIDWithLimit(ctx context.Context, arg Selec
 	return items, nil
 }
 
-const selectCachedArticleByID = `-- name: SelectCachedArticleByID :one
-SELECT id, link, article_content, created, article_id, clickable_block_count FROM article_cache WHERE article_id = ?
-`
-
-func (q *Queries) SelectCachedArticleByID(ctx context.Context, articleID int64) (ArticleCache, error) {
-	row := q.db.QueryRowContext(ctx, selectCachedArticleByID, articleID)
-	var i ArticleCache
-	err := row.Scan(
-		&i.ID,
-		&i.Link,
-		&i.ArticleContent,
-		&i.Created,
-		&i.ArticleID,
-		&i.ClickableBlockCount,
-	)
-	return i, err
-}
-
-const selectCachedArticleByLink = `-- name: SelectCachedArticleByLink :one
-SELECT id, link, article_content, created, article_id, clickable_block_count FROM article_cache WHERE link = ?
-`
-
-func (q *Queries) SelectCachedArticleByLink(ctx context.Context, link string) (ArticleCache, error) {
-	row := q.db.QueryRowContext(ctx, selectCachedArticleByLink, link)
-	var i ArticleCache
-	err := row.Scan(
-		&i.ID,
-		&i.Link,
-		&i.ArticleContent,
-		&i.Created,
-		&i.ArticleID,
-		&i.ClickableBlockCount,
-	)
-	return i, err
-}
-
 const selectFeedAndArticletByArticleID = `-- name: SelectFeedAndArticletByArticleID :one
 SELECT 
 	a.id as article_id,
@@ -356,6 +293,8 @@ SELECT
 	a.starred as article_stars,
 	a.published as article_published,
 	a.read as article_read,
+	a.article_content,
+	a.clickable_block_count as article_clickable_block_count,
 	f.id as feed_id, 
 	f.title as feed_title,
 	f.url as feed_url,
@@ -376,6 +315,8 @@ type SelectFeedAndArticletByArticleIDRow struct {
 	ArticleStars               int64
 	ArticlePublished           *time.Time
 	ArticleRead                int64
+	ArticleContent             sql.NullString
+	ArticleClickableBlockCount int64
 	FeedID                     int64
 	FeedTitle                  string
 	FeedUrl                    string
@@ -395,6 +336,8 @@ func (q *Queries) SelectFeedAndArticletByArticleID(ctx context.Context, id int64
 		&i.ArticleStars,
 		&i.ArticlePublished,
 		&i.ArticleRead,
+		&i.ArticleContent,
+		&i.ArticleClickableBlockCount,
 		&i.FeedID,
 		&i.FeedTitle,
 		&i.FeedUrl,
@@ -428,7 +371,7 @@ func (q *Queries) SelectFeedByID(ctx context.Context, id int64) (Feed, error) {
 
 const selectLatest5Articles = `-- name: SelectLatest5Articles :many
 SELECT 
-	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
+	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.article_content, a.clickable_block_count, a.summary, a.read, a.starred, 
 	f.title as feed_title 
  FROM articles a 
  INNER JOIN feeds f 
@@ -438,16 +381,18 @@ SELECT
 `
 
 type SelectLatest5ArticlesRow struct {
-	ID        int64
-	FeedID    int64
-	Title     string
-	Link      string
-	Published *time.Time
-	DateFound *time.Time
-	Summary   string
-	Read      int64
-	Starred   int64
-	FeedTitle string
+	ID                  int64
+	FeedID              int64
+	Title               string
+	Link                string
+	Published           *time.Time
+	DateFound           *time.Time
+	ArticleContent      sql.NullString
+	ClickableBlockCount int64
+	Summary             string
+	Read                int64
+	Starred             int64
+	FeedTitle           string
 }
 
 func (q *Queries) SelectLatest5Articles(ctx context.Context) ([]SelectLatest5ArticlesRow, error) {
@@ -466,6 +411,8 @@ func (q *Queries) SelectLatest5Articles(ctx context.Context) ([]SelectLatest5Art
 			&i.Link,
 			&i.Published,
 			&i.DateFound,
+			&i.ArticleContent,
+			&i.ClickableBlockCount,
 			&i.Summary,
 			&i.Read,
 			&i.Starred,
@@ -486,7 +433,7 @@ func (q *Queries) SelectLatest5Articles(ctx context.Context) ([]SelectLatest5Art
 
 const selectLatest5StarredArticles = `-- name: SelectLatest5StarredArticles :many
 SELECT 
-	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
+	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.article_content, a.clickable_block_count, a.summary, a.read, a.starred, 
 	f.title as feed_title 
  FROM articles a 
  INNER JOIN feeds f 
@@ -497,16 +444,18 @@ SELECT
 `
 
 type SelectLatest5StarredArticlesRow struct {
-	ID        int64
-	FeedID    int64
-	Title     string
-	Link      string
-	Published *time.Time
-	DateFound *time.Time
-	Summary   string
-	Read      int64
-	Starred   int64
-	FeedTitle string
+	ID                  int64
+	FeedID              int64
+	Title               string
+	Link                string
+	Published           *time.Time
+	DateFound           *time.Time
+	ArticleContent      sql.NullString
+	ClickableBlockCount int64
+	Summary             string
+	Read                int64
+	Starred             int64
+	FeedTitle           string
 }
 
 func (q *Queries) SelectLatest5StarredArticles(ctx context.Context) ([]SelectLatest5StarredArticlesRow, error) {
@@ -525,6 +474,8 @@ func (q *Queries) SelectLatest5StarredArticles(ctx context.Context) ([]SelectLat
 			&i.Link,
 			&i.Published,
 			&i.DateFound,
+			&i.ArticleContent,
+			&i.ClickableBlockCount,
 			&i.Summary,
 			&i.Read,
 			&i.Starred,
@@ -647,7 +598,7 @@ func (q *Queries) SelectSideBarData(ctx context.Context) ([]SelectSideBarDataRow
 
 const selectUnreadArticlesByFeedID = `-- name: SelectUnreadArticlesByFeedID :many
 SELECT 
-	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.summary, a.read, a.starred, 
+	a.id, a.feed_id, a.title, a.link, a.published, a.date_found, a.article_content, a.clickable_block_count, a.summary, a.read, a.starred, 
 	f.title as feed_title 
 FROM articles a 
 INNER JOIN feeds f 
@@ -657,16 +608,18 @@ ORDER BY COALESCE(a.published, a.date_found) DESC
 `
 
 type SelectUnreadArticlesByFeedIDRow struct {
-	ID        int64
-	FeedID    int64
-	Title     string
-	Link      string
-	Published *time.Time
-	DateFound *time.Time
-	Summary   string
-	Read      int64
-	Starred   int64
-	FeedTitle string
+	ID                  int64
+	FeedID              int64
+	Title               string
+	Link                string
+	Published           *time.Time
+	DateFound           *time.Time
+	ArticleContent      sql.NullString
+	ClickableBlockCount int64
+	Summary             string
+	Read                int64
+	Starred             int64
+	FeedTitle           string
 }
 
 func (q *Queries) SelectUnreadArticlesByFeedID(ctx context.Context, feedID int64) ([]SelectUnreadArticlesByFeedIDRow, error) {
@@ -685,6 +638,8 @@ func (q *Queries) SelectUnreadArticlesByFeedID(ctx context.Context, feedID int64
 			&i.Link,
 			&i.Published,
 			&i.DateFound,
+			&i.ArticleContent,
+			&i.ClickableBlockCount,
 			&i.Summary,
 			&i.Read,
 			&i.Starred,

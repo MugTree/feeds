@@ -153,6 +153,8 @@ func main() {
 
 		}
 
+		// get all the articles one by one and loop through them adding the html
+
 	}
 }
 

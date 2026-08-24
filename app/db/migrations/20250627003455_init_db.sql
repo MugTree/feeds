@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS articles
     published DATETIME NULL,
     date_found DATETIME NULL,
     article_content      TEXT DEFAULT '',
+    clickable_block_count INTEGER NOT NULL DEFAULT 0,
     summary   TEXT NOT NULL DEFAULT '',
     read      INTEGER NOT NULL DEFAULT 0,
     starred   INTEGER NOT NULL DEFAULT 0,

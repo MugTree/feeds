@@ -54,61 +54,58 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 	td.ArticlesRead = alreadyRead
 	td.ArticlesToRead = toRead
 
-	hasContent, preCachedHTML, clickableBlocksCount, err := feedsGetArticleContentIfCached(queries, td.Link, fa.ArticleID, ctx)
+	td.ClickableBlockCount = fa.ArticleClickableBlockCount
+
+	if fa.ArticleContent.Valid {
+		td.PageContent = fa.ArticleContent.String
+	} else {
+		td.PageContent = "<html><head></head><body><p>some dummy content</p></body>"
+	}
+
+	enrichedHTML, err := feedsEnrichHTMLOutput(td.PageContent, feedID, articleID)
 	if err != nil {
 		return td, err
 	}
 
-	if hasContent {
+	td.PageContent = enrichedHTML
+	td.IsCache = true
 
-		enrichedHTML, err := feedsEnrichHTMLOutput(preCachedHTML, feedID, articleID)
-		if err != nil {
-			return td, err
-		}
+	mns, err := feedsGetMarginNotes(queries, ctx, articleID, -1)
 
-		td.PageContent = enrichedHTML
-		td.ClickableBlockCount = clickableBlocksCount
-		td.IsCache = true
-
-		mns, err := feedsGetMarginNotes(queries, ctx, articleID, -1)
-
-		//godump.Dump()
-
-		td.MarginNotesTemplateData = mns
-
-		return td, nil
-	}
-
-	scrapedHTML, err := feedsScrapeSiteHTML(queries, fa, ctx)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return td, err
-		}
-		return td, err
-	}
-
-	processedHTML, clickableBlocksCount, err := feedsProcessScrapedHTML(scrapedHTML)
-	if err != nil {
-		return td, err
-	}
-
-	newlyCached, err := queries.InsertAndReturnCachedArticle(ctx, db.InsertAndReturnCachedArticleParams{
-		ArticleID:           articleID,
-		Link:                td.Link,
-		ArticleContent:      sql.NullString{String: processedHTML, Valid: true},
-		ClickableBlockCount: clickableBlocksCount,
-	})
-
-	if err != nil {
-		return td, err
-	}
-
-	enrichedHTMLForUser, err := feedsEnrichHTMLOutput(newlyCached.ArticleContent.String, feedID, articleID)
-
-	td.PageContent = enrichedHTMLForUser
-	td.ClickableBlockCount = newlyCached.ClickableBlockCount
+	td.MarginNotesTemplateData = mns
 
 	return td, nil
+
+	// scrapedHTML, err := feedsScrapeSiteHTML(queries, fa, ctx)
+	// if err != nil {
+	// 	if errors.Is(err, context.DeadlineExceeded) {
+	// 		return td, err
+	// 	}
+	// 	return td, err
+	// }
+
+	// processedHTML, clickableBlocksCount, err := feedsProcessScrapedHTML(scrapedHTML)
+	// if err != nil {
+	// 	return td, err
+	// }
+
+	// newlyCached, err := queries.InsertAndReturnCachedArticle(ctx, db.InsertAndReturnCachedArticleParams{
+	// 	ArticleID:           articleID,
+	// 	Link:                td.Link,
+	// 	ArticleContent:      sql.NullString{String: processedHTML, Valid: true},
+	// 	ClickableBlockCount: clickableBlocksCount,
+	// })
+
+	// if err != nil {
+	// 	return td, err
+	// }
+
+	// enrichedHTMLForUser, err := feedsEnrichHTMLOutput(newlyCached.ArticleContent.String, feedID, articleID)
+
+	// td.PageContent = enrichedHTMLForUser
+	// td.ClickableBlockCount = newlyCached.ClickableBlockCount
+
+	// return td, nil
 }
 
 func feedsGetSideBarTemplateData(queries *db.Queries, ctx context.Context) ([]feedsSidebarLink, error) {
@@ -195,12 +192,12 @@ func feedsGetMarginNotes(queries *db.Queries, ctx context.Context, articleID int
 	fmt.Printf("Selecting note state: %v\n", blockID)
 	mns.NoteToEdit = blockID
 
-	article, err := queries.SelectCachedArticleByID(ctx, articleID)
+	article, err := queries.SelectArticleByID(ctx, articleID)
 	if err != nil {
 		return mns, err
 	}
 	mns.TotalBlocksCount = article.ClickableBlockCount
-	mns.ArticleID = article.ArticleID
+	mns.ArticleID = article.ID
 
 	notes, err := queries.SelectMarginNotesByArticleID(ctx, articleID)
 	if err != nil {
@@ -316,39 +313,39 @@ func feedsGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Con
 	return alreadyRead, toRead, nil
 }
 
-func feedsGetArticleContentIfCached(queries *db.Queries, articleLink string, _ int64, ctx context.Context) (bool, string, int64, error) {
+// func feedsGetArticleContentIfCached(queries *db.Queries, articleLink string, _ int64, ctx context.Context) (bool, string, int64, error) {
 
-	var clickableBlocks int64 = 0
+// 	var clickableBlocks int64 = 0
 
-	lc, err := queries.SelectCachedArticleByLink(ctx, articleLink)
-	if err == nil {
+// 	lc, err := queries.SelectCachedArticleByLink(ctx, articleLink)
+// 	if err == nil {
 
-		// parsedHTML, err := html.Parse(strings.NewReader(lc.ArticleContent.String))
-		// if err != nil {
-		// 	return false, "", 0, err
-		// }
+// 		// parsedHTML, err := html.Parse(strings.NewReader(lc.ArticleContent.String))
+// 		// if err != nil {
+// 		// 	return false, "", 0, err
+// 		// }
 
-		// article, err := feedsRemoveOuterHTMLShell(parsedHTML)
-		// if err != nil {
-		// 	return false, "", clickableBlocks, err
-		// }
+// 		// article, err := feedsRemoveOuterHTMLShell(parsedHTML)
+// 		// if err != nil {
+// 		// 	return false, "", clickableBlocks, err
+// 		// }
 
-		// articleStr, err := feedsStringifyHTML(article)
-		// if err != nil {
-		// 	return false, "", clickableBlocks, err
-		// }
+// 		// articleStr, err := feedsStringifyHTML(article)
+// 		// if err != nil {
+// 		// 	return false, "", clickableBlocks, err
+// 		// }
 
-		clickableBlocks := lc.ClickableBlockCount
+// 		clickableBlocks := lc.ClickableBlockCount
 
-		return true, lc.ArticleContent.String, clickableBlocks, nil
-	}
-	if err == sql.ErrNoRows {
-		return false, "", clickableBlocks, nil
-	}
+// 		return true, lc.ArticleContent.String, clickableBlocks, nil
+// 	}
+// 	if err == sql.ErrNoRows {
+// 		return false, "", clickableBlocks, nil
+// 	}
 
-	return false, "", clickableBlocks, err
+// 	return false, "", clickableBlocks, err
 
-}
+// }
 
 func feedsExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelector string) string {
 

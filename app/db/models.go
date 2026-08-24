@@ -10,24 +10,17 @@ import (
 )
 
 type Article struct {
-	ID        int64
-	FeedID    int64
-	Title     string
-	Link      string
-	Published *time.Time
-	DateFound *time.Time
-	Summary   string
-	Read      int64
-	Starred   int64
-}
-
-type ArticleCache struct {
 	ID                  int64
+	FeedID              int64
+	Title               string
 	Link                string
+	Published           *time.Time
+	DateFound           *time.Time
 	ArticleContent      sql.NullString
-	Created             *time.Time
-	ArticleID           int64
 	ClickableBlockCount int64
+	Summary             string
+	Read                int64
+	Starred             int64
 }
 
 type Feed struct {

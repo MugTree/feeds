@@ -58,6 +58,8 @@ SELECT
 	a.starred as article_stars,
 	a.published as article_published,
 	a.read as article_read,
+	a.article_content,
+	a.clickable_block_count as article_clickable_block_count,
 	f.id as feed_id, 
 	f.title as feed_title,
 	f.url as feed_url,
@@ -79,27 +81,6 @@ SELECT * FROM margin_notes WHERE article_id = ? AND block_id = ?;
 -- name: UpdateMarginNoteByArticleIDAndBlockID :exec
 UPDATE margin_notes SET note = ? WHERE article_id =? AND block_id = ?;
 
--- name: SelectCachedArticleByLink :one
-SELECT * FROM article_cache WHERE link = ?;
-
--- name: SelectCachedArticleByID :one
-SELECT * FROM article_cache WHERE article_id = ?;
-
--- name: InsertAndReturnCachedArticle :one
-INSERT INTO article_cache (
-	article_id,
-	link, 
-	article_content, 
-	clickable_block_count,
-	created
-) VALUES(
-?,
-?,
-?, 
-?,
-CURRENT_TIMESTAMP
-) RETURNING *; 
-
 -- name: InsertAndReturnMarginNote :one
 INSERT INTO margin_notes (article_id, block_id, note, date_added ) VALUES (?,?,?, CURRENT_TIMESTAMP) RETURNING *;
 
@@ -108,6 +89,9 @@ SELECT * from feeds;
 
 -- name: SelectFeedByID :one
 SELECT * FROM feeds where id = ?;
+
+-- name: SelectArticleByID :one
+SELECT * FROM articles where id = ?;
 
 -- name: InsertOrIgnoreArticle :exec
 INSERT OR IGNORE INTO articles (
@@ -136,10 +120,6 @@ UPDATE articles SET read = 1 WHERE id = ?;
 -- name: UpdateArticleSetStarredValue :exec
 UPDATE articles SET starred = ? WHERE id = ?;
 
-
--- name: SelectArticleContentFromArticleCache :one
-SELECT article_content FROM article_cache WHERE article_id = ?;
-
 -- name: SelectArticlesByFeedIDWithLimit :many
 SELECT
    a.id as article_id,
@@ -149,11 +129,10 @@ SELECT
 	a.published as article_published,
 	a.read as article_read,
 	a.feed_id as article_feed_id,
-    ac.article_content AS article_content,
-    ac.clickable_block_count AS article_clickable_block_count,
+    a.article_content AS article_content,
+    a.clickable_block_count AS article_clickable_block_count,
     f.title as feed_title
 FROM articles a
-    LEFT JOIN article_cache ac ON a.id = ac.article_id
     INNER JOIN feeds f ON f.id = a.feed_id
 WHERE a.feed_id  = ?
 ORDER BY published DESC

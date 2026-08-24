@@ -8,6 +8,4 @@ CREATE TABLE IF NOT EXISTS margin_notes
     note TEXT NOT NULL DEFAULT '', 
     date_added TIMESTAMP NOT NULL
 );
-
-ALTER TABLE article_cache ADD COLUMN clickable_block_count INTEGER NOT NULL;
 -- +goose StatementEnd
