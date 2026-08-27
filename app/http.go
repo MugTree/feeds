@@ -318,7 +318,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 		sse.ExecuteScript("feedsBalanceArticleLayout()")
 	})
 
-	r.Get("/article/{articleID}/note/edit/{blockID}", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/article/{articleID}/note/edit/{paragraphID}", func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
@@ -327,12 +327,12 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return
 		}
 
-		blockID, ok := httpRequireNumericParam(w, r, "blockID")
+		paragraphID, ok := httpRequireNumericParam(w, r, "paragraphID")
 		if !ok {
 			return
 		}
 
-		mns, err := feedsGetComments(queries, ctx, articleID, blockID)
+		mns, err := feedsGetComments(queries, ctx, articleID, paragraphID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -348,7 +348,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 
 	})
 
-	r.Post("/article/{articleID}/note/write/{blockID}", func(w http.ResponseWriter, r *http.Request) {
+	r.Post("/article/{articleID}/note/write/{paragraphID}", func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
 
@@ -357,7 +357,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return
 		}
 
-		blockID, ok := httpRequireNumericParam(w, r, "blockID")
+		paragraphID, ok := httpRequireNumericParam(w, r, "paragraphID")
 		if !ok {
 			return
 		}
@@ -366,7 +366,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 		// -------------------------------------------------
 		noteText := r.FormValue("note-text")
 
-		mns, err := feedsUpdateComments(queries, ctx, noteText, articleID, blockID)
+		mns, err := feedsUpdateComments(queries, ctx, noteText, articleID, paragraphID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return

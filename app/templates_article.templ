@@ -59,8 +59,8 @@ templ TemplateLikeArticle(htmlID string, feedID int64, articleID int64, starsVal
 templ TemplateEditComments(mns CommentsTemplateData) {
 	{{ /* godump.Dump("edit", mns) */ }}
 	<aside id="article-notes">
-		for i := range mns.TotalBlocksCount {
-			{{ note, _ := mns.MarginNotes[i] }}
+		for i := range mns.TotalCommentsCount {
+			{{ note, _ := mns.Comments[i] }}
 			if i == mns.NoteToEdit && mns.ShowTextArea {
 				<form class="note-edit" data-note-id={ i }>
 					<textarea name="note-text" data-note-id={ i }>{ note.CommentText }</textarea>
@@ -78,8 +78,8 @@ templ TemplateEditComments(mns CommentsTemplateData) {
 
 templ TemplateViewComments(mns CommentsTemplateData) {
 	<aside id="article-notes">
-		for i := range mns.TotalBlocksCount {
-			{{ note, _ := mns.MarginNotes[i] }}
+		for i := range mns.TotalCommentsCount {
+			{{ note, _ := mns.Comments[i] }}
 			<div data-note-id={ i } class="note-holder">
 				@FormatSimpleParagraphs(note.CommentText)
 			</div>

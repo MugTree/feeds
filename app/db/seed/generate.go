@@ -114,7 +114,7 @@ func main() {
 			}
 
 			fmt.Println("processing html for: ", v.Link)
-			processed, blockCount, err := scraper.ProcessScrapedHTML(html)
+			processed, paragraphCount, err := scraper.ProcessScrapedHTML(html)
 			if err != nil {
 				log.Fatalf("error getting site html: %v", err)
 			}
@@ -126,7 +126,7 @@ func main() {
 				Link:                    v.Link,
 				Published:               publishedDate,
 				DateFound:               &dateFound,
-				ClickableParagraphCount: blockCount,
+				ClickableParagraphCount: paragraphCount,
 				Summary:                 v.Description,
 				ScrapedHtml:             html,
 				ArticleContent:          processed,

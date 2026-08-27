@@ -157,14 +157,14 @@ func ProcessScrapedHTML(input string) (string, int64, error) {
 
 	_feedsSanitizeHTMLInput(doc)
 
-	clickableBlockCount := enrichHTML(doc)
+	paragraphCount := enrichHTML(doc)
 
 	stringifiedHTML, err := StringifyHTML(doc)
 	if err != nil {
 		return "", 0, err
 	}
 
-	return stringifiedHTML, clickableBlockCount, nil
+	return stringifiedHTML, paragraphCount, nil
 }
 
 // article for the article, div for the desc from feeds

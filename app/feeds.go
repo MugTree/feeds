@@ -93,7 +93,7 @@ func feedsUpdateComments(queries *db.Queries, ctx context.Context, noteText stri
 
 	mns := CommentsTemplateData{}
 
-	fmt.Printf("Does a note already exist - block id: %v - note:%s\n", paragraphID, noteText)
+	fmt.Printf("Does a note already exist - comment id: %v - note:%s\n", paragraphID, noteText)
 
 	_, err := queries.SelectCommentsByArticleIDAndRelatedParagraphID(
 		ctx, db.SelectCommentsByArticleIDAndRelatedParagraphIDParams{
@@ -105,7 +105,7 @@ func feedsUpdateComments(queries *db.Queries, ctx context.Context, noteText stri
 	//  If a note doesn't exist to update we INSERT a new one
 	if err == sql.ErrNoRows {
 		fmt.Println("No!")
-		fmt.Printf("Creating a new note - block id: %v - note:%s and returning all the notes\n", paragraphID, noteText)
+		fmt.Printf("Creating a new note - paragraphID: %v - note:%s and returning all the notes\n", paragraphID, noteText)
 
 		_, err := queries.InsertAndReturnComment(
 			ctx,
@@ -268,19 +268,19 @@ func feedsEnrichHTMLOutput(htmlStr string, _ int64, articleID int64) (string, er
 
 			if n.Type == html.ElementNode {
 
-				var blockID string
+				var paragraphID string
 
 				for _, attr := range n.Attr {
-					if attr.Key == "data-block-id" {
-						blockID = attr.Val
+					if attr.Key == "data-paragraph-id" {
+						paragraphID = attr.Val
 						break
 					}
 				}
 
-				if blockID != "" {
+				if paragraphID != "" {
 					n.Attr = append(n.Attr, html.Attribute{
 						Key: "data-on:click",
-						Val: datastar.GetSSE("/article/%v/note/edit/%v", articleID, blockID),
+						Val: datastar.GetSSE("/article/%v/paragraph/edit/%v", articleID, paragraphID),
 					})
 				}
 
