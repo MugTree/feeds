@@ -59,7 +59,7 @@ SELECT
 	a.published as article_published,
 	a.read as article_read,
 	a.article_content,
-	a.clickable_block_count as article_clickable_block_count,
+	a.clickable_paragraph_count as article_clickable_paragraph_count,
 	f.id as feed_id, 
 	f.title as feed_title,
 	f.url as feed_url,
@@ -72,14 +72,14 @@ FROM
 INNER JOIN feeds f 
 ON f.id = a.feed_id where a.id = ?;
 
--- name: SelectMarginNotesByArticleID :many
-SELECT * FROM margin_notes WHERE article_id = ?;
+-- name: SelectCommentsByArticleID :many
+SELECT * FROM comments WHERE article_id = ?;
 
--- name: SelectMarginNoteByArticleIDAndBlockID :one
-SELECT * FROM margin_notes WHERE article_id = ? AND block_id = ?;
+-- name: SelectCommentsByArticleIDAndRelatedParagraphID :one
+SELECT * FROM comments WHERE article_id = ? AND related_paragraph_id = ?;
 
--- name: UpdateMarginNoteByArticleIDAndBlockID :exec
-UPDATE margin_notes SET note = ? WHERE article_id =? AND block_id = ?;
+-- name: UpdateCommentByArticleIDAndRelatedParagraphID :exec
+UPDATE comments SET comment_text = ? WHERE article_id =? AND related_paragraph_id = ?;
 
 -- name: InsertArticle :one
 INSERT INTO articles (
@@ -91,9 +91,11 @@ INSERT INTO articles (
 	summary,
 	scraped_html,
 	article_content,
+	clickable_paragraph_count,
 	read, 
 	starred
 ) VALUES (
+	 ?, 
 	 ?, 
 	 ?, 
 	 ?, 
@@ -125,8 +127,8 @@ INSERT INTO articles (
 	CURRENT_TIMESTAMP
 ) RETURNING *;
 
--- name: InsertAndReturnMarginNote :one
-INSERT INTO margin_notes (article_id, block_id, note, date_added ) VALUES (?,?,?, CURRENT_TIMESTAMP) RETURNING *;
+-- name: InsertAndReturnComment :one
+INSERT INTO comments (article_id, related_paragraph_id, comment_text, date_added ) VALUES (?,?,?, CURRENT_TIMESTAMP) RETURNING *;
 
 -- name: SelectAllFeeds :many
 SELECT * from feeds;	
@@ -174,7 +176,7 @@ SELECT
 	a.read as article_read,
 	a.feed_id as article_feed_id,
     a.article_content AS article_content,
-    a.clickable_block_count AS article_clickable_block_count,
+    a.clickable_paragraph_count AS article_clickable_paragraph_count,
     f.title as feed_title
 FROM articles a
     INNER JOIN feeds f ON f.id = a.feed_id

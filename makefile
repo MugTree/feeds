@@ -1,15 +1,12 @@
-seed-db:
-	go run ./app/db/seed/generate.go --urls=./app/db/seed/seed.csv --db=./feeds.db
-
-drop-db:
+drop-data:
 	rm feeds.db
 	rm feeds.db-*
 
-recreate-db:
+seed-data:
 	touch feeds.db
 	goose status
 	goose up
-	make seed-db 
+	go run ./app/db/seed/generate.go --urls=./app/db/seed/seed.csv --db=./feeds.db
 
 lint:
 	golangci-lint run .

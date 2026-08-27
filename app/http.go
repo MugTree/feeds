@@ -91,7 +91,6 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 				httpLogAndError(w, r, err.Error())
 				return
 			}
-
 			fsd.Articles = articles
 
 			articleCount, err := queries.SelectArticleCountByFeedID(ctx, fsd.FeedID)
@@ -99,7 +98,6 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 				httpLogAndError(w, r, err.Error())
 				return
 			}
-
 			fsd.ArticleCount = articleCount
 			fsd.LinksRequired = int64(math.Ceil(float64(articleCount) / float64(5)))
 			feedSummaries = append(feedSummaries, fsd)
@@ -112,6 +110,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 		TemplateLayout("new homepage", WIP_TemplateHomePage(feedSummaries, fps)).Render(r.Context(), w)
 	})
 
+	// display pagination
 	r.Get("/home/feed/{feedID}/page/{pageID}", func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -333,7 +332,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return
 		}
 
-		mns, err := feedsGetMarginNotes(queries, ctx, articleID, blockID)
+		mns, err := feedsGetComments(queries, ctx, articleID, blockID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -343,7 +342,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 		mns.ShowTextArea = true
 
 		sse := datastar.NewSSE(w, r)
-		sse.PatchElementTempl(TemplateEditMarginNotes(mns))
+		sse.PatchElementTempl(TemplateEditComments(mns))
 		/* call an existing JS function  when the new data is morphed in*/
 		sse.ExecuteScript("feedsBalanceArticleLayout()")
 
@@ -367,7 +366,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 		// -------------------------------------------------
 		noteText := r.FormValue("note-text")
 
-		mns, err := feedsUpdateMarginNotes(queries, ctx, noteText, articleID, blockID)
+		mns, err := feedsUpdateComments(queries, ctx, noteText, articleID, blockID)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -376,7 +375,7 @@ func httpFrontEndRoutes(r chi.Router, queries *db.Queries) chi.Router {
 		mns.ShowTextArea = false
 
 		sse := datastar.NewSSE(w, r)
-		sse.PatchElementTempl(TemplateEditMarginNotes(mns))
+		sse.PatchElementTempl(TemplateEditComments(mns))
 		/* call an existing JS function  when the new data is morphed in*/
 		sse.ExecuteScript("feedsBalanceArticleLayout()")
 	})

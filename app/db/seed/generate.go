@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goforj/godump"
 	"github.com/mmcdole/gofeed"
 
 	"github.com/mugtree/feeds/app/db"
@@ -94,32 +93,6 @@ func main() {
 			HtmlExtractionStrategy: fi.HTMLExtractionStrategy,
 		})
 
-		godump.Dump(insertedFeed)
-		// feedSqlRes, err := db.Exec(
-		// 	`INSERT INTO feeds (
-		// 		url,
-		// 		title,
-		// 		css_sel_container,
-		// 		css_sel_start,
-		// 		css_sel_stop,
-		// 		html_extraction_strategy,
-		// 		last_fetched
-		// 		) VALUES (
-		// 		?,
-		// 		?,
-		// 		?,
-		// 		?,
-		// 		?,
-		// 		?,
-		// 		CURRENT_TIMESTAMP
-		// 		);`,
-		// 	goFeed.Link,
-		// 	goFeed.Title,
-		// 	fi.CSSSelectorContainer,
-		// 	fi.CSSSelectorStart,
-		// 	fi.CSSSelectorStop,
-		// 	fi.HTMLExtractionStrategy)
-
 		if err != nil {
 			log.Fatalf("error opening the db: %v", err)
 		}
@@ -141,54 +114,25 @@ func main() {
 			}
 
 			fmt.Println("processing html for: ", v.Link)
-			processed, _, err := scraper.ProcessScrapedHTML(html)
+			processed, blockCount, err := scraper.ProcessScrapedHTML(html)
 			if err != nil {
 				log.Fatalf("error getting site html: %v", err)
 			}
 
 			fmt.Println("inserting record for: ", v.Link)
 			_, err = queries.InsertArticle(ctx, db.InsertArticleParams{
-				FeedID:         insertedFeed.ID,
-				Title:          v.Title,
-				Link:           v.Link,
-				Published:      publishedDate,
-				DateFound:      &dateFound,
-				Summary:        v.Description,
-				ScrapedHtml:    html,
-				ArticleContent: processed,
-				Read:           0,
-				Starred:        0,
+				FeedID:                  insertedFeed.ID,
+				Title:                   v.Title,
+				Link:                    v.Link,
+				Published:               publishedDate,
+				DateFound:               &dateFound,
+				ClickableParagraphCount: blockCount,
+				Summary:                 v.Description,
+				ScrapedHtml:             html,
+				ArticleContent:          processed,
+				Read:                    0,
+				Starred:                 0,
 			})
-
-			// _, err = db.Exec(`
-			// 	INSERT INTO articles (
-			// 	feed_id,
-			// 	title,
-			// 	link,
-			// 	published,
-			// 	date_found,
-			// 	summary,
-			// 	read,
-			// 	starred
-			// 	) VALUES (
-			// 	 ?,
-			// 	 ?,
-			// 	 ?,
-			// 	 ?,
-			// 	 ?,
-			// 	 ?,
-			// 	 ?,
-			// 	 ?
-			// 	 );`,
-			// 	insertedFeed.ID,
-			// 	v.Title,
-			// 	v.Link,
-			// 	publishedDate,
-			// 	dateFound,
-			// 	v.Description,
-			// 	0,
-			// 	0,
-			// )
 
 			if err != nil {
 				log.Fatalf("error inserting article: %v", err)

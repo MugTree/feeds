@@ -5,14 +5,14 @@ package app
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
-import "github.com/a-h/templ"
-import templruntime "github.com/a-h/templ/runtime"
-
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/starfederation/datastar-go/datastar"
 	"strings"
+
+	"github.com/a-h/templ"
+	templruntime "github.com/a-h/templ/runtime"
+	"github.com/starfederation/datastar-go/datastar"
 )
 
 func TemplateArticlePage(aps ArticlePageTemplateData) templ.Component {
@@ -141,7 +141,7 @@ func TemplateArticlePage(aps ArticlePageTemplateData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = TemplateViewMarginNotes(aps.MarginNotesTemplateData).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = TemplateViewComments(aps.CommentsTemplateData).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -274,7 +274,7 @@ func TemplateLikeArticle(htmlID string, feedID int64, articleID int64, starsValu
 	})
 }
 
-func TemplateEditMarginNotes(mns MarginNotesTemplateData) templ.Component {
+func TemplateEditComments(mns CommentsTemplateData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -300,8 +300,8 @@ func TemplateEditMarginNotes(mns MarginNotesTemplateData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for i := range mns.TotalBlocksCount {
-			note, _ := mns.MarginNotes[i]
+		for i := range mns.TotalCommentsCount {
+			note, _ := mns.Comments[i]
 			if i == mns.NoteToEdit && mns.ShowTextArea {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<form class=\"note-edit\" data-note-id=\"")
 				if templ_7745c5c3_Err != nil {
@@ -334,9 +334,9 @@ func TemplateEditMarginNotes(mns MarginNotesTemplateData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var16 string
-				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(note.Note)
+				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(note.CommentText)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_article.templ`, Line: 66, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `app/templates_article.templ`, Line: 66, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -382,7 +382,7 @@ func TemplateEditMarginNotes(mns MarginNotesTemplateData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = FormatSimpleParagraphs(note.Note).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = FormatSimpleParagraphs(note.CommentText).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -400,7 +400,7 @@ func TemplateEditMarginNotes(mns MarginNotesTemplateData) templ.Component {
 	})
 }
 
-func TemplateViewMarginNotes(mns MarginNotesTemplateData) templ.Component {
+func TemplateViewComments(mns CommentsTemplateData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -425,8 +425,8 @@ func TemplateViewMarginNotes(mns MarginNotesTemplateData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for i := range mns.TotalBlocksCount {
-			note, _ := mns.MarginNotes[i]
+		for i := range mns.TotalCommentsCount {
+			note, _ := mns.Comments[i]
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<div data-note-id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -444,7 +444,7 @@ func TemplateViewMarginNotes(mns MarginNotesTemplateData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = FormatSimpleParagraphs(note.Note).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = FormatSimpleParagraphs(note.CommentText).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

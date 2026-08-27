@@ -32,7 +32,7 @@ templ TemplateArticlePage(aps ArticlePageTemplateData) {
 		<section class="editor" data-signals={ string(articleStatusSignals) }>
 			{{ /* Main content */ }}
 			@templ.Raw(aps.PageContent)
-			@TemplateViewMarginNotes(aps.MarginNotesTemplateData)
+			@TemplateViewComments(aps.CommentsTemplateData)
 		</section>
 		@TemplateLikeArticle("star-value-bottom", aps.FeedID, aps.ArticleId, aps.StarValue)
 		<section>
@@ -56,32 +56,32 @@ templ TemplateLikeArticle(htmlID string, feedID int64, articleID int64, starsVal
 	<div id={ htmlID } data-on:click={ likeArticleURL }>Starred: <img width="60px" src={ starsGraphic }/> </div>
 }
 
-templ TemplateEditMarginNotes(mns MarginNotesTemplateData) {
+templ TemplateEditComments(mns CommentsTemplateData) {
 	{{ /* godump.Dump("edit", mns) */ }}
 	<aside id="article-notes">
 		for i := range mns.TotalBlocksCount {
 			{{ note, _ := mns.MarginNotes[i] }}
 			if i == mns.NoteToEdit && mns.ShowTextArea {
 				<form class="note-edit" data-note-id={ i }>
-					<textarea name="note-text" data-note-id={ i }>{ note.Note }</textarea>
+					<textarea name="note-text" data-note-id={ i }>{ note.CommentText }</textarea>
 					{{ url := fmt.Sprintf("@post('/article/%v/note/write/%v', {contentType: 'form'})", mns.ArticleID, mns.NoteToEdit) }}
 					<button data-on:click={ url }>Edit</button>
 				</form>
 			} else {
 				<div data-note-id={ i } class="note-holder">
-					@FormatSimpleParagraphs(note.Note)
+					@FormatSimpleParagraphs(note.CommentText)
 				</div>
 			}
 		}
 	</aside>
 }
 
-templ TemplateViewMarginNotes(mns MarginNotesTemplateData) {
+templ TemplateViewComments(mns CommentsTemplateData) {
 	<aside id="article-notes">
 		for i := range mns.TotalBlocksCount {
 			{{ note, _ := mns.MarginNotes[i] }}
 			<div data-note-id={ i } class="note-holder">
-				@FormatSimpleParagraphs(note.Note)
+				@FormatSimpleParagraphs(note.CommentText)
 			</div>
 		}
 	</aside>

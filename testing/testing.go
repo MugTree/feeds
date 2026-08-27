@@ -39,11 +39,11 @@ func main() {
 
 	queries := db.New(dbHandle)
 
-	err = queries.UpdateMarginNoteByArticleIDAndBlockID(context.Background(),
-		db.UpdateMarginNoteByArticleIDAndBlockIDParams{
-			Note:      "update 2",
-			ArticleID: 31,
-			BlockID:   0,
+	err = queries.UpdateCommentByArticleIDAndRelatedParagraphID(context.Background(),
+		db.UpdateCommentByArticleIDAndRelatedParagraphIDParams{
+			CommentText:        "update 2",
+			ArticleID:          31,
+			RelatedParagraphID: 0,
 		},
 	)
 	if err != nil {

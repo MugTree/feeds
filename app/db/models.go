@@ -9,18 +9,26 @@ import (
 )
 
 type Article struct {
-	ID                  int64
-	FeedID              int64
-	Title               string
-	Link                string
-	Published           *time.Time
-	DateFound           *time.Time
-	ArticleContent      string
-	ScrapedHtml         string
-	ClickableBlockCount int64
-	Summary             string
-	Read                int64
-	Starred             int64
+	ID                      int64
+	FeedID                  int64
+	Title                   string
+	Link                    string
+	Published               *time.Time
+	DateFound               *time.Time
+	ArticleContent          string
+	ScrapedHtml             string
+	ClickableParagraphCount int64
+	Summary                 string
+	Read                    int64
+	Starred                 int64
+}
+
+type Comment struct {
+	ID                 int64
+	ArticleID          int64
+	RelatedParagraphID int64
+	CommentText        string
+	DateAdded          time.Time
 }
 
 type Feed struct {
@@ -32,12 +40,4 @@ type Feed struct {
 	CssSelStart            string
 	CssSelStop             string
 	HtmlExtractionStrategy string
-}
-
-type MarginNote struct {
-	ID        int64
-	ArticleID int64
-	BlockID   int64
-	Note      string
-	DateAdded time.Time
 }

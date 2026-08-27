@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS articles
     date_found DATETIME NULL,
     article_content      TEXT NOT NULL DEFAULT '',
     scraped_html    TEXT NOT NULL DEFAULT '',
-    clickable_block_count INTEGER NOT NULL DEFAULT 0,
+    clickable_paragraph_count INTEGER NOT NULL DEFAULT 0,
     summary   TEXT NOT NULL DEFAULT '',
     read      INTEGER NOT NULL DEFAULT 0,
     starred   INTEGER NOT NULL DEFAULT 0,

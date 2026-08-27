@@ -20,11 +20,11 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 
 	td := ArticlePageTemplateData{}
 
-	sidebar, err := feedsGetSideBarTemplateData(queries, ctx)
-	if err != nil {
-		return td, errors.New("error getting sidebar template data: " + err.Error())
-	}
-	td.Sidebar = sidebar
+	//sidebar, err := feedsGetSideBarTemplateData(queries, ctx)
+	// if err != nil {
+	// 	return td, errors.New("error getting sidebar template data: " + err.Error())
+	// }
+	// td.Sidebar = sidebar
 
 	fa, err := queries.SelectFeedAndArticletByArticleID(ctx, articleID)
 	if err != nil {
@@ -49,13 +49,9 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 	td.ArticlesRead = alreadyRead
 	td.ArticlesToRead = toRead
 
-	td.ClickableBlockCount = fa.ArticleClickableBlockCount
+	td.ClickableParagraphCount = fa.ArticleClickableParagraphCount
 
-	if fa.ArticleContent != "" {
-		td.PageContent = fa.ArticleContent
-	} else {
-		td.PageContent = "<html><head></head><body><p>some dummy content</p></body>"
-	}
+	td.PageContent = fa.ArticleContent
 
 	enrichedHTML, err := feedsEnrichHTMLOutput(td.PageContent, feedID, articleID)
 	if err != nil {
@@ -65,95 +61,65 @@ func feedsGetArticlePageTemplateData(queries *db.Queries, ctx context.Context, a
 	td.PageContent = enrichedHTML
 	td.IsCache = true
 
-	mns, err := feedsGetMarginNotes(queries, ctx, articleID, -1)
+	mns, err := feedsGetComments(queries, ctx, articleID, -1)
 
-	td.MarginNotesTemplateData = mns
+	td.CommentsTemplateData = mns
 
 	return td, nil
 
-	// scrapedHTML, err := feedsScrapeSiteHTML(queries, fa, ctx)
-	// if err != nil {
-	// 	if errors.Is(err, context.DeadlineExceeded) {
-	// 		return td, err
-	// 	}
-	// 	return td, err
-	// }
-
-	// processedHTML, clickableBlocksCount, err := feedsProcessScrapedHTML(scrapedHTML)
-	// if err != nil {
-	// 	return td, err
-	// }
-
-	// newlyCached, err := queries.InsertAndReturnCachedArticle(ctx, db.InsertAndReturnCachedArticleParams{
-	// 	ArticleID:           articleID,
-	// 	Link:                td.Link,
-	// 	ArticleContent:      sql.NullString{String: processedHTML, Valid: true},
-	// 	ClickableBlockCount: clickableBlocksCount,
-	// })
-
-	// if err != nil {
-	// 	return td, err
-	// }
-
-	// enrichedHTMLForUser, err := feedsEnrichHTMLOutput(newlyCached.ArticleContent.String, feedID, articleID)
-
-	// td.PageContent = enrichedHTMLForUser
-	// td.ClickableBlockCount = newlyCached.ClickableBlockCount
-
-	// return td, nil
 }
 
-func feedsGetSideBarTemplateData(queries *db.Queries, ctx context.Context) ([]feedsSidebarLink, error) {
+// func feedsGetSideBarTemplateData(queries *db.Queries, ctx context.Context) ([]feedsSidebarLink, error) {
 
-	items := []feedsSidebarLink{}
-	data, err := queries.SelectSideBarData(ctx)
-	if err != nil {
-		return items, err
-	}
+// 	items := []feedsSidebarLink{}
+// 	data, err := queries.SelectSideBarData(ctx)
+// 	if err != nil {
+// 		return items, err
+// 	}
 
-	for _, row := range data {
-		items = append(items, feedsSidebarLink{
-			Name:   row.FeedTitle,
-			Link:   fmt.Sprintf("/feed/%v/view", row.FeedID),
-			Unread: (row.TotalArticles - row.ArticlesRead),
-		})
-	}
+// 	for _, row := range data {
+// 		items = append(items, feedsSidebarLink{
+// 			Name:   row.FeedTitle,
+// 			Link:   fmt.Sprintf("/feed/%v/view", row.FeedID),
+// 			Unread: (row.TotalArticles - row.ArticlesRead),
+// 		})
+// 	}
 
-	return items, nil
-}
+// 	return items, nil
+// }
 
 /* This needs to update or insert a specific margin note and then return all the margin notes */
-func feedsUpdateMarginNotes(queries *db.Queries, ctx context.Context, noteText string, articleID int64, blockID int64) (MarginNotesTemplateData, error) {
+func feedsUpdateComments(queries *db.Queries, ctx context.Context, noteText string, articleID int64, paragraphID int64) (CommentsTemplateData, error) {
 
-	mns := MarginNotesTemplateData{}
+	mns := CommentsTemplateData{}
 
-	fmt.Printf("Does a note already exist - block id: %v - note:%s\n", blockID, noteText)
+	fmt.Printf("Does a note already exist - block id: %v - note:%s\n", paragraphID, noteText)
 
-	_, err := queries.SelectMarginNoteByArticleIDAndBlockID(
-		ctx, db.SelectMarginNoteByArticleIDAndBlockIDParams{
-			ArticleID: articleID,
-			BlockID:   blockID,
+	_, err := queries.SelectCommentsByArticleIDAndRelatedParagraphID(
+		ctx, db.SelectCommentsByArticleIDAndRelatedParagraphIDParams{
+			ArticleID:          articleID,
+			RelatedParagraphID: paragraphID,
 		},
 	)
 
 	//  If a note doesn't exist to update we INSERT a new one
 	if err == sql.ErrNoRows {
 		fmt.Println("No!")
-		fmt.Printf("Creating a new note - block id: %v - note:%s and returning all the notes\n", blockID, noteText)
+		fmt.Printf("Creating a new note - block id: %v - note:%s and returning all the notes\n", paragraphID, noteText)
 
-		_, err := queries.InsertAndReturnMarginNote(
+		_, err := queries.InsertAndReturnComment(
 			ctx,
-			db.InsertAndReturnMarginNoteParams{
-				Note:      noteText,
-				ArticleID: articleID,
-				BlockID:   blockID,
+			db.InsertAndReturnCommentParams{
+				CommentText:        noteText,
+				ArticleID:          articleID,
+				RelatedParagraphID: paragraphID,
 			},
 		)
 		if err != nil {
 			return mns, err
 		}
 
-		return feedsGetMarginNotes(queries, ctx, articleID, blockID)
+		return feedsGetComments(queries, ctx, articleID, paragraphID)
 	}
 
 	if err != nil {
@@ -161,50 +127,50 @@ func feedsUpdateMarginNotes(queries *db.Queries, ctx context.Context, noteText s
 	}
 
 	fmt.Println("Yes!")
-	fmt.Printf("Updating an existing note - block id: %v - note:%s and returning all the notes\n", blockID, noteText)
+	fmt.Printf("Updating an existing note - paragraph id: %v - note:%s and returning all the notes\n", paragraphID, noteText)
 
-	err = queries.UpdateMarginNoteByArticleIDAndBlockID(
+	err = queries.UpdateCommentByArticleIDAndRelatedParagraphID(
 		ctx,
-		db.UpdateMarginNoteByArticleIDAndBlockIDParams{
-			Note:      noteText,
-			ArticleID: articleID,
-			BlockID:   blockID,
+		db.UpdateCommentByArticleIDAndRelatedParagraphIDParams{
+			CommentText:        noteText,
+			ArticleID:          articleID,
+			RelatedParagraphID: paragraphID,
 		},
 	)
 	if err != nil {
 		return mns, err
 	}
 
-	return feedsGetMarginNotes(queries, ctx, articleID, blockID)
+	return feedsGetComments(queries, ctx, articleID, paragraphID)
 
 }
 
-func feedsGetMarginNotes(queries *db.Queries, ctx context.Context, articleID int64, blockID int64) (MarginNotesTemplateData, error) {
+func feedsGetComments(queries *db.Queries, ctx context.Context, articleID int64, paragraphID int64) (CommentsTemplateData, error) {
 
-	mns := MarginNotesTemplateData{}
+	mns := CommentsTemplateData{}
 
 	// CLARIFY!!!! if this is -1 then its the page render call
-	fmt.Printf("Selecting note state: %v\n", blockID)
-	mns.NoteToEdit = blockID
+	fmt.Printf("Selecting note state: %v\n", paragraphID)
+	mns.NoteToEdit = paragraphID
 
 	article, err := queries.SelectArticleByID(ctx, articleID)
 	if err != nil {
 		return mns, err
 	}
-	mns.TotalBlocksCount = article.ClickableBlockCount
+	mns.TotalCommentsCount = article.ClickableParagraphCount
 	mns.ArticleID = article.ID
 
-	notes, err := queries.SelectMarginNotesByArticleID(ctx, articleID)
+	notes, err := queries.SelectCommentsByArticleID(ctx, articleID)
 	if err != nil {
 		return mns, err
 	}
 
-	getBlockID := func(n db.MarginNote) int64 {
-		return n.BlockID
+	getParagraphID := func(n db.Comment) int64 {
+		return n.RelatedParagraphID
 	}
 
-	notesMap := lib.SliceToMap(notes, getBlockID)
-	mns.MarginNotes = notesMap
+	notesMap := lib.SliceToMap(notes, getParagraphID)
+	mns.Comments = notesMap
 
 	return mns, nil
 }
@@ -229,51 +195,6 @@ func feedsSetArticleLike(queries *db.Queries, starredValue int64, articleID int6
 
 	return nil
 }
-
-// func feedsGetHomePageArticleSelections(queries *db.Queries, ctx context.Context) (latest []feedsArticle, starred []feedsArticle, err error) {
-
-// 	latest5Articles, err := queries.SelectLatest5Articles(ctx)
-// 	if err != nil {
-// 		return latest, starred, err
-// 	}
-
-// 	for _, row := range latest5Articles {
-// 		latest = append(latest, feedsArticle{
-// 			Id:        row.ID,
-// 			FeedId:    row.FeedID,
-// 			Title:     row.Title,
-// 			Link:      row.Link,
-// 			Published: row.Published.Format(layoutISO),
-// 			DateFound: row.DateFound.Format(layoutISO),
-// 			Summary:   row.Summary,
-// 			Read:      lib.IntToBool(row.Read),
-// 			Liked:     row.Starred,
-// 			FeedTitle: row.FeedTitle,
-// 		})
-// 	}
-
-// 	starredArticles, err := queries.SelectLatest5StarredArticles(ctx)
-
-// 	for _, row := range starredArticles {
-// 		starred = append(starred, feedsArticle{
-// 			Id:        row.ID,
-// 			FeedId:    row.FeedID,
-// 			Title:     row.Title,
-// 			Link:      row.Link,
-// 			Published: row.Published.Format(layoutISO),
-// 			DateFound: row.Published.Format(layoutISO),
-// 			Summary:   row.Summary,
-// 			Read:      lib.IntToBool(row.Read),
-// 			Liked:     row.Starred,
-// 			FeedTitle: row.FeedTitle,
-// 		})
-// 	}
-
-// 	fmt.Printf("starred: %v", len(starred))
-
-// 	return latest, starred, err
-
-// }
 
 func feedsGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []feedsArticle, toRead []feedsArticle, err error) {
 
@@ -308,42 +229,7 @@ func feedsGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Con
 	return alreadyRead, toRead, nil
 }
 
-// func feedsGetArticleContentIfCached(queries *db.Queries, articleLink string, _ int64, ctx context.Context) (bool, string, int64, error) {
-
-// 	var clickableBlocks int64 = 0
-
-// 	lc, err := queries.SelectCachedArticleByLink(ctx, articleLink)
-// 	if err == nil {
-
-// 		// parsedHTML, err := html.Parse(strings.NewReader(lc.ArticleContent.String))
-// 		// if err != nil {
-// 		// 	return false, "", 0, err
-// 		// }
-
-// 		// article, err := feedsRemoveOuterHTMLShell(parsedHTML)
-// 		// if err != nil {
-// 		// 	return false, "", clickableBlocks, err
-// 		// }
-
-// 		// articleStr, err := feedsStringifyHTML(article)
-// 		// if err != nil {
-// 		// 	return false, "", clickableBlocks, err
-// 		// }
-
-// 		clickableBlocks := lc.ClickableBlockCount
-
-// 		return true, lc.ArticleContent.String, clickableBlocks, nil
-// 	}
-// 	if err == sql.ErrNoRows {
-// 		return false, "", clickableBlocks, nil
-// 	}
-
-// 	return false, "", clickableBlocks, err
-
-// }
-
-/* returns the fully processed information plus some data about the processing */
-
+// this needs to return something slightly different
 func feedsEnrichArticles(articles []db.SelectArticlesByFeedIDWithLimitRow) ([]db.SelectArticlesByFeedIDWithLimitRow, error) {
 
 	for i := range articles {
@@ -360,6 +246,7 @@ func feedsEnrichArticles(articles []db.SelectArticlesByFeedIDWithLimitRow) ([]db
 
 			articles[i].ArticleContent = enrichedContent
 		}
+
 	}
 
 	return articles, nil
@@ -555,9 +442,9 @@ type ArticlePageTemplateData struct {
 	Sidebar                 []feedsSidebarLink
 	ArticlePublished        string
 	ArticleRead             int64
-	MarginNotes             map[int64]db.MarginNote
-	ClickableBlockCount     int64
-	MarginNotesTemplateData MarginNotesTemplateData
+	MarginNotes             map[int64]db.Comment
+	ClickableParagraphCount int64
+	CommentsTemplateData    CommentsTemplateData
 }
 
 func (ae ArticlePageTemplateData) ArticleHasBeenRead() bool {
@@ -575,12 +462,12 @@ type ArticleStatus struct {
 	HasScrolledToBottomOfArticle bool
 }
 
-type MarginNotesTemplateData struct {
-	ShowTextArea     bool
-	ArticleID        int64
-	NoteToEdit       int64
-	TotalBlocksCount int64
-	MarginNotes      map[int64]db.MarginNote
+type CommentsTemplateData struct {
+	ShowTextArea       bool
+	ArticleID          int64
+	NoteToEdit         int64
+	TotalCommentsCount int64
+	Comments           map[int64]db.Comment
 }
 
 type FeedSummary struct {
