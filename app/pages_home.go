@@ -19,10 +19,7 @@ func PageHome(summaries []FeedSummary) Node {
 		ID("homepage"),
 		Div(
 			ID("feeds"),
-			Map(summaries, func(fs FeedSummary) Node {
-				return FeedBox(getFeedUrl(fs.FeedID), fs)
-			},
-			),
+			FeedBoxes(summaries),
 		),
 		Div(
 			ID("article"),
@@ -30,27 +27,30 @@ func PageHome(summaries []FeedSummary) Node {
 	)
 }
 
+func FeedBoxes(summaries []FeedSummary) Node {
+	return Map(summaries, func(fs FeedSummary) Node {
+		return FeedBox(getFeedUrl(fs.FeedID), fs)
+	})
+}
+
 func FeedBox(link string, fsm FeedSummary) Node {
-
 	pagination := func(fsm FeedSummary) Node {
-
-		pageNums := []int64{}
+		links := []Node{}
 		for i := range fsm.LinksRequired {
-			pageNums = append(pageNums, i+1)
-		}
-
-		return Map(pageNums, func(i int64) Node {
-			return A(
-				ds.On("click", fmt.Sprintf("@get('/feed/%v/page/%v')", fsm.FeedID, i)),
-				Text(strconv.FormatInt(i, 10)),
-				Classes{"link": true, "underline": fsm.PageID == i},
+			pageNumber := i + 1
+			links = append(links,
+				A(
+					ds.On("click", fmt.Sprintf("@get('/feed/%v/page/%v')", fsm.FeedID, pageNumber)),
+					Text(strconv.FormatInt(pageNumber, 10)),
+					Classes{"link": true, "underline": fsm.PageID == pageNumber},
+				),
 			)
-		},
-		)
+		}
+		return Group(links)
 	}
 
 	return Div(
-		ID(fmt.Sprintf("feed-%v", fsm.FeedID)),
+		ID(fmt.Sprintf("feed-box-%v", fsm.FeedID)),
 		H2(Text(fsm.Name), ds.On("click", link)),
 		If(len(fsm.Articles) > 0,
 			Div(
@@ -92,7 +92,7 @@ func PageArticle(aps ArticlePageTemplateData) Node {
 			Raw(aps.PageContent),
 			ViewComments(aps.CommentsTemplateData),
 		),
-		LikeUrl("star-value-bottom", aps.FeedID, aps.ArticleId, aps.StarValue),
+		LikeArticle(aps.FeedID, aps.ArticleId, aps.StarValue),
 		Section(
 			H3(ds.On("intersect", "$HasScrolledToBottomOfArticle = true")),
 			Button(
@@ -101,16 +101,16 @@ func PageArticle(aps ArticlePageTemplateData) Node {
 				ds.On("click", fmt.Sprintf("/article/%d/%d/set-read", aps.FeedID, aps.ArticleId)),
 			),
 			P(
-				A(Text("Back to top"), Href("#pagetop")),
+				A(Text("Back to top"), Href("#homepage")),
 			),
 		),
 		Script(Src("/public/js/feeds.js")),
 	)
 }
 
-func LikeUrl(htmlID string, feedID int64, articleID int64, starsValue int64) Node {
+func LikeArticle(feedID int64, articleID int64, starsValue int64) Node {
 	return Div(
-		ID(htmlID),
+		ID("star-value-bottom"),
 		ds.On("click", fmt.Sprintf("@put('/article/%v/%v/like/%v')", feedID, articleID, starsValue)),
 		Text("Starred:"),
 		Img(
@@ -121,19 +121,57 @@ func LikeUrl(htmlID string, feedID int64, articleID int64, starsValue int64) Nod
 }
 
 func ViewComments(mns CommentsTemplateData) Node {
-	slots := []int64{}
+	comments := []Node{}
 	for i := range mns.TotalPotentialCommentsCount {
-		slots = append(slots, i)
+		note, _ := mns.Comments[i]
+		comments = append(comments, Div(
+			Data("note-id", strconv.FormatInt(i, 10)),
+			Class("note-holder"),
+			P(Text(note.CommentText)),
+		))
+
 	}
-	return Aside(
-		ID("article-notes"),
-		Map(slots, func(i int64) Node {
-			note, _ := mns.Comments[i]
-			return Div(
-				Data("note-id", strconv.FormatInt(i, 10)),
-				Class("note-holder"),
-				P(Text(note.CommentText)),
-			)
-		}),
-	)
+	return Aside(ID("article-notes"), Group(comments))
 }
+
+func EditComments(msn CommentsTemplateData) Node {
+	forms := []Node{}
+	for i := range msn.TotalPotentialCommentsCount {
+		note, _ := msn.Comments[i]
+		var elem Node
+
+		if i == msn.NoteToEdit && msn.ShowTextArea {
+			elem = Form(
+				Class("note-edit"),
+				Data("note-id", strconv.FormatInt(i, 10)),
+				Textarea(
+					Name("note-text"),
+					Data("note-id", strconv.FormatInt(i, 10)),
+					Text(note.CommentText),
+				),
+				Button(
+					Text("Edit"),
+					ds.On("click", fmt.Sprintf("@post('/article/%v/note/write/%v', {contentType: 'form'})", msn.ArticleID, msn.NoteToEdit)),
+				),
+			)
+		} else {
+			elem = Div(
+				Class("note-holder"),
+				Data("note-id", strconv.FormatInt(i, 10)),
+				Text(note.CommentText),
+			)
+		}
+		forms = append(forms, elem)
+	}
+	return Aside(ID("article-notes"), Group(forms))
+}
+
+// func TestComp() Node {
+// 	cps := []Node{}
+
+// 	for range 7 {
+// 		cps = append(cps, Div(Text("blah")))
+// 	}
+
+// 	return Group(cps)
+// }
