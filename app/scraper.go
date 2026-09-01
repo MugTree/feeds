@@ -1,4 +1,4 @@
-package scraper
+package app
 
 import (
 	"context"
@@ -130,7 +130,7 @@ func ProcessScrapedHTML(input string) (string, int64, error) {
 					if isBlockElement(tag) && !ancestorIsBlock {
 
 						c.Attr = append(c.Attr, html.Attribute{
-							Key: "data-block-id",
+							Key: "data-paragraph-id",
 							Val: strconv.Itoa(id),
 						})
 

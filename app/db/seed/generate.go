@@ -13,8 +13,8 @@ import (
 
 	"github.com/mmcdole/gofeed"
 
+	"github.com/mugtree/feeds/app"
 	"github.com/mugtree/feeds/app/db"
-	"github.com/mugtree/feeds/app/scraper"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -103,7 +103,7 @@ func main() {
 			dateFound := time.Now()
 
 			fmt.Println("getting link: ", v.Link)
-			html, err := scraper.ScrapeSiteHTML(scraper.PageScrapeParams{
+			html, err := app.ScrapeSiteHTML(app.PageScrapeParams{
 				Link:           v.Link,
 				Container:      insertedFeed.CssSelContainer,
 				ClipStartPoint: insertedFeed.CssSelStart,
@@ -114,7 +114,7 @@ func main() {
 			}
 
 			fmt.Println("processing html for: ", v.Link)
-			processed, paragraphCount, err := scraper.ProcessScrapedHTML(html)
+			processed, paragraphCount, err := app.ProcessScrapedHTML(html)
 			if err != nil {
 				log.Fatalf("error getting site html: %v", err)
 			}

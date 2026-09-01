@@ -1,10 +1,26 @@
 package app
 
-import (
-	"fmt"
-	"github.com/mugtree/feeds/app/db"
-	"slices"
-)
+import "fmt"
+import "github.com/mugtree/feeds/app/db"
+
+type WIP_Feed struct {
+	ID       int64
+	Title    string
+	Articles []db.Article
+}
+
+templ WIP_FeedTitles(feeds []WIP_Feed) {
+	<div>
+		for _, f :=range feeds {
+			<h2><a href={ templ.URL(fmt.Sprintf("/grid/%v/1", f.ID)) }>{ f.Title }</a> </h2>
+			if len(f.Articles) >0 {
+				for _, a := range f.Articles {
+					<h3><a href={ templ.URL(fmt.Sprintf("/grid")) }>{ a.Title }</a></h3>
+				}
+			}
+		}
+	</div>
+}
 
 templ WIP_TemplateHomePage(fsd []FeedSummary, signals FrontPageSignals) {
 	<div data-signals:feeds-open="[]" data-signals:articles-open="[]">
@@ -12,7 +28,7 @@ templ WIP_TemplateHomePage(fsd []FeedSummary, signals FrontPageSignals) {
 			{{ feedUrl := fmt.Sprintf(`$feedsOpen = setOpenStatus($feedsOpen, %v); @get("/home")`, f.FeedID) }}
 			<h2 data-on:click={ feedUrl }>{ f.Name } - { f.ArticleCount }</h2>
 			if len(f.Articles) > 0 {
-				@WIP_Inner(f, signals)
+				@WIP_Inner(f)
 			}
 		}
 	</div>
@@ -25,17 +41,18 @@ templ WIP_TemplateHomePage(fsd []FeedSummary, signals FrontPageSignals) {
 	</script>
 }
 
-templ WIP_Inner(summary FeedSummary, signals FrontPageSignals) {
-	{{
-		className := "hidden"
-		if slices.Contains(signals.FeedsOpen, summary.FeedID) {
-			className = ""
-		}
-		feedID := fmt.Sprintf("feed-%v", summary.FeedID)
-	}}
-	<div id={ feedID } class={ className }>
+templ WIP_Inner(summary FeedSummary) {
+	// {{
+	// 	className := "hidden"
+	// 	if slices.Contains(signals.FeedsOpen, summary.FeedID) {
+	// 		className = ""
+	// 	}
+	// 	feedID := fmt.Sprintf("feed-%v", summary.FeedID)
+	// }}
+	//<div id={ feedID }>
+	<div id={ summary.FeedID }>
 		for _, a := range summary.Articles {
-			@WIP_ArticleContent(a, signals)
+			@WIP_ArticleContent(a)
 		}
 		<div>
 			for i := range summary.LinksRequired {
@@ -55,21 +72,22 @@ templ WIP_Inner(summary FeedSummary, signals FrontPageSignals) {
 	</div>
 }
 
-templ WIP_ArticleContent(a db.SelectArticlesByFeedIDWithLimitRow, signals FrontPageSignals) {
-	{{ url := fmt.Sprintf(`$articlesOpen = setOpenStatus($articlesOpen, %v); @get("/home")`, a.ArticleID) }}
-	{{ id := fmt.Sprintf("feed-%v-%v", a.ArticleFeedID, a.ArticleID) }}
+templ WIP_ArticleContent(a EnrichedArticle) {
+	{{ url := fmt.Sprintf(`$articlesOpen = setOpenStatus($articlesOpen, %v); @get("/home")`, a.Article.ArticleID) }}
+	{{ id := fmt.Sprintf("feed-%v-%v", a.Article.ArticleFeedID, a.Article.ArticleID) }}
 	<div id={ id }>
-		<h3 data-on:click={ url }>{ a.ArticleTitle }</h3>
+		<h3 data-on:click={ url }>{ a.Article.ArticleTitle }</h3>
 	</div>
 	{{
-		className := "hidden"
-		if slices.Contains(signals.ArticlesOpen, a.ArticleID) {
-			className = ""
-		}
+		/*
+			-------------------------------
+			Add the layout here
+		*/
 	}}
-	<div class={ className }>
-		if a.ArticleContent != "" {
-			@templ.Raw(a.ArticleContent)
+	<section class="editor">
+		if a.Article.ArticleContent != "" {
+			@templ.Raw(a.Article.ArticleContent)
+			@TemplateViewComments(a.CommentsData)
 		}
-	</div>
+	</section>
 }

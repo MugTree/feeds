@@ -5,14 +5,14 @@ package app
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
+
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
-
-	"github.com/a-h/templ"
-	templruntime "github.com/a-h/templ/runtime"
 	"github.com/starfederation/datastar-go/datastar"
+	"strings"
 )
 
 func TemplateArticlePage(aps ArticlePageTemplateData) templ.Component {
@@ -300,7 +300,7 @@ func TemplateEditComments(mns CommentsTemplateData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for i := range mns.TotalCommentsCount {
+		for i := range mns.TotalPotentialCommentsCount {
 			note, _ := mns.Comments[i]
 			if i == mns.NoteToEdit && mns.ShowTextArea {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<form class=\"note-edit\" data-note-id=\"")
@@ -425,7 +425,7 @@ func TemplateViewComments(mns CommentsTemplateData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for i := range mns.TotalCommentsCount {
+		for i := range mns.TotalPotentialCommentsCount {
 			note, _ := mns.Comments[i]
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<div data-note-id=\"")
 			if templ_7745c5c3_Err != nil {

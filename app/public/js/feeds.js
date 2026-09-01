@@ -11,7 +11,7 @@ function feedsBalanceArticleLayout() {
     const paragraphHeight = d.offsetHeight;
 
     const relatedNote = document.querySelector(
-      "[data-note-id='" + paragraphID + "']",
+      "[data-comment-id='" + paragraphID + "']",
     );
 
     //  check here to see if right hand content is already taller than the left
