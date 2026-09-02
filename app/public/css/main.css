@@ -27,11 +27,6 @@ header {
   z-index: 1000;
 }
 
-/* Prevent content hiding behind fixed header */
-main {
-  padding-top: 80px;
-}
-
 .home-link {
   text-decoration: none;
   color: #222;
@@ -79,55 +74,22 @@ button:hover {
   }
 }
 
-.highlight {
-  background-color: yellow;
-}
-
-span {
-  border: 1px red solid;
-}
-
-.editor {
+#homepage {
   display: flex;
 }
 
-.editor article,
-.editor aside {
-  flex: 1;
-  padding: 0 4px;
+#homepage #feeds {
 }
 
-.have-read-article {
-  position: fixed;
-  bottom: 12px;
-  right: 12px;
+#homepage #article {
 }
 
-form.note-edit {
+section#editor {
   display: flex;
-  gap: 8px;
 }
 
-.note-edit textarea {
-  flex: 1;
+section#editor article {
 }
 
-.note-holder p:nth-child(2) {
-  font-weight: bold;
-}
-
-aside.article-notes {
-  padding-left: 12px;
-}
-
-.hidden {
-  display: none;
-}
-
-.link {
-  color: blue;
-}
-
-.underline {
-  text-decoration: underline;
+section#editor aside {
 }

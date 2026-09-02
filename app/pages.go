@@ -10,6 +10,61 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
+type pageProps struct {
+	Title       string
+	Description string
+}
+
+func Layout(props pageProps, children ...Node) Node {
+
+	return HTML5(HTML5Props{
+		Title:       props.Title,
+		Description: props.Description,
+		Language:    "en",
+		Head: []Node{
+			Script(Src("/public/js/datastar.js"), Type("module")),
+			// Link(Rel("stylesheet"), Href("/public/css/main.css")),
+		},
+		Body: []Node{Class(""),
+			Div(
+				ID("pagetop"),
+				Header(
+					A(
+						Href("/"),
+						Class("home-link"),
+						Text("Home"),
+					),
+					Text("|"),
+					A(
+						Href("/admin"),
+						Text("Admin"),
+					),
+					Div(
+						Class("action-area"),
+						Button(
+							ID("update-button"),
+							ds.Indicator("fetching"),
+							ds.Attr("disabled", "$fetching"),
+							ds.On("click", "@get('/update-reader')"),
+							Text("Load"),
+						),
+						Div(
+							Data("show", "$fetching"),
+							Style("display: none;"),
+							Div(
+								Class("spinner"),
+								ID("spinner"),
+							),
+						),
+					),
+				),
+				Main(Group(children)),
+			),
+			Script(Src("/public/js/feeds.js")),
+		},
+	})
+}
+
 func getFeedUrl(feedID int64) string {
 	return fmt.Sprintf("@get('/feed/%v/page/1')", feedID)
 }
@@ -77,13 +132,14 @@ func PageArticle(aps ArticlePageTemplateData) Node {
 				Data("show", "!$hideTitle"),
 			),
 			Ul(
-				Li(B(Text(aps.FeedTitle))),
 				Li(Text(aps.ArticlePublished)),
 				Li(Text(aps.FeedTitle), ds.On("click", "$hideTitle = !$hideTitle")),
+				Li(LikeArticle(aps.ArticleId, aps.StarValue)),
 			),
 		),
 		Section(
 			Class("editor"),
+			ID("editor"),
 			ds.Signals(
 				map[string]any{
 					"HasBeenRead":                  aps.ArticleHasBeenRead(),
@@ -92,7 +148,7 @@ func PageArticle(aps ArticlePageTemplateData) Node {
 			Raw(aps.PageContent),
 			ViewComments(aps.CommentsTemplateData),
 		),
-		LikeArticle(aps.FeedID, aps.ArticleId, aps.StarValue),
+		LikeArticle(aps.ArticleId, aps.StarValue),
 		Section(
 			H3(ds.On("intersect", "$HasScrolledToBottomOfArticle = true")),
 			Button(
@@ -108,10 +164,10 @@ func PageArticle(aps ArticlePageTemplateData) Node {
 	)
 }
 
-func LikeArticle(feedID int64, articleID int64, starsValue int64) Node {
+func LikeArticle(articleID int64, starsValue int64) Node {
 	return Div(
 		ID("star-value-bottom"),
-		ds.On("click", fmt.Sprintf("@put('/article/%v/%v/like/%v')", feedID, articleID, starsValue)),
+		ds.On("click", fmt.Sprintf("@put('/article/%v/like/%v')", articleID, starsValue)),
 		Text("Starred:"),
 		Img(
 			Width("60px"),
@@ -124,17 +180,18 @@ func ViewComments(mns CommentsTemplateData) Node {
 	comments := []Node{}
 	for i := range mns.TotalPotentialCommentsCount {
 		note, _ := mns.Comments[i]
-		comments = append(comments, Div(
-			Data("note-id", strconv.FormatInt(i, 10)),
-			Class("note-holder"),
-			P(Text(note.CommentText)),
-		))
+		comments = append(comments,
+			Div(
+				Data("comment-id", strconv.FormatInt(i, 10)),
+				Class("comment-holder"),
+				P(Text(note.CommentText)),
+			))
 
 	}
 	return Aside(ID("article-notes"), Group(comments))
 }
 
-func EditComments(msn CommentsTemplateData) Node {
+func WriteComments(msn CommentsTemplateData) Node {
 	forms := []Node{}
 	for i := range msn.TotalPotentialCommentsCount {
 		note, _ := msn.Comments[i]
@@ -142,22 +199,22 @@ func EditComments(msn CommentsTemplateData) Node {
 
 		if i == msn.NoteToEdit && msn.ShowTextArea {
 			elem = Form(
-				Class("note-edit"),
-				Data("note-id", strconv.FormatInt(i, 10)),
+				Class("comment-edit"),
+				Data("comment-id", strconv.FormatInt(i, 10)),
 				Textarea(
-					Name("note-text"),
-					Data("note-id", strconv.FormatInt(i, 10)),
+					Name("comment-text"),
+					Data("comment-id", strconv.FormatInt(i, 10)),
 					Text(note.CommentText),
 				),
 				Button(
 					Text("Edit"),
-					ds.On("click", fmt.Sprintf("@post('/article/%v/note/write/%v', {contentType: 'form'})", msn.ArticleID, msn.NoteToEdit)),
+					ds.On("click", fmt.Sprintf("@post('/article/%v/comment/%v/write', {contentType: 'form'})", msn.ArticleID, msn.NoteToEdit)),
 				),
 			)
 		} else {
 			elem = Div(
-				Class("note-holder"),
-				Data("note-id", strconv.FormatInt(i, 10)),
+				Class("comment-holder"),
+				Data("comment-id", strconv.FormatInt(i, 10)),
 				Text(note.CommentText),
 			)
 		}
@@ -165,13 +222,3 @@ func EditComments(msn CommentsTemplateData) Node {
 	}
 	return Aside(ID("article-notes"), Group(forms))
 }
-
-// func TestComp() Node {
-// 	cps := []Node{}
-
-// 	for range 7 {
-// 		cps = append(cps, Div(Text("blah")))
-// 	}
-
-// 	return Group(cps)
-// }
