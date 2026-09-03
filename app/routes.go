@@ -119,12 +119,9 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 
 		}
 
-		//godump.Dump(feedSummaries)
-
 		var buf bytes.Buffer
 		PageHome(feedSummaries).Render(&buf)
 
-		fmt.Println(buf.String())
 		sse := datastar.NewSSE(w, r)
 		sse.PatchElements(string(buf.String()))
 

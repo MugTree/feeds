@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -798,37 +799,51 @@ func GetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 			continue
 		}
 
-		for _, item := range goFeed.Items {
+		//#REFACTOR -  there's a good amount of duplication here with the generation script
+		// ./app/db/seed/generate.go
 
-			select {
-			case <-ctx.Done():
-				return 0, ctx.Err()
-			default:
-			}
+		for _, item := range goFeed.Items {
 
 			now := time.Now()
 
-			doc, err := html.Parse(strings.NewReader(item.Description))
+			description, err := html.Parse(strings.NewReader(item.Description))
 			if err != nil {
 				return 0, err
 			}
 
-			_feedsSanitizeHTMLInput(doc)
+			_feedsSanitizeHTMLInput(description)
 
-			output, err := StringifyHTML(doc)
+			output, err := StringifyHTML(description)
 			if err != nil {
 				return 0, err
 			}
 
-			err = queries.InsertOrIgnoreArticle(ctx, db.InsertOrIgnoreArticleParams{
-				FeedID:    feed.ID,
-				Title:     item.Title,
-				Link:      item.Link,
-				Published: feedsGetFeedItemDate(item),
-				DateFound: &now,
-				Summary:   output,
-				Read:      0,
-				Starred:   0,
+			html, err := ScrapeSiteHTML(PageScrapeParams{
+				Link:           item.Link,
+				Container:      feed.CssSelContainer,
+				ClipStartPoint: feed.CssSelStart,
+				ClipEndPoint:   feed.CssSelStop,
+			})
+			if err != nil {
+				return 0, err
+			}
+
+			processed, paragraphCount, err := ProcessScrapedHTML(html)
+			if err != nil {
+				log.Fatalf("error getting site html: %v", err)
+			}
+
+			_, err = queries.InsertArticle(ctx, db.InsertArticleParams{
+				FeedID:                  feed.ID,
+				Title:                   item.Title,
+				Link:                    item.Link,
+				Published:               feedsGetFeedItemDate(item),
+				ClickableParagraphCount: paragraphCount,
+				ArticleContent:          processed,
+				DateFound:               &now,
+				Summary:                 output,
+				Read:                    0,
+				Starred:                 0,
 			})
 			if err != nil {
 				return 0, fmt.Errorf("insert article: %w", err)

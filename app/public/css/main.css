@@ -75,6 +75,7 @@ button:hover {
 }
 
 #homepage {
+  margin-top: 60px;
   display: flex;
 }
 

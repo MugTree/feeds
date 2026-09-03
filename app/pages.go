@@ -24,7 +24,7 @@ func Layout(props pageProps, children ...Node) Node {
 		Language:    "en",
 		Head: []Node{
 			Script(Src("/public/js/datastar.js"), Type("module")),
-			// Link(Rel("stylesheet"), Href("/public/css/main.css")),
+			Link(Rel("stylesheet"), Href("/public/css/main.css")),
 		},
 		Body: []Node{Class(""),
 			Div(
