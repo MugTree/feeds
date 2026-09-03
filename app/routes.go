@@ -314,7 +314,7 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 
 func setupAdminRoutes(r chi.Router, queries *db.Queries) {
 
-	r.Get("/admin/feeds/list", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/admin/feeds", func(w http.ResponseWriter, r *http.Request) {
 
 		feeds, err := queries.SelectAllFeeds(r.Context())
 		if err != nil {

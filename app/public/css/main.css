@@ -74,12 +74,12 @@ button:hover {
   }
 }
 
-#homepage {
-  margin-top: 60px;
+#page {
   display: flex;
+  margin-top: 60px;
 }
 
-#homepage #feeds {
+#page #feeds {
   width: 20%;
 }
 

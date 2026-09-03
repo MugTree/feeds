@@ -37,7 +37,7 @@ func Layout(props pageProps, children ...Node) Node {
 					),
 					Text("|"),
 					A(
-						Href("/admin"),
+						Href("/admin/feeds"),
 						Text("Admin"),
 					),
 					Div(
@@ -311,7 +311,7 @@ func ListFeeds(feeds []db.Feed) Node {
 		Map(feeds, func(f db.Feed) Node {
 			return Li(
 				A(
-					Href(fmt.Sprintf("/admin/feed/%v", f.ID)),
+					Href(fmt.Sprintf("/admin/feed/%v/view", f.ID)),
 					Text(f.Title),
 				),
 			)
