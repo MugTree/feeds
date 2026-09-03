@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/mugtree/feeds/app/db"
 	. "maragu.dev/gomponents"
 	ds "maragu.dev/gomponents-datastar"
 	. "maragu.dev/gomponents/components"
@@ -89,6 +90,7 @@ func FeedBoxes(summaries []FeedSummary) Node {
 }
 
 func FeedBox(link string, fsm FeedSummary) Node {
+
 	pagination := func(fsm FeedSummary) Node {
 		links := []Node{}
 		for i := range fsm.LinksRequired {
@@ -105,6 +107,7 @@ func FeedBox(link string, fsm FeedSummary) Node {
 	}
 
 	return Div(
+		Class("feedbox"),
 		ID(fmt.Sprintf("feed-box-%v", fsm.FeedID)),
 		H2(Text(fsm.Name), ds.On("click", link)),
 		If(len(fsm.Articles) > 0,
@@ -221,4 +224,103 @@ func WriteComments(msn CommentsTemplateData) Node {
 		forms = append(forms, elem)
 	}
 	return Aside(ID("article-notes"), Group(forms))
+}
+
+func FeedsAdminForm(td FeedFormTemplateData) Node {
+
+	return Div(
+		ID("admin-form"),
+		Div(
+			Label(
+				For("FeedName"),
+				Text("Title"),
+			),
+			Input(
+				ID("FeedName"),
+				Placeholder(""),
+				ds.Bind("feed-name"),
+				Type("text"),
+				Value(td.Feed.Title),
+			),
+		),
+		Div(
+			Label(
+				For("FeedUrl"),
+				Text("Feed Url"),
+			),
+			Input(
+				ID("FeedUrl"),
+				Placeholder("Feed Url"),
+				ds.Bind("feed-url"),
+				Type("text"),
+				Value(td.Feed.Title),
+			),
+		),
+		Div(
+			Label(
+				For("CssContainer"),
+				Text("Css Container"),
+			),
+			Input(
+				ID("CssContainer"),
+				Placeholder("Css Container"),
+				ds.Bind("css-sel-container"),
+				Type("text"),
+				Value(td.Feed.CssSelContainer),
+			),
+		),
+		Div(
+			Label(
+				For("CssStart"),
+				Text("Css Selector Start"),
+			),
+			Input(
+				ID("CssStart"),
+				Placeholder(""),
+				ds.Bind("css-sel-star"),
+				Type("text"),
+				Value(td.Feed.CssSelStart),
+			),
+		),
+		Div(
+			Label(
+				For("CssEnd"),
+				Text("Css Selector Stop"),
+			),
+			Input(
+				ID("CssEnd"),
+				Placeholder(""),
+				ds.Bind("css-sel-end"),
+				Type("text"),
+				Value(td.Feed.CssSelStop),
+			),
+		),
+		Div(
+			Button(
+				ds.On("click", fmt.Sprintf("@post('/%v')", td.UrlAction)),
+				Text(td.ButtonText),
+			),
+		),
+	)
+
+}
+
+func ListFeeds(feeds []db.Feed) Node {
+
+	return Ul(
+		Map(feeds, func(f db.Feed) Node {
+			return Li(
+				A(
+					Href(fmt.Sprintf("/admin", f.ID))),
+				Text(f.Title),
+			)
+		}),
+	)
+
+}
+
+func RefreshPage() Node {
+	return Script(
+		Raw(`console.log('how refreshing!'); window.location.reload();`),
+	)
 }

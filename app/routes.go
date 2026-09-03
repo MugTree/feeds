@@ -300,9 +300,13 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 			return
 		}
 
+		var buf bytes.Buffer
+
+		RefreshPage().Render(&buf)
+
 		sse := datastar.NewSSE(w, r)
-		sse.PatchElementTempl(
-			TemplateRefreshPage(),
+		sse.PatchElements(
+			buf.String(),
 			datastar.WithModeAppend(),
 			datastar.WithSelector("body"),
 		)
@@ -320,7 +324,9 @@ func setupAdminRoutes(r chi.Router, queries *db.Queries) {
 			logAndError(w, r, err.Error())
 			return
 		}
-		TemplateLayout("Feeds list", TemplateAdminListFeeds(feeds)).Render(r.Context(), w)
+
+		pp := pageProps{Title: "Feeds list"}
+		Layout(pp, ListFeeds(feeds)).Render(w)
 	})
 
 	r.Get("/admin/feed/{feedID}/view", func(w http.ResponseWriter, r *http.Request) {
@@ -339,7 +345,11 @@ func setupAdminRoutes(r chi.Router, queries *db.Queries) {
 		}
 
 		vm := FeedFormTemplateData{Feed: feed, ButtonText: "Update feed"}
-		TemplateLayout("Feed view", TemplateAdminFeedForm(vm)).Render(r.Context(), w)
+		Layout(
+			pageProps{
+				Title: "Feed view",
+			},
+			FeedsAdminForm(vm)).Render(w)
 	})
 
 	r.Put("/admin/feed/{feedID}/update", func(w http.ResponseWriter, r *http.Request) {
@@ -352,15 +362,15 @@ func setupAdminRoutes(r chi.Router, queries *db.Queries) {
 	})
 
 	r.Get("/admin/feed/create", func(w http.ResponseWriter, r *http.Request) {
-		form := TemplateAdminFeedForm(FeedFormTemplateData{ButtonText: "Create new"})
-		TemplateLayout("Create new feed", form).Render(r.Context(), w)
+		data := FeedFormTemplateData(FeedFormTemplateData{ButtonText: "Create new"})
+		Layout(pageProps{Title: "Create new feed"}, FeedsAdminForm(data)).Render(w)
 	})
 
-	r.Post("/admin/feed/create", func(w http.ResponseWriter, r *http.Request) {
-		form := TemplateAdminFeedForm(FeedFormTemplateData{ButtonText: "Create new"})
+	// r.Post("/admin/feed/create", func(w http.ResponseWriter, r *http.Request) {
+	// 	form := TemplateAdminFeedForm(FeedFormTemplateData{ButtonText: "Create new"})
 
-		TemplateLayout("Create new feed", form).Render(r.Context(), w)
-	})
+	// 	TemplateLayout("Create new feed", form).Render(r.Context(), w)
+	// })
 
 	type FeedCreateUpdateSignals struct {
 		Title                  string `json:"title" title:"title"`
