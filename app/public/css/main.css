@@ -80,9 +80,11 @@ button:hover {
 }
 
 #homepage #feeds {
+  width: 20%;
 }
 
 #homepage #article {
+  width: 80%;
 }
 
 section#editor {

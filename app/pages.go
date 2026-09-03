@@ -155,6 +155,7 @@ func PageArticle(aps ArticlePageTemplateData) Node {
 		Section(
 			H3(ds.On("intersect", "$HasScrolledToBottomOfArticle = true")),
 			Button(
+				Class("have-read-article"),
 				Text("Mark as read"),
 				Data("show", "$HasScrolledToBottomOfArticle && !$HasBeenRead"),
 				ds.On("click", fmt.Sprintf("/article/%d/%d/set-read", aps.FeedID, aps.ArticleId)),
