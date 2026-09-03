@@ -306,17 +306,17 @@ func FeedsAdminForm(td FeedFormTemplateData) Node {
 }
 
 func ListFeeds(feeds []db.Feed) Node {
-
 	return Ul(
 		Map(feeds, func(f db.Feed) Node {
 			return Li(
 				A(
-					Href(fmt.Sprintf("/admin", f.ID))),
-				Text(f.Title),
+					Href(fmt.Sprintf("/admin/feed/%v", f.ID)),
+					Text(f.Title),
+				),
 			)
-		}),
+		},
+		),
 	)
-
 }
 
 func RefreshPage() Node {
