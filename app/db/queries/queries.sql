@@ -186,3 +186,6 @@ LIMIT ? OFFSET ?;
 
 -- name: SelectArticleCountByFeedID :one
 SELECT COUNT(*) FROM articles WHERE feed_id = ?;
+
+-- name: InsertAndReturnFeedsCallData :one
+INSERT INTO log (time_ran, run_type, articles_created) VALUES (CURRENT_TIMESTAMP, ?, ?) RETURNING *;

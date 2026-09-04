@@ -119,11 +119,8 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 
 		}
 
-		var buf bytes.Buffer
-		PageHome(feedSummaries).Render(&buf)
-
 		sse := datastar.NewSSE(w, r)
-		sse.PatchElements(string(buf.String()))
+		sse.PatchElementGostar(PageHome(feedSummaries))
 
 	})
 
@@ -142,11 +139,8 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 			return
 		}
 
-		var buf bytes.Buffer
-		PageArticle(ps).Render(&buf)
-
 		sse := datastar.NewSSE(w, r)
-		sse.PatchElements(buf.String())
+		sse.PatchElementGostar(PageArticle(ps))
 	})
 
 	r.Get("/article/{articleID}/comment/{paragraphID}/write", func(w http.ResponseWriter, r *http.Request) {
@@ -172,11 +166,8 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 		// We're editing at this point
 		mns.ShowTextArea = true
 
-		var buf bytes.Buffer
-		WriteComments(mns).Render(&buf)
-
 		sse := datastar.NewSSE(w, r)
-		sse.PatchElements(buf.String())
+		sse.PatchElementGostar(WriteComments(mns))
 		sse.ExecuteScript("feedsBalanceArticleLayout()")
 
 	})
@@ -207,11 +198,8 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 
 		mns.ShowTextArea = false
 
-		var buf bytes.Buffer
-		ViewComments(mns).Render(&buf)
-
 		sse := datastar.NewSSE(w, r)
-		sse.PatchElements(buf.String())
+		sse.PatchElementGostar(ViewComments(mns))
 		sse.ExecuteScript("feedsBalanceArticleLayout()")
 	})
 
@@ -249,11 +237,8 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 			return
 		}
 
-		var buf bytes.Buffer
-		PageArticle(ps).Render(&buf)
-
 		sse := datastar.NewSSE(w, r)
-		sse.PatchElements(buf.String())
+		sse.PatchElementGostar(PageArticle(ps))
 		sse.ExecuteScript("feedsBalanceArticleLayout()")
 	})
 
@@ -298,7 +283,6 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 		}
 
 		var buf bytes.Buffer
-
 		RefreshPage().Render(&buf)
 
 		sse := datastar.NewSSE(w, r)
@@ -311,6 +295,14 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 	})
 
 }
+
+// func renderHtml(html gomponents.Node, b *bytes.Buffer, data any) (string, error) {
+
+// 	if
+
+// 	html.Render(b)
+// 	return b.String(), nil
+// }
 
 func setupAdminRoutes(r chi.Router, queries *db.Queries) {
 
@@ -351,11 +343,20 @@ func setupAdminRoutes(r chi.Router, queries *db.Queries) {
 
 	r.Put("/admin/feed/{feedID}/update", func(w http.ResponseWriter, r *http.Request) {
 
+		sigs := FeedCreateUpdateSignals{}
 		feedID, ok := requireIDParam(w, r, "feedID")
 		if !ok {
 			return
 		}
-		fmt.Println(feedID)
+
+		err := datastar.ReadSignals(r, &sigs)
+		if err != nil {
+			logAndError(w, r, err.Error())
+			return
+		}
+		DUMMY_godump("id", feedID)
+		DUMMY_godump("sigs", sigs)
+
 	})
 
 	r.Get("/admin/feed/create", func(w http.ResponseWriter, r *http.Request) {
@@ -368,13 +369,5 @@ func setupAdminRoutes(r chi.Router, queries *db.Queries) {
 
 	// 	TemplateLayout("Create new feed", form).Render(r.Context(), w)
 	// })
-
-	type FeedCreateUpdateSignals struct {
-		Title                  string `json:"title" title:"title"`
-		CSSSelectorContainer   string `json:"css_sel_container" db:"css_sel_container"`
-		CSSSelectorStart       string `json:"css_sel_start" db:"css_sel_start"`
-		CSSSelectorStop        string `json:"css_sel_stop" db:"css_sel_stop"`
-		HTMLExtractionStrategy string `json:"html_extraction_strategy" db:"html_extraction_strategy"`
-	}
 
 }

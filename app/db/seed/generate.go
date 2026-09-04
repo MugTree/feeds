@@ -77,6 +77,8 @@ func main() {
 
 	ctx := context.Background()
 
+	var articlesInserted = 0
+
 	for _, fi := range feeds {
 
 		goFeed, err := p.ParseURL(fi.Url)
@@ -138,9 +140,21 @@ func main() {
 				log.Fatalf("error inserting article: %v", err)
 			}
 
+			articlesInserted++
 		}
-
 	}
+
+	_, err = queries.InsertAndReturnFeedsCallData(
+		ctx,
+		db.InsertAndReturnFeedsCallDataParams{
+			RunType:         "seed",
+			ArticlesCreated: int64(articlesInserted),
+		},
+	)
+	if err != nil {
+		log.Fatalf("error running log:  %v", err)
+	}
+
 }
 
 func feedItemDate(item *gofeed.Item) *time.Time {

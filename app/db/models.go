@@ -41,3 +41,10 @@ type Feed struct {
 	CssSelStop             string
 	HtmlExtractionStrategy string
 }
+
+type Log struct {
+	ID              int64
+	TimeRan         time.Time
+	RunType         string
+	ArticlesCreated int64
+}

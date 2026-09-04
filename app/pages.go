@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/mugtree/feeds/app/db"
 	. "maragu.dev/gomponents"
@@ -229,7 +230,8 @@ func WriteComments(msn CommentsTemplateData) Node {
 
 func FeedsAdminForm(td FeedFormTemplateData) Node {
 
-	return Div(
+	return Form(
+		ds.On("submit", fmt.Sprintf(`@put('/admin/feed/%v/update'), {contentType: 'form'}`, td.Feed.ID)),
 		ID("admin-form"),
 		Div(
 			Label(
@@ -278,7 +280,7 @@ func FeedsAdminForm(td FeedFormTemplateData) Node {
 			Input(
 				ID("CssStart"),
 				Placeholder(""),
-				ds.Bind("css-sel-star"),
+				ds.Bind("css-sel-start"),
 				Type("text"),
 				Value(td.Feed.CssSelStart),
 			),
@@ -291,19 +293,45 @@ func FeedsAdminForm(td FeedFormTemplateData) Node {
 			Input(
 				ID("CssEnd"),
 				Placeholder(""),
-				ds.Bind("css-sel-end"),
+				ds.Bind("css-sel-stop"),
 				Type("text"),
 				Value(td.Feed.CssSelStop),
 			),
 		),
 		Div(
+			Label(
+				For("Strategy"),
+				Text("Strategy"),
+			),
+			Select(
+				ID("Strategy"),
+				Name("Strategy"),
+				ds.Bind("html-extraction-strategy"),
+				Map([]string{"No Clip", "Clip End", "Clip Between"}, func(name string) Node {
+					val := strings.ReplaceAll("-", strings.ToLower(name), " ")
+					selected := td.Feed.HtmlExtractionStrategy
+					return OptionIsSelected(
+						name,
+						val,
+						selected,
+					)
+				}),
+			),
+		),
+		Div(
 			Button(
-				ds.On("click", fmt.Sprintf("@post('/%v')", td.UrlAction)),
 				Text(td.ButtonText),
 			),
 		),
 	)
+}
 
+func OptionIsSelected(txt string, selValue string, val string) Node {
+	return Option(
+		Value(val),
+		Text(txt),
+		If(selValue == val, Attr("selected")),
+	)
 }
 
 func ListFeeds(feeds []db.Feed) Node {

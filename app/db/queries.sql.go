@@ -33,6 +33,27 @@ func (q *Queries) InsertAndReturnComment(ctx context.Context, arg InsertAndRetur
 	return i, err
 }
 
+const insertAndReturnFeedsCallData = `-- name: InsertAndReturnFeedsCallData :one
+INSERT INTO log (time_ran, run_type, articles_created) VALUES (CURRENT_TIMESTAMP, ?, ?) RETURNING id, time_ran, run_type, articles_created
+`
+
+type InsertAndReturnFeedsCallDataParams struct {
+	RunType         string
+	ArticlesCreated int64
+}
+
+func (q *Queries) InsertAndReturnFeedsCallData(ctx context.Context, arg InsertAndReturnFeedsCallDataParams) (Log, error) {
+	row := q.db.QueryRowContext(ctx, insertAndReturnFeedsCallData, arg.RunType, arg.ArticlesCreated)
+	var i Log
+	err := row.Scan(
+		&i.ID,
+		&i.TimeRan,
+		&i.RunType,
+		&i.ArticlesCreated,
+	)
+	return i, err
+}
+
 const insertArticle = `-- name: InsertArticle :one
 INSERT INTO articles (
 	feed_id, 
