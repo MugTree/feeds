@@ -1,13 +1,16 @@
 package app
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"net/http"
 	"strconv"
 
+	. "maragu.dev/gomponents"
+	. "maragu.dev/gomponents/html"
+
 	"github.com/go-chi/chi/v5"
+	"github.com/goforj/godump"
 	"github.com/mugtree/feeds/app/db"
 	"github.com/starfederation/datastar/sdk/go/datastar"
 )
@@ -40,7 +43,6 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 
 	})
 
-	// pagination
 	r.Get("/feed/{feedID}/page/{pageID}", func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -124,155 +126,127 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 
 	})
 
-	// view article
-	r.Get("/article/{articleID}/view", func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+	r.Route("/article/{articleID}", func(r chi.Router) {
 
-		articleID, ok := requireIDParam(w, r, "articleID")
-		if !ok {
-			return
-		}
+		// view article
+		r.Get("/view", func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
 
-		ps, err := getArticlePageData(queries, ctx, articleID)
-		if err != nil {
-			logAndError(w, r, err.Error())
-			return
-		}
+			articleID, ok := requireIDParam(w, r, "articleID")
+			if !ok {
+				return
+			}
 
-		sse := datastar.NewSSE(w, r)
-		sse.PatchElementGostar(PageArticle(ps))
+			ps, err := getArticlePageData(queries, ctx, articleID)
+			if err != nil {
+				logAndError(w, r, err.Error())
+				return
+			}
+
+			sse := datastar.NewSSE(w, r)
+			sse.PatchElementGostar(PageArticle(ps))
+		})
+
+		r.Get("/comment/{paragraphID}/write", func(w http.ResponseWriter, r *http.Request) {
+
+			ctx := r.Context()
+
+			articleID, ok := requireIDParam(w, r, "articleID")
+			if !ok {
+				return
+			}
+
+			paragraphID, ok := requireNumericParam(w, r, "paragraphID")
+			if !ok {
+				return
+			}
+
+			mns, err := getComments(queries, ctx, articleID, paragraphID)
+			if err != nil {
+				logAndError(w, r, err.Error())
+				return
+			}
+
+			// We're editing at this point
+			mns.ShowTextArea = true
+
+			sse := datastar.NewSSE(w, r)
+			sse.PatchElementGostar(WriteComments(mns))
+			sse.ExecuteScript("feedsBalanceArticleLayout()")
+
+		})
+
+		r.Post("/comment/{paragraphID}/write", func(w http.ResponseWriter, r *http.Request) {
+
+			ctx := r.Context()
+
+			articleID, ok := requireIDParam(w, r, "articleID")
+			if !ok {
+				return
+			}
+
+			paragraphID, ok := requireNumericParam(w, r, "paragraphID")
+			if !ok {
+				return
+			}
+
+			// might make sense to error here if empty
+			// -------------------------------------------------
+			commentText := r.FormValue("comment-text")
+
+			mns, err := updateComments(queries, ctx, commentText, articleID, paragraphID)
+			if err != nil {
+				logAndError(w, r, err.Error())
+				return
+			}
+
+			mns.ShowTextArea = false
+
+			sse := datastar.NewSSE(w, r)
+			sse.PatchElementGostar(ViewComments(mns))
+			sse.ExecuteScript("feedsBalanceArticleLayout()")
+		})
+
+		// Like article
+		// ------------------------------------
+		r.Put("/like/{value}", func(w http.ResponseWriter, r *http.Request) {
+
+			ctx := r.Context()
+
+			articleID, ok := requireIDParam(w, r, "articleID")
+			if !ok {
+				return
+			}
+
+			likeValue, err := strconv.Atoi(r.PathValue("value"))
+			if err != nil {
+				logAndError(w, r, err.Error())
+				return
+			}
+
+			if likeValue < 0 && likeValue > 3 {
+				logAndError(w, r, fmt.Sprintf("incorrect like value: %v, needs to be between 0 and 3", likeValue))
+				return
+			}
+
+			err = setArticleLike(queries, int64(likeValue), articleID, ctx)
+			if err != nil {
+				logAndError(w, r, err.Error())
+				return
+			}
+
+			ps, err := getArticlePageData(queries, ctx, articleID)
+			if err != nil {
+				logAndError(w, r, err.Error())
+				return
+			}
+
+			sse := datastar.NewSSE(w, r)
+			sse.PatchElementGostar(PageArticle(ps))
+			sse.ExecuteScript("feedsBalanceArticleLayout()")
+		})
+
 	})
-
-	r.Get("/article/{articleID}/comment/{paragraphID}/write", func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-
-		articleID, ok := requireIDParam(w, r, "articleID")
-		if !ok {
-			return
-		}
-
-		paragraphID, ok := requireNumericParam(w, r, "paragraphID")
-		if !ok {
-			return
-		}
-
-		mns, err := getComments(queries, ctx, articleID, paragraphID)
-		if err != nil {
-			logAndError(w, r, err.Error())
-			return
-		}
-
-		// We're editing at this point
-		mns.ShowTextArea = true
-
-		sse := datastar.NewSSE(w, r)
-		sse.PatchElementGostar(WriteComments(mns))
-		sse.ExecuteScript("feedsBalanceArticleLayout()")
-
-	})
-
-	r.Post("/article/{articleID}/comment/{paragraphID}/write", func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-
-		articleID, ok := requireIDParam(w, r, "articleID")
-		if !ok {
-			return
-		}
-
-		paragraphID, ok := requireNumericParam(w, r, "paragraphID")
-		if !ok {
-			return
-		}
-
-		// might make sense to error here if empty
-		// -------------------------------------------------
-		commentText := r.FormValue("comment-text")
-
-		mns, err := updateComments(queries, ctx, commentText, articleID, paragraphID)
-		if err != nil {
-			logAndError(w, r, err.Error())
-			return
-		}
-
-		mns.ShowTextArea = false
-
-		sse := datastar.NewSSE(w, r)
-		sse.PatchElementGostar(ViewComments(mns))
-		sse.ExecuteScript("feedsBalanceArticleLayout()")
-	})
-
-	// Like article
-	// ------------------------------------
-	r.Put("/article/{articleID}/like/{value}", func(w http.ResponseWriter, r *http.Request) {
-
-		ctx := r.Context()
-
-		articleID, ok := requireIDParam(w, r, "articleID")
-		if !ok {
-			return
-		}
-
-		likeValue, err := strconv.Atoi(r.PathValue("value"))
-		if err != nil {
-			logAndError(w, r, err.Error())
-			return
-		}
-
-		if likeValue < 0 && likeValue > 3 {
-			logAndError(w, r, fmt.Sprintf("incorrect like value: %v, needs to be between 0 and 3", likeValue))
-			return
-		}
-
-		err = setArticleLike(queries, int64(likeValue), articleID, ctx)
-		if err != nil {
-			logAndError(w, r, err.Error())
-			return
-		}
-
-		ps, err := getArticlePageData(queries, ctx, articleID)
-		if err != nil {
-			logAndError(w, r, err.Error())
-			return
-		}
-
-		sse := datastar.NewSSE(w, r)
-		sse.PatchElementGostar(PageArticle(ps))
-		sse.ExecuteScript("feedsBalanceArticleLayout()")
-	})
-
-	// r.Put("/article/{articleID}/set-read", func(w http.ResponseWriter, r *http.Request) {
-
-	// 	ctx := r.Context()
-	// 	articleID, ok := requireIDParam(w, r, "articleID")
-	// 	if !ok {
-	// 		return
-	// 	}
-
-	// 	err := queries.UpdateArticleSetAsRead(ctx, articleID)
-	// 	if err != nil {
-	// 		logAndError(w, r, err.Error())
-	// 		return
-	// 	}
-
-	// 	ps, err := getArticlePageData(queries, ctx, articleID)
-	// 	if err != nil {
-	// 		logAndError(w, r, err.Error())
-	// 		return
-	// 	}
-
-	// 	var buf bytes.Buffer
-
-	// 	PageHome()
-
-	// 	sse := datastar.NewSSE(w, r)
-	// 		//sse.PatchElementTempl(TemplateArticlePage(ps))
-
-	// 	/* call an existing JS function  when the new data is morphed in*/
-	// 	sse.ExecuteScript("feedsBalanceArticleLayout()")
-
-	// })
 
 	r.Get("/update-reader", func(w http.ResponseWriter, r *http.Request) {
 
@@ -282,12 +256,11 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 			return
 		}
 
-		var buf bytes.Buffer
-		RefreshPage().Render(&buf)
-
 		sse := datastar.NewSSE(w, r)
-		sse.PatchElements(
-			buf.String(),
+		sse.PatchElementGostar(
+			Script(
+				Raw(`window.location.reload();`),
+			),
 			datastar.WithModeAppend(),
 			datastar.WithSelector("body"),
 		)
@@ -295,14 +268,6 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 	})
 
 }
-
-// func renderHtml(html gomponents.Node, b *bytes.Buffer, data any) (string, error) {
-
-// 	if
-
-// 	html.Render(b)
-// 	return b.String(), nil
-// }
 
 func setupAdminRoutes(r chi.Router, queries *db.Queries) {
 
@@ -318,56 +283,77 @@ func setupAdminRoutes(r chi.Router, queries *db.Queries) {
 		Layout(pp, ListFeeds(feeds)).Render(w)
 	})
 
-	r.Get("/admin/feed/{feedID}/view", func(w http.ResponseWriter, r *http.Request) {
+	r.Route("/admin/feed/{feedID}", func(r chi.Router) {
 
-		ctx := r.Context()
+		r.Get("/view", func(w http.ResponseWriter, r *http.Request) {
 
-		feedID, ok := requireIDParam(w, r, "feedID")
-		if !ok {
-			return
-		}
+			ctx := r.Context()
 
-		feed, err := queries.SelectFeedByID(ctx, feedID)
-		if err != nil {
-			logAndError(w, r, err.Error())
-			return
-		}
+			feedID, ok := requireIDParam(w, r, "feedID")
+			if !ok {
+				return
+			}
 
-		vm := FeedFormTemplateData{Feed: feed, ButtonText: "Update feed"}
-		Layout(
-			pageProps{
-				Title: "Feed view",
-			},
-			FeedsAdminForm(vm)).Render(w)
+			feed, err := queries.SelectFeedByID(ctx, feedID)
+			if err != nil {
+				logAndError(w, r, err.Error())
+				return
+			}
+
+			godump.Dump("before", feed)
+
+			vm := FeedFormTemplateData{Feed: feed, ButtonText: "Update feed"}
+			Layout(
+				pageProps{
+					Title: "Feed view",
+				},
+				FeedsAdminForm(vm)).Render(w)
+		})
+
+		r.Put("/update", func(w http.ResponseWriter, r *http.Request) {
+
+			ctx := r.Context()
+
+			feedID, ok := requireIDParam(w, r, "feedID")
+			if !ok {
+				return
+			}
+
+			sigs := FeedCreateUpdateSignals{}
+			err := datastar.ReadSignals(r, &sigs)
+			if err != nil {
+				logAndError(w, r, err.Error())
+				return
+			}
+
+			feed, err := queries.UpdateFeed(ctx, db.UpdateFeedParams{
+				Url:             sigs.FeedUrl,
+				Title:           sigs.Title,
+				CssSelContainer: sigs.CSSSelectorContainer,
+				CssSelStart:     sigs.CSSSelectorStart,
+				CssSelStop:      sigs.CSSSelectorStop,
+				ID:              feedID,
+			})
+			if err != nil {
+				logAndError(w, r, err.Error())
+				return
+			}
+
+			godump.Dump("after", feed)
+
+			sse := datastar.NewSSE(w, r)
+			sse.PatchElementGostar(
+				Script(Raw(`window.location.href = "/admin/feeds"`)),
+				datastar.WithSelector("body"), datastar.WithModeAppend(),
+			)
+
+		})
+
+		r.Get("/create", func(w http.ResponseWriter, r *http.Request) {
+			data := FeedFormTemplateData(FeedFormTemplateData{ButtonText: "Create new"})
+			Layout(pageProps{Title: "Create new feed"}, FeedsAdminForm(data)).Render(w)
+		})
+
 	})
-
-	r.Put("/admin/feed/{feedID}/update", func(w http.ResponseWriter, r *http.Request) {
-
-		sigs := FeedCreateUpdateSignals{}
-		feedID, ok := requireIDParam(w, r, "feedID")
-		if !ok {
-			return
-		}
-
-		err := datastar.ReadSignals(r, &sigs)
-		if err != nil {
-			logAndError(w, r, err.Error())
-			return
-		}
-		DUMMY_godump("id", feedID)
-		DUMMY_godump("sigs", sigs)
-
-	})
-
-	r.Get("/admin/feed/create", func(w http.ResponseWriter, r *http.Request) {
-		data := FeedFormTemplateData(FeedFormTemplateData{ButtonText: "Create new"})
-		Layout(pageProps{Title: "Create new feed"}, FeedsAdminForm(data)).Render(w)
-	})
-
-	// r.Post("/admin/feed/create", func(w http.ResponseWriter, r *http.Request) {
-	// 	form := TemplateAdminFeedForm(FeedFormTemplateData{ButtonText: "Create new"})
-
-	// 	TemplateLayout("Create new feed", form).Render(r.Context(), w)
-	// })
 
 }

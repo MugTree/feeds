@@ -27,6 +27,10 @@ header {
   z-index: 1000;
 }
 
+main {
+  margin-top: 100px;
+}
+
 .home-link {
   text-decoration: none;
   color: #222;
@@ -76,7 +80,6 @@ button:hover {
 
 #page {
   display: flex;
-  margin-top: 60px;
 }
 
 #page #feeds {

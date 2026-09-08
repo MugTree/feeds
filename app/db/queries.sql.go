@@ -852,3 +852,50 @@ func (q *Queries) UpdateCommentByArticleIDAndRelatedParagraphID(ctx context.Cont
 	_, err := q.db.ExecContext(ctx, updateCommentByArticleIDAndRelatedParagraphID, arg.CommentText, arg.ArticleID, arg.RelatedParagraphID)
 	return err
 }
+
+const updateFeed = `-- name: UpdateFeed :one
+UPDATE feeds SET 
+	url = ?, 
+	title = ?, 
+	css_sel_container = ?,
+	css_sel_start = ?,
+	css_sel_stop = ?,
+	html_extraction_strategy = ?
+WHERE
+	id = ?
+RETURNING id, url, title, last_fetched, css_sel_container, css_sel_start, css_sel_stop, html_extraction_strategy
+`
+
+type UpdateFeedParams struct {
+	Url                    string
+	Title                  string
+	CssSelContainer        string
+	CssSelStart            string
+	CssSelStop             string
+	HtmlExtractionStrategy string
+	ID                     int64
+}
+
+func (q *Queries) UpdateFeed(ctx context.Context, arg UpdateFeedParams) (Feed, error) {
+	row := q.db.QueryRowContext(ctx, updateFeed,
+		arg.Url,
+		arg.Title,
+		arg.CssSelContainer,
+		arg.CssSelStart,
+		arg.CssSelStop,
+		arg.HtmlExtractionStrategy,
+		arg.ID,
+	)
+	var i Feed
+	err := row.Scan(
+		&i.ID,
+		&i.Url,
+		&i.Title,
+		&i.LastFetched,
+		&i.CssSelContainer,
+		&i.CssSelStart,
+		&i.CssSelStop,
+		&i.HtmlExtractionStrategy,
+	)
+	return i, err
+}

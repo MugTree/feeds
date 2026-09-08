@@ -92,7 +92,7 @@ func FeedBoxes(summaries []FeedSummary) Node {
 
 func FeedBox(link string, fsm FeedSummary) Node {
 
-	pagination := func(fsm FeedSummary) Node {
+	pageLinks := func(fsm FeedSummary) Node {
 		links := []Node{}
 		for i := range fsm.LinksRequired {
 			pageNumber := i + 1
@@ -119,7 +119,7 @@ func FeedBox(link string, fsm FeedSummary) Node {
 						return H3(Text(a.Article.ArticleTitle), ds.On("click", articleURL))
 					},
 				),
-				Div(pagination(fsm)),
+				Div(pageLinks(fsm)),
 			),
 		),
 	)
@@ -308,12 +308,14 @@ func FeedsAdminForm(td FeedFormTemplateData) Node {
 				Name("Strategy"),
 				ds.Bind("html-extraction-strategy"),
 				Map([]string{"No Clip", "Clip End", "Clip Between"}, func(name string) Node {
-					val := strings.ReplaceAll("-", strings.ToLower(name), " ")
+
+					val := strings.ToLower(strings.ReplaceAll(name, " ", "-"))
 					selected := td.Feed.HtmlExtractionStrategy
+
 					return OptionIsSelected(
 						name,
-						val,
 						selected,
+						val,
 					)
 				}),
 			),
@@ -345,11 +347,5 @@ func ListFeeds(feeds []db.Feed) Node {
 			)
 		},
 		),
-	)
-}
-
-func RefreshPage() Node {
-	return Script(
-		Raw(`console.log('how refreshing!'); window.location.reload();`),
 	)
 }

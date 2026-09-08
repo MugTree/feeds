@@ -81,6 +81,9 @@ SELECT * FROM comments WHERE article_id = ? AND related_paragraph_id = ?;
 -- name: UpdateCommentByArticleIDAndRelatedParagraphID :exec
 UPDATE comments SET comment_text = ? WHERE article_id =? AND related_paragraph_id = ?;
 
+
+
+
 -- name: InsertArticle :one
 INSERT INTO articles (
 	feed_id, 
@@ -126,6 +129,18 @@ INSERT INTO articles (
 	?, 
 	CURRENT_TIMESTAMP
 ) RETURNING *;
+
+-- name: UpdateFeed :one
+UPDATE feeds SET 
+	url = ?, 
+	title = ?, 
+	css_sel_container = ?,
+	css_sel_start = ?,
+	css_sel_stop = ?,
+	html_extraction_strategy = ?
+WHERE
+	id = ?
+RETURNING *;
 
 -- name: InsertAndReturnComment :one
 INSERT INTO comments (article_id, related_paragraph_id, comment_text, date_added ) VALUES (?,?,?, CURRENT_TIMESTAMP) RETURNING *;
