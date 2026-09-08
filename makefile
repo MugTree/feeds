@@ -1,4 +1,11 @@
-seed-db:
+drop-data:
+	rm feeds.db
+	rm feeds.db-*
+
+seed-data:
+	touch feeds.db
+	goose status
+	goose up
 	go run ./app/db/seed/generate.go --urls=./app/db/seed/seed.csv --db=./feeds.db
 
 lint:
@@ -16,5 +23,3 @@ dev:
 debug:
 	go build -gcflags="all=-N -l" -o ./tmp/server .
 
-production-build-app:
-	templ generate && CC=x86_64-linux-musl-gcc CXX=x86_64-linux-musl-g++ GOARCH=amd64 GOOS=linux CGO_ENABLED=1 go build -ldflags "-linkmode external -extldflags -static" -o ./bin/metrics.amd64 .

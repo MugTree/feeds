@@ -27,9 +27,8 @@ header {
   z-index: 1000;
 }
 
-/* Prevent content hiding behind fixed header */
 main {
-  padding-top: 80px;
+  margin-top: 100px;
 }
 
 .home-link {
@@ -79,10 +78,24 @@ button:hover {
   }
 }
 
-.highlight {
-  background-color: yellow;
+#page {
+  display: flex;
 }
 
-span {
-  border: 1px red solid;
+#page #feeds {
+  width: 20%;
+}
+
+#homepage #article {
+  width: 80%;
+}
+
+section#editor {
+  display: flex;
+}
+
+section#editor article {
+}
+
+section#editor aside {
 }

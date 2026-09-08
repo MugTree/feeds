@@ -5,38 +5,30 @@
 package db
 
 import (
-	"database/sql"
 	"time"
 )
 
-type Annotation struct {
-	ID        int64
-	ArticleID int64
-	StartData string
-	EndData   string
-	Snippet   string
-	Note      string
-	DateAdded *time.Time
-}
-
 type Article struct {
-	ID        int64
-	FeedID    int64
-	Title     string
-	Link      string
-	Published *time.Time
-	DateFound *time.Time
-	Summary   string
-	Read      int64
-	Starred   int64
+	ID                      int64
+	FeedID                  int64
+	Title                   string
+	Link                    string
+	Published               *time.Time
+	DateFound               *time.Time
+	ArticleContent          string
+	ScrapedHtml             string
+	ClickableParagraphCount int64
+	Summary                 string
+	Read                    int64
+	Starred                 int64
 }
 
-type ArticleCache struct {
-	ID             int64
-	Link           string
-	ArticleContent sql.NullString
-	Created        *time.Time
-	ArticleID      int64
+type Comment struct {
+	ID                 int64
+	ArticleID          int64
+	RelatedParagraphID int64
+	CommentText        string
+	DateAdded          time.Time
 }
 
 type Feed struct {
@@ -44,8 +36,15 @@ type Feed struct {
 	Url                    string
 	Title                  string
 	LastFetched            time.Time
-	CssSelContainer        sql.NullString
-	CssSelStart            sql.NullString
-	CssSelStop             sql.NullString
-	HtmlExtractionStrategy sql.NullString
+	CssSelContainer        string
+	CssSelStart            string
+	CssSelStop             string
+	HtmlExtractionStrategy string
+}
+
+type Log struct {
+	ID              int64
+	TimeRan         time.Time
+	RunType         string
+	ArticlesCreated int64
 }

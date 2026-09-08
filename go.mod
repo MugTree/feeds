@@ -4,7 +4,6 @@ go 1.25.0
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.2
-	github.com/a-h/templ v0.3.1020
 	github.com/gocolly/colly/v2 v2.2.0
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/microcosm-cc/bluemonday v1.0.27
@@ -21,8 +20,8 @@ require (
 	github.com/antchfx/xpath v1.3.3 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/bits-and-blooms/bitset v1.22.0 // indirect
-	github.com/go-sql-driver/mysql v1.9.2 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
+	github.com/goforj/godump v1.9.1 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
@@ -43,8 +42,7 @@ require (
 
 require (
 	github.com/go-chi/chi/v5 v5.2.2
-	github.com/goforj/godump v1.9.1
-	github.com/jmoiron/sqlx v1.4.0
-	github.com/starfederation/datastar-go v1.2.2
 	golang.org/x/net v0.51.0
+	maragu.dev/gomponents v1.3.0
+	maragu.dev/gomponents-datastar v0.3.3
 )

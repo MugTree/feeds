@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"context"
+	"database/sql"
 	"flag"
 	"fmt"
 	"log"
@@ -9,8 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/mmcdole/gofeed"
+
+	"github.com/mugtree/feeds/app"
+	"github.com/mugtree/feeds/app/db"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -61,15 +65,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	//godump.Dump(feeds)
-
-	db, err := sqlx.Open("sqlite3", *dbPtr)
+	dbhandle, err := sql.Open("sqlite3", *dbPtr)
 	if err != nil {
 		log.Fatalf("failed to open database: %v", err)
 	}
-	defer db.Close()
+	defer dbhandle.Close()
+
+	queries := db.New(dbhandle)
 
 	p := gofeed.NewParser()
+
+	ctx := context.Background()
+
+	var articlesInserted = 0
 
 	for _, fi := range feeds {
 
@@ -78,38 +86,17 @@ func main() {
 			log.Fatalf("error parsing: %v", err)
 		}
 
-		feedSqlRes, err := db.Exec(
-			`INSERT INTO feeds (
-				url, 
-				title, 
-				css_sel_container,
-				css_sel_start,
-				css_sel_stop,
-				html_extraction_strategy,
-				last_fetched
-				) VALUES (
-				?, 
-				?, 
-				?, 
-				?, 
-				?, 
-				?, 
-				CURRENT_TIMESTAMP
-				);`,
-			goFeed.Link,
-			goFeed.Title,
-			fi.CSSSelectorContainer,
-			fi.CSSSelectorStart,
-			fi.CSSSelectorStop,
-			fi.HTMLExtractionStrategy)
+		insertedFeed, err := queries.InsertFeed(ctx, db.InsertFeedParams{
+			Url:                    goFeed.Link,
+			Title:                  goFeed.Title,
+			CssSelContainer:        fi.CSSSelectorContainer, //fi.CSSSelectorContainer},
+			CssSelStart:            fi.CSSSelectorStart,
+			CssSelStop:             fi.CSSSelectorStop,
+			HtmlExtractionStrategy: fi.HTMLExtractionStrategy,
+		})
 
 		if err != nil {
 			log.Fatalf("error opening the db: %v", err)
-		}
-
-		id, err := feedSqlRes.LastInsertId()
-		if err != nil {
-			log.Fatalf("error getting last insert id: %v", err)
 		}
 
 		for _, v := range goFeed.Items {
@@ -117,43 +104,57 @@ func main() {
 			publishedDate := feedItemDate(v)
 			dateFound := time.Now()
 
-			_, err = db.Exec(`
-				INSERT INTO articles (
-				feed_id, 
-				title, 
-				link, 
-				published, 
-				date_found, 
-				summary, 
-				read, 
-				starred
-				) VALUES (
-				 ?, 
-				 ?, 
-				 ?, 
-				 ?, 
-				 ?, 
-				 ?, 
-				 ?,
-				 ?
-				 );`,
-				id,
-				v.Title,
-				v.Link,
-				publishedDate,
-				dateFound,
-				v.Description,
-				0,
-				0,
-			)
+			fmt.Println("getting link: ", v.Link)
+			html, err := app.ScrapeSiteHTML(app.PageScrapeParams{
+				Link:           v.Link,
+				Container:      insertedFeed.CssSelContainer,
+				ClipStartPoint: insertedFeed.CssSelStart,
+				ClipEndPoint:   insertedFeed.CssSelStop,
+			})
+			if err != nil {
+				log.Fatalf("error getting site html: %v", err)
+			}
+
+			fmt.Println("processing html for: ", v.Link)
+			processed, paragraphCount, err := app.ProcessScrapedHTML(html)
+			if err != nil {
+				log.Fatalf("error getting site html: %v", err)
+			}
+
+			fmt.Println("inserting record for: ", v.Link)
+			_, err = queries.InsertArticle(ctx, db.InsertArticleParams{
+				FeedID:                  insertedFeed.ID,
+				Title:                   v.Title,
+				Link:                    v.Link,
+				Published:               publishedDate,
+				DateFound:               &dateFound,
+				ClickableParagraphCount: paragraphCount,
+				Summary:                 v.Description,
+				ScrapedHtml:             html,
+				ArticleContent:          processed,
+				Read:                    0,
+				Starred:                 0,
+			})
 
 			if err != nil {
 				log.Fatalf("error inserting article: %v", err)
 			}
 
+			articlesInserted++
 		}
-
 	}
+
+	_, err = queries.InsertAndReturnFeedsCallData(
+		ctx,
+		db.InsertAndReturnFeedsCallDataParams{
+			RunType:         "seed",
+			ArticlesCreated: int64(articlesInserted),
+		},
+	)
+	if err != nil {
+		log.Fatalf("error running log:  %v", err)
+	}
+
 }
 
 func feedItemDate(item *gofeed.Item) *time.Time {

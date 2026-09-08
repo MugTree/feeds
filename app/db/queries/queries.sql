@@ -57,40 +57,102 @@ SELECT
 	a.title as article_title,
 	a.starred as article_stars,
 	a.published as article_published,
+	a.read as article_read,
+	a.article_content,
+	a.clickable_paragraph_count as article_clickable_paragraph_count,
 	f.id as feed_id, 
 	f.title as feed_title,
 	f.url as feed_url,
 	f.css_sel_container as feed_css_sel_container, 
 	f.css_sel_start as feed_css_sel_start, 
 	f.css_sel_stop as feed_css_sel_stop, 
-	f.html_extraction_strategy as feed_html_extraction_strategy   
+	f.html_extraction_strategy as feed_html_extraction_strategy
 FROM 
 	articles a 
 INNER JOIN feeds f 
 ON f.id = a.feed_id where a.id = ?;
 
+-- name: SelectCommentsByArticleID :many
+SELECT * FROM comments WHERE article_id = ?;
 
--- name: SelectCachedArticleByLink :one
-SELECT * FROM article_cache WHERE link = ?;
+-- name: SelectCommentsByArticleIDAndRelatedParagraphID :one
+SELECT * FROM comments WHERE article_id = ? AND related_paragraph_id = ?;
 
--- name: InsertCachedArticle :exec
-INSERT INTO article_cache (
-	article_id,
+-- name: UpdateCommentByArticleIDAndRelatedParagraphID :exec
+UPDATE comments SET comment_text = ? WHERE article_id =? AND related_paragraph_id = ?;
+
+
+
+
+-- name: InsertArticle :one
+INSERT INTO articles (
+	feed_id, 
+	title, 
 	link, 
-	article_content, 
-	created
-) VALUES(
-?,
-?,
-?, 
-CURRENT_TIMESTAMP
-);
+	published, 
+	date_found, 
+	summary,
+	scraped_html,
+	article_content,
+	clickable_paragraph_count,
+	read, 
+	starred
+) VALUES (
+	 ?, 
+	 ?, 
+	 ?, 
+	 ?, 
+	 ?, 
+	 ?, 
+	 ?, 
+	 ?, 
+	 ?, 
+	 ?,
+	 ?
+ ) RETURNING * ;
+
+-- name: InsertFeed :one
+ INSERT INTO feeds (
+	url, 
+	title, 
+	css_sel_container,
+	css_sel_start,
+	css_sel_stop,
+	html_extraction_strategy,
+	last_fetched
+) VALUES (
+	?, 
+	?, 
+	?, 
+	?, 
+	?, 
+	?, 
+	CURRENT_TIMESTAMP
+) RETURNING *;
+
+-- name: UpdateFeed :one
+UPDATE feeds SET 
+	url = ?, 
+	title = ?, 
+	css_sel_container = ?,
+	css_sel_start = ?,
+	css_sel_stop = ?,
+	html_extraction_strategy = ?
+WHERE
+	id = ?
+RETURNING *;
+
+-- name: InsertAndReturnComment :one
+INSERT INTO comments (article_id, related_paragraph_id, comment_text, date_added ) VALUES (?,?,?, CURRENT_TIMESTAMP) RETURNING *;
 
 -- name: SelectAllFeeds :many
 SELECT * from feeds;	
 
 -- name: SelectFeedByID :one
 SELECT * FROM feeds where id = ?;
+
+-- name: SelectArticleByID :one
+SELECT * FROM articles where id = ?;
 
 -- name: InsertOrIgnoreArticle :exec
 INSERT OR IGNORE INTO articles (
@@ -119,12 +181,26 @@ UPDATE articles SET read = 1 WHERE id = ?;
 -- name: UpdateArticleSetStarredValue :exec
 UPDATE articles SET starred = ? WHERE id = ?;
 
--- name: InsertArticleAnnotation :exec
-INSERT INTO annotations (article_id, start_data, end_data, note, snippet, date_added) 
-VALUES (?,?,?,?,?, CURRENT_TIMESTAMP);
+-- name: SelectArticlesByFeedIDWithLimit :many
+SELECT
+   a.id as article_id,
+	a.link as article_link,
+	a.title as article_title,
+	a.starred as article_stars,
+	a.published as article_published,
+	a.read as article_read,
+	a.feed_id as article_feed_id,
+    a.article_content AS article_content,
+    a.clickable_paragraph_count AS article_clickable_paragraph_count,
+    f.title as feed_title
+FROM articles a
+    INNER JOIN feeds f ON f.id = a.feed_id
+WHERE a.feed_id  = ?
+ORDER BY published DESC
+LIMIT ? OFFSET ?;
 
--- name: SelectArticleAnnotationsByID :many
-SELECT * FROM annotations WHERE article_id = ?;
+-- name: SelectArticleCountByFeedID :one
+SELECT COUNT(*) FROM articles WHERE feed_id = ?;
 
--- name: SelectArticleContentFromArticleCache :one
-SELECT article_content FROM article_cache WHERE article_id = ?;
+-- name: InsertAndReturnFeedsCallData :one
+INSERT INTO log (time_ran, run_type, articles_created) VALUES (CURRENT_TIMESTAMP, ?, ?) RETURNING *;
