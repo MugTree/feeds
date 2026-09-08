@@ -37,7 +37,10 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 		}
 
 		Layout(
-			pageProps{Title: "Feeds homepage", Description: ""},
+			PageProps{
+				Title:       "Feeds homepage",
+				Description: "",
+			},
 			PageHome(feedSummaries),
 		).Render(w)
 
@@ -279,7 +282,7 @@ func setupAdminRoutes(r chi.Router, queries *db.Queries) {
 			return
 		}
 
-		pp := pageProps{Title: "Feeds list"}
+		pp := PageProps{Title: "Feeds list"}
 		Layout(pp, ListFeeds(feeds)).Render(w)
 	})
 
@@ -304,7 +307,7 @@ func setupAdminRoutes(r chi.Router, queries *db.Queries) {
 
 			vm := FeedFormTemplateData{Feed: feed, ButtonText: "Update feed"}
 			Layout(
-				pageProps{
+				PageProps{
 					Title: "Feed view",
 				},
 				FeedsAdminForm(vm)).Render(w)
@@ -351,7 +354,7 @@ func setupAdminRoutes(r chi.Router, queries *db.Queries) {
 
 		r.Get("/create", func(w http.ResponseWriter, r *http.Request) {
 			data := FeedFormTemplateData(FeedFormTemplateData{ButtonText: "Create new"})
-			Layout(pageProps{Title: "Create new feed"}, FeedsAdminForm(data)).Render(w)
+			Layout(PageProps{Title: "Create new feed"}, FeedsAdminForm(data)).Render(w)
 		})
 
 	})

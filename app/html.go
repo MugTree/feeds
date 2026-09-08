@@ -12,12 +12,12 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-type pageProps struct {
+type PageProps struct {
 	Title       string
 	Description string
 }
 
-func Layout(props pageProps, children ...Node) Node {
+func Layout(props PageProps, children ...Node) Node {
 
 	return HTML5(HTML5Props{
 		Title:       props.Title,
@@ -228,76 +228,43 @@ func WriteComments(msn CommentsTemplateData) Node {
 	return Aside(ID("article-notes"), Group(forms))
 }
 
+func BasicTextInput(labelText string, labelFor string, bindVal string, value string, notValid bool) Node {
+
+	return Div(
+		Label(
+			For(labelFor),
+			Text(labelText),
+		),
+		Input(
+			ID(labelFor),
+			// Placeholder(labelText),
+			ds.Bind(bindVal),
+			Type("text"),
+			Value(value),
+			Attr("aria-invalid", strconv.FormatBool(notValid)),
+		),
+	)
+}
+
+type FeedFormTemplateData struct {
+	ButtonText string
+	UrlAction  string
+	Feed       db.Feed
+	InitialRun bool
+}
+
 func FeedsAdminForm(td FeedFormTemplateData) Node {
 
 	return Form(
 		ds.On("submit", fmt.Sprintf(`@put('/admin/feed/%v/update'), {contentType: 'form'}`, td.Feed.ID)),
 		ID("admin-form"),
-		Div(
-			Label(
-				For("FeedName"),
-				Text("Title"),
-			),
-			Input(
-				ID("FeedName"),
-				Placeholder(""),
-				ds.Bind("feed-name"),
-				Type("text"),
-				Value(td.Feed.Title),
-			),
-		),
-		Div(
-			Label(
-				For("FeedUrl"),
-				Text("Feed Url"),
-			),
-			Input(
-				ID("FeedUrl"),
-				Placeholder("Feed Url"),
-				ds.Bind("feed-url"),
-				Type("text"),
-				Value(td.Feed.Title),
-			),
-		),
-		Div(
-			Label(
-				For("CssContainer"),
-				Text("Css Container"),
-			),
-			Input(
-				ID("CssContainer"),
-				Placeholder("Css Container"),
-				ds.Bind("css-sel-container"),
-				Type("text"),
-				Value(td.Feed.CssSelContainer),
-			),
-		),
-		Div(
-			Label(
-				For("CssStart"),
-				Text("Css Selector Start"),
-			),
-			Input(
-				ID("CssStart"),
-				Placeholder(""),
-				ds.Bind("css-sel-start"),
-				Type("text"),
-				Value(td.Feed.CssSelStart),
-			),
-		),
-		Div(
-			Label(
-				For("CssEnd"),
-				Text("Css Selector Stop"),
-			),
-			Input(
-				ID("CssEnd"),
-				Placeholder(""),
-				ds.Bind("css-sel-stop"),
-				Type("text"),
-				Value(td.Feed.CssSelStop),
-			),
-		),
+
+		BasicTextInput("Title", "FeedName", "feed-name", td.Feed.Title, false),
+		BasicTextInput("Feed Url", "FeedUrl", "feed-url", td.Feed.Url, false),
+		BasicTextInput("CSS Container", "CssContainer", "css-sel-container", td.Feed.CssSelContainer, false),
+		BasicTextInput("CSS Selector start", "CSSStart", "css-sel-start", td.Feed.CssSelStart, false),
+		BasicTextInput("CSS Selector stop", "CSSStop", "css-sel-stop", td.Feed.CssSelStop, false),
+
 		Div(
 			Label(
 				For("Strategy"),
@@ -307,7 +274,7 @@ func FeedsAdminForm(td FeedFormTemplateData) Node {
 				ID("Strategy"),
 				Name("Strategy"),
 				ds.Bind("html-extraction-strategy"),
-				Map([]string{"No Clip", "Clip End", "Clip Between"}, func(name string) Node {
+				Map([]string{defaultStrategyVal, "No Clip", "Clip End", "Clip Between"}, func(name string) Node {
 
 					val := strings.ToLower(strings.ReplaceAll(name, " ", "-"))
 					selected := td.Feed.HtmlExtractionStrategy
@@ -327,6 +294,8 @@ func FeedsAdminForm(td FeedFormTemplateData) Node {
 		),
 	)
 }
+
+const defaultStrategyVal string = "-- Set a strategy --"
 
 func OptionIsSelected(txt string, selValue string, val string) Node {
 	return Option(
