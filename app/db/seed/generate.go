@@ -105,7 +105,7 @@ func main() {
 			dateFound := time.Now()
 
 			fmt.Println("getting link: ", v.Link)
-			html, err := app.ScrapeSiteHTML(app.PageScrapeParams{
+			html, err := app.MpScrapeSiteHTML(app.MPDPageScrapeParams{
 				Link:           v.Link,
 				Container:      insertedFeed.CssSelContainer,
 				ClipStartPoint: insertedFeed.CssSelStart,
@@ -116,7 +116,7 @@ func main() {
 			}
 
 			fmt.Println("processing html for: ", v.Link)
-			processed, paragraphCount, err := app.ProcessScrapedHTML(html)
+			processed, paragraphCount, err := app.MpProcessScrapedHTML(html)
 			if err != nil {
 				log.Fatalf("error getting site html: %v", err)
 			}

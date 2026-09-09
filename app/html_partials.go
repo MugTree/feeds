@@ -3,22 +3,24 @@ package app
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
+	"github.com/mugtree/feeds/app/db"
 	. "maragu.dev/gomponents"
 	ds "maragu.dev/gomponents-datastar"
 	. "maragu.dev/gomponents/components"
 	. "maragu.dev/gomponents/html"
 )
 
-func partialFeedBoxes(summaries []FeedSummary) Node {
-	return Map(summaries, func(fs FeedSummary) Node {
+func partialFeedBoxes(summaries []mpdFeedSummary) Node {
+	return Map(summaries, func(fs mpdFeedSummary) Node {
 		return partialFeedBox(fmt.Sprintf("@get('/feed/%v/page/1')", fs.FeedID), fs)
 	})
 }
 
-func partialFeedBox(link string, fsm FeedSummary) Node {
+func partialFeedBox(link string, fsm mpdFeedSummary) Node {
 
-	pageLinks := func(fsm FeedSummary) Node {
+	pageLinks := func(fsm mpdFeedSummary) Node {
 		links := []Node{}
 		for i := range fsm.LinksRequired {
 			pageNumber := i + 1
@@ -40,7 +42,7 @@ func partialFeedBox(link string, fsm FeedSummary) Node {
 		If(len(fsm.Articles) > 0,
 			Div(
 				Map(fsm.Articles,
-					func(a EnrichedArticle) Node {
+					func(a mpdEnrichedArticle) Node {
 						articleURL := fmt.Sprintf("@get('/article/%v/view')", a.Article.ArticleID)
 						return H3(Text(a.Article.ArticleTitle), ds.On("click", articleURL))
 					},
@@ -63,7 +65,7 @@ func partialLikeArticle(articleID int64, starsValue int64) Node {
 	)
 }
 
-func partialViewComments(mns CommentsTemplateData) Node {
+func partialViewComments(mns mpdCommentsTemplateData) Node {
 	comments := []Node{}
 	for i := range mns.TotalPotentialCommentsCount {
 		note, _ := mns.Comments[i]
@@ -78,7 +80,7 @@ func partialViewComments(mns CommentsTemplateData) Node {
 	return Aside(ID("article-notes"), Group(comments))
 }
 
-func partialWriteComments(msn CommentsTemplateData) Node {
+func partialWriteComments(msn mpdCommentsTemplateData) Node {
 	forms := []Node{}
 	for i := range msn.TotalPotentialCommentsCount {
 		note, _ := msn.Comments[i]
@@ -108,4 +110,95 @@ func partialWriteComments(msn CommentsTemplateData) Node {
 		forms = append(forms, elem)
 	}
 	return Aside(ID("article-notes"), Group(forms))
+}
+
+func partialBasicTextInput(labelText string, labelFor string, bindVal string, value string, notValid bool) Node {
+
+	return Div(
+		Label(
+			For(labelFor),
+			Text(labelText),
+		),
+		Input(
+			ID(labelFor),
+			// Placeholder(labelText),
+			ds.Bind(bindVal),
+			Type("text"),
+			Value(value),
+			Attr("aria-invalid", strconv.FormatBool(notValid)),
+		),
+	)
+}
+
+type FeedFormTemplateData struct {
+	ButtonText string
+	UrlAction  string
+	Feed       db.Feed
+	InitialRun bool
+}
+
+func partialFeedsAdminForm(td FeedFormTemplateData) Node {
+
+	return Form(
+		ds.On("submit", fmt.Sprintf(`@put('/admin/feed/%v/update'), {contentType: 'form'}`, td.Feed.ID)),
+		ID("admin-form"),
+
+		partialBasicTextInput("Title", "FeedName", "feed-name", td.Feed.Title, false),
+		partialBasicTextInput("Feed Url", "FeedUrl", "feed-url", td.Feed.Url, false),
+		partialBasicTextInput("CSS Container", "CssContainer", "css-sel-container", td.Feed.CssSelContainer, false),
+		partialBasicTextInput("CSS Selector start", "CSSStart", "css-sel-start", td.Feed.CssSelStart, false),
+		partialBasicTextInput("CSS Selector stop", "CSSStop", "css-sel-stop", td.Feed.CssSelStop, false),
+
+		Div(
+			Label(
+				For("Strategy"),
+				Text("Strategy"),
+			),
+			Select(
+				ID("Strategy"),
+				Name("Strategy"),
+				ds.Bind("html-extraction-strategy"),
+				Map([]string{defaultStrategyVal, "No Clip", "Clip End", "Clip Between"}, func(name string) Node {
+
+					val := strings.ToLower(strings.ReplaceAll(name, " ", "-"))
+					selected := td.Feed.HtmlExtractionStrategy
+
+					return partialOptionIsSelected(
+						name,
+						selected,
+						val,
+					)
+				}),
+			),
+		),
+		Div(
+			Button(
+				Text(td.ButtonText),
+			),
+		),
+	)
+}
+
+const defaultStrategyVal string = "-- Set a strategy --"
+
+func partialOptionIsSelected(txt string, selValue string, val string) Node {
+	return Option(
+		Value(val),
+		Text(txt),
+		If(selValue == val, Attr("selected")),
+	)
+}
+
+func partialListFeeds(feeds []db.Feed) Node {
+	return Ul(
+		Map(feeds, func(f db.Feed) Node {
+			return Li(
+				A(
+					Href(fmt.Sprintf("/admin/feed/%v/view", f.ID)),
+					Text(f.Title),
+				),
+			)
+		},
+		),
+	)
 }

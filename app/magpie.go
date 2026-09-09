@@ -22,9 +22,9 @@ import (
 	"golang.org/x/net/html"
 )
 
-func dataArticlePageData(queries *db.Queries, ctx context.Context, articleID int64) (ArticlePageTemplateData, error) {
+func mpGetArticlePageData(queries *db.Queries, ctx context.Context, articleID int64) (mpdArticlePageData, error) {
 
-	td := ArticlePageTemplateData{}
+	td := mpdArticlePageData{}
 
 	fa, err := queries.SelectFeedAndArticletByArticleID(ctx, articleID)
 	if err != nil {
@@ -42,7 +42,7 @@ func dataArticlePageData(queries *db.Queries, ctx context.Context, articleID int
 	td.StarValue = fa.ArticleStars
 	td.ArticlePublished = fa.ArticlePublished.Format(layoutISO)
 
-	alreadyRead, toRead, err := dataGetArticlesByFeedID(queries, fa.FeedID, ctx)
+	alreadyRead, toRead, err := mpGetArticlesByFeedID(queries, fa.FeedID, ctx)
 	if err != nil {
 		return td, err
 	}
@@ -53,7 +53,7 @@ func dataArticlePageData(queries *db.Queries, ctx context.Context, articleID int
 
 	td.PageContent = fa.ArticleContent
 
-	enrichedHTML, err := dataEnrichHTMLOutput(td.PageContent, fa.FeedID, articleID)
+	enrichedHTML, err := mpEnrichHTMLOutput(td.PageContent, fa.FeedID, articleID)
 	if err != nil {
 		return td, err
 	}
@@ -61,7 +61,7 @@ func dataArticlePageData(queries *db.Queries, ctx context.Context, articleID int
 	td.PageContent = enrichedHTML
 	td.IsCache = true
 
-	mns, err := dataGetComments(queries, ctx, articleID, -1)
+	mns, err := mpGetComments(queries, ctx, articleID, -1)
 
 	td.CommentsTemplateData = mns
 
@@ -70,9 +70,9 @@ func dataArticlePageData(queries *db.Queries, ctx context.Context, articleID int
 }
 
 /* This needs to update or insert a specific margin note and then return all the margin notes */
-func dataUpdateComments(queries *db.Queries, ctx context.Context, noteText string, articleID int64, paragraphID int64) (CommentsTemplateData, error) {
+func mpUpdateComments(queries *db.Queries, ctx context.Context, noteText string, articleID int64, paragraphID int64) (mpdCommentsTemplateData, error) {
 
-	mns := CommentsTemplateData{}
+	mns := mpdCommentsTemplateData{}
 
 	fmt.Printf("Does a note already exist - comment id: %v - note:%s\n", paragraphID, noteText)
 
@@ -100,7 +100,7 @@ func dataUpdateComments(queries *db.Queries, ctx context.Context, noteText strin
 			return mns, err
 		}
 
-		return dataGetComments(queries, ctx, articleID, paragraphID)
+		return mpGetComments(queries, ctx, articleID, paragraphID)
 	}
 
 	if err != nil {
@@ -122,13 +122,13 @@ func dataUpdateComments(queries *db.Queries, ctx context.Context, noteText strin
 		return mns, err
 	}
 
-	return dataGetComments(queries, ctx, articleID, paragraphID)
+	return mpGetComments(queries, ctx, articleID, paragraphID)
 
 }
 
-func dataGetComments(queries *db.Queries, ctx context.Context, articleID int64, paragraphID int64) (CommentsTemplateData, error) {
+func mpGetComments(queries *db.Queries, ctx context.Context, articleID int64, paragraphID int64) (mpdCommentsTemplateData, error) {
 
-	mns := CommentsTemplateData{}
+	mns := mpdCommentsTemplateData{}
 
 	// CLARIFY!!!! if this is -1 then its the page render call
 	fmt.Printf("Selecting note state: %v\n", paragraphID)
@@ -156,7 +156,7 @@ func dataGetComments(queries *db.Queries, ctx context.Context, articleID int64, 
 	return mns, nil
 }
 
-func dataSetArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
+func mpSetArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
 
 	updatedValue := func(currentValue int64) int64 {
 		if currentValue == 3 {
@@ -177,7 +177,7 @@ func dataSetArticleLike(queries *db.Queries, starredValue int64, articleID int64
 	return nil
 }
 
-func dataGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []feedsArticle, toRead []feedsArticle, err error) {
+func mpGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []mpdFeedsArticle, toRead []mpdFeedsArticle, err error) {
 
 	allArticles, err := queries.SelectArticlesByFeedID(ctx, feedID)
 	if err != nil {
@@ -186,7 +186,7 @@ func dataGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Cont
 
 	for _, row := range allArticles {
 
-		a := feedsArticle{
+		a := mpdFeedsArticle{
 			Id:        row.ID,
 			FeedId:    row.FeedID,
 			Title:     row.Title,
@@ -211,7 +211,7 @@ func dataGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Cont
 }
 
 /* before data is passed to the front end we add some additional properties for interactivity*/
-func dataEnrichHTMLOutput(htmlStr string, _ int64, articleID int64) (string, error) {
+func mpEnrichHTMLOutput(htmlStr string, _ int64, articleID int64) (string, error) {
 
 	addDataAttributes := func(doc *html.Node) *html.Node {
 
@@ -317,14 +317,14 @@ func dataEnrichHTMLOutput(htmlStr string, _ int64, articleID int64) (string, err
 }
 
 // this needs to return something slightly different
-func dataEnrichArticles(queries *db.Queries, ctx context.Context, articles []db.SelectArticlesByFeedIDWithLimitRow) ([]EnrichedArticle, error) {
+func mpEnrichArticles(queries *db.Queries, ctx context.Context, articles []db.SelectArticlesByFeedIDWithLimitRow) ([]mpdEnrichedArticle, error) {
 
-	ea := []EnrichedArticle{}
-	a := EnrichedArticle{}
+	ea := []mpdEnrichedArticle{}
+	a := mpdEnrichedArticle{}
 
 	for i := range articles {
 		if articles[i].ArticleContent != "" {
-			enrichedContent, err := dataEnrichHTMLOutput(
+			enrichedContent, err := mpEnrichHTMLOutput(
 				articles[i].ArticleContent,
 				0,
 				articles[i].ArticleID,
@@ -376,7 +376,7 @@ func _stringifyHTML(doc *html.Node) (string, error) {
 
 /* adding some properties to the HTML coming that we are ingesting */
 
-func ScrapeSiteHTML(ep PageScrapeParams) (string, error) {
+func MpScrapeSiteHTML(ep MPDPageScrapeParams) (string, error) {
 
 	pageHtmlContent := ""
 
@@ -398,7 +398,7 @@ func ScrapeSiteHTML(ep PageScrapeParams) (string, error) {
 	c := colly.NewCollector()
 
 	c.OnHTML(ep.Container, func(h *colly.HTMLElement) {
-		pageHtmlContent = ExtractHTMLRangeFlat(h.DOM, ep.ClipStartPoint, ep.ClipEndPoint)
+		pageHtmlContent = MpExtractHTMLRangeFlat(h.DOM, ep.ClipStartPoint, ep.ClipEndPoint)
 	})
 
 	if err := c.Visit(ep.Link); err != nil {
@@ -409,7 +409,7 @@ func ScrapeSiteHTML(ep PageScrapeParams) (string, error) {
 
 }
 
-func ExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelector string) string {
+func MpExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelector string) string {
 
 	var chunks []string
 	started := startSelector == ""
@@ -443,7 +443,7 @@ func ExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelec
 	return strings.Join(chunks, "")
 }
 
-func ProcessScrapedHTML(input string) (string, int64, error) {
+func MpProcessScrapedHTML(input string) (string, int64, error) {
 
 	enrichHTML := func(doc *html.Node) int64 {
 
@@ -508,11 +508,11 @@ func ProcessScrapedHTML(input string) (string, int64, error) {
 		return "", 0, err
 	}
 
-	_feedsSanitizeHTMLInput(doc)
+	_sanitizeHTMLInput(doc)
 
 	paragraphCount := enrichHTML(doc)
 
-	stringifiedHTML, err := dataStringifyHTML(doc)
+	stringifiedHTML, err := mpStringifyHTML(doc)
 	if err != nil {
 		return "", 0, err
 	}
@@ -521,7 +521,7 @@ func ProcessScrapedHTML(input string) (string, int64, error) {
 }
 
 // article for the article, div for the desc from feeds
-func dataStringifyHTML(doc *html.Node) (string, error) {
+func mpStringifyHTML(doc *html.Node) (string, error) {
 
 	var b strings.Builder
 
@@ -537,7 +537,7 @@ func dataStringifyHTML(doc *html.Node) (string, error) {
 /* remove the outer shell so we can place it into the users HTML without breaking the layout */
 
 /* most of the data that we scrape comes with a lot of stuff attached that we dont want*/
-func _feedsSanitizeHTMLInput(doc *html.Node) {
+func _sanitizeHTMLInput(doc *html.Node) {
 
 	allowedAttrs := func(tag string) map[string]struct{} {
 		switch tag {
@@ -646,7 +646,7 @@ func _feedsSanitizeHTMLInput(doc *html.Node) {
 	clean(doc)
 }
 
-func dataGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
+func mpGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
 	feeds, err := queries.SelectAllFeeds(ctx)
 	if err != nil {
@@ -683,14 +683,14 @@ func dataGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error)
 				return 0, err
 			}
 
-			_feedsSanitizeHTMLInput(description)
+			_sanitizeHTMLInput(description)
 
-			output, err := dataStringifyHTML(description)
+			output, err := mpStringifyHTML(description)
 			if err != nil {
 				return 0, err
 			}
 
-			html, err := ScrapeSiteHTML(PageScrapeParams{
+			html, err := MpScrapeSiteHTML(MPDPageScrapeParams{
 				Link:           item.Link,
 				Container:      feed.CssSelContainer,
 				ClipStartPoint: feed.CssSelStart,
@@ -700,7 +700,7 @@ func dataGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error)
 				return 0, err
 			}
 
-			processed, paragraphCount, err := ProcessScrapedHTML(html)
+			processed, paragraphCount, err := MpProcessScrapedHTML(html)
 			if err != nil {
 				log.Fatalf("error getting site html: %v", err)
 			}
@@ -709,7 +709,7 @@ func dataGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error)
 				FeedID:                  feed.ID,
 				Title:                   item.Title,
 				Link:                    item.Link,
-				Published:               dataGetFeedItemDate(item),
+				Published:               mpGetFeedItemDate(item),
 				ClickableParagraphCount: paragraphCount,
 				ArticleContent:          processed,
 				DateFound:               &now,
@@ -736,7 +736,7 @@ func dataGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error)
 	return int64(len(feeds)), nil
 }
 
-func dataGetFeedItemDate(item *gofeed.Item) *time.Time {
+func mpGetFeedItemDate(item *gofeed.Item) *time.Time {
 	if item.PublishedParsed != nil {
 		return item.PublishedParsed
 	}
@@ -753,12 +753,93 @@ func DUMMY_godump(message string, val any) {
 	godump.Dump(message, val)
 }
 
-type EnrichedArticle struct {
-	Article      db.SelectArticlesByFeedIDWithLimitRow
-	CommentsData CommentsTemplateData
+type mpdSidebarLink struct {
+	Name   string
+	Link   string
+	Unread int64
+	FeedId int
 }
 
-type feedsArticle struct {
+type mpdArticlePageData struct {
+	FeedID                  int64
+	PageTitle               string
+	ArticlesRead            []mpdFeedsArticle
+	ArticlesToRead          []mpdFeedsArticle
+	FeedTitle               string
+	FeedUrl                 string
+	Link                    string
+	PageContent             string
+	ArticleId               int64
+	IsCache                 bool
+	StarValue               int64
+	Sidebar                 []mpdSidebarLink
+	ArticlePublished        string
+	ArticleRead             int64
+	MarginNotes             map[int64]db.Comment
+	ClickableParagraphCount int64
+	CommentsTemplateData    mpdCommentsTemplateData
+}
+
+func (ae mpdArticlePageData) ArticleHasBeenRead() bool {
+	return lib.IntToBool(ae.ArticleRead)
+}
+
+// type typesArticleStatus struct {
+// 	HasBeenRead                  bool
+// 	HasScrolledToBottomOfArticle bool
+// }
+
+// type typesCommentsTemplateData struct {
+// 	ShowTextArea                bool
+// 	ArticleID                   int64
+// 	NoteToEdit                  int64
+// 	TotalPotentialCommentsCount int64
+// 	Comments                    map[int64]db.Comment
+// }
+
+type mpdFeedSummary struct {
+	Name          string
+	ArticleCount  int64
+	FeedID        int64
+	PageID        int64
+	LinksRequired int64
+	Articles      []mpdEnrichedArticle //[]db.SelectArticlesByFeedIDWithLimitRow
+	ShowArticles  bool
+}
+
+const layoutISO = "2006-01-02"
+
+type mpdCommentsTemplateData struct {
+	ShowTextArea                bool
+	ArticleID                   int64
+	NoteToEdit                  int64
+	TotalPotentialCommentsCount int64
+	Comments                    map[int64]db.Comment
+}
+
+type MPDPageScrapeParams struct {
+	Link           string
+	Container      string
+	ClipStartPoint string
+	ClipEndPoint   string
+	Strategy       string
+}
+
+type mpdCreateFeedSignals struct {
+	Title                  string `json:"feed-name"`
+	FeedUrl                string `json:"feed-url"`
+	CSSSelectorContainer   string `json:"css-sel-container"`
+	CSSSelectorStart       string `json:"css-sel-start"`
+	CSSSelectorStop        string `json:"css-sel-stop"`
+	HTMLExtractionStrategy string `json:"html-extraction-strategy"`
+}
+
+type mpdEnrichedArticle struct {
+	Article      db.SelectArticlesByFeedIDWithLimitRow
+	CommentsData mpdCommentsTemplateData
+}
+
+type mpdFeedsArticle struct {
 	Id        int64  `json:"id" db:"id"`
 	FeedId    int64  `json:"feed_id" db:"feed_id"`
 	Title     string `json:"title" db:"title"`
@@ -771,16 +852,16 @@ type feedsArticle struct {
 	FeedTitle string `json:"feed_title" db:"feed_title"`
 }
 
-func (a feedsArticle) FullName() string {
+func (a mpdFeedsArticle) FullName() string {
 	return a.FeedTitle + " - " + a.Title
 }
 
-func (a feedsArticle) ScrubbedSummary() template.HTML {
+func (a mpdFeedsArticle) ScrubbedSummary() template.HTML {
 	p := bluemonday.UGCPolicy()
 	return template.HTML(p.Sanitize(a.Summary))
 }
 
-func (a feedsArticle) PublishedDate() string {
+func (a mpdFeedsArticle) PublishedDate() string {
 
 	d, err := time.Parse(time.RFC1123Z, a.Published)
 	if err != nil {
@@ -802,87 +883,4 @@ func (a feedsArticle) PublishedDate() string {
 	}
 
 	return fmt.Sprintf("%d%s %s %d", day, suffix, month, year)
-}
-
-type feedsSidebarLink struct {
-	Name   string
-	Link   string
-	Unread int64
-	FeedId int
-}
-
-type ArticlePageTemplateData struct {
-	FeedID                  int64
-	PageTitle               string
-	ArticlesRead            []feedsArticle
-	ArticlesToRead          []feedsArticle
-	FeedTitle               string
-	FeedUrl                 string
-	Link                    string
-	PageContent             string
-	ArticleId               int64
-	IsCache                 bool
-	StarValue               int64
-	Sidebar                 []feedsSidebarLink
-	ArticlePublished        string
-	ArticleRead             int64
-	MarginNotes             map[int64]db.Comment
-	ClickableParagraphCount int64
-	CommentsTemplateData    CommentsTemplateData
-}
-
-func (ae ArticlePageTemplateData) ArticleHasBeenRead() bool {
-	return lib.IntToBool(ae.ArticleRead)
-}
-
-type ArticleStatus struct {
-	HasBeenRead                  bool
-	HasScrolledToBottomOfArticle bool
-}
-
-type CommentsTemplateData struct {
-	ShowTextArea                bool
-	ArticleID                   int64
-	NoteToEdit                  int64
-	TotalPotentialCommentsCount int64
-	Comments                    map[int64]db.Comment
-}
-
-type FeedSummary struct {
-	Name          string
-	ArticleCount  int64
-	FeedID        int64
-	PageID        int64
-	LinksRequired int64
-	Articles      []EnrichedArticle //[]db.SelectArticlesByFeedIDWithLimitRow
-	ShowArticles  bool
-}
-
-type NewHomePageTemplateData struct {
-	FeedMeta       []FeedSummary
-	ArticlesByFeed map[string][]db.SelectArticlesByFeedIDWithLimitRow
-}
-
-const layoutISO = "2006-01-02"
-
-type FrontPageSignals struct {
-	ArticlesOpen []int64 `json:"articlesOpen"`
-	FeedsOpen    []int64 `json:"feedsOpen"`
-}
-
-type PageScrapeParams struct {
-	Link           string
-	Container      string
-	ClipStartPoint string
-	ClipEndPoint   string
-	Strategy       string
-}
-
-type FeedCreateUpdateSignals struct {
-	Title                  string `json:"feed-name"`
-	FeedUrl                string `json:"feed-url"`
-	CSSSelectorContainer   string `json:"css-sel-container"`
-	CSSSelectorStart       string `json:"css-sel-start"`
-	CSSSelectorStop        string `json:"css-sel-stop"`
-	HTMLExtractionStrategy string `json:"html-extraction-strategy"`
 }

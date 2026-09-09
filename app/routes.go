@@ -27,21 +27,21 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 			return
 		}
 
-		feedSummaries := []FeedSummary{}
+		feedSummaries := []mpdFeedSummary{}
 		for _, f := range feeds {
-			s := FeedSummary{}
+			s := mpdFeedSummary{}
 			s.Name = f.Title
 			s.PageID = 1
 			s.FeedID = f.ID
 			feedSummaries = append(feedSummaries, s)
 		}
 
-		htmlLayout(
-			PageProps{
+		pageLayout(
+			pageProps{
 				Title:       "Feeds homepage",
 				Description: "",
 			},
-			htmlHomePage(feedSummaries),
+			pageHome(feedSummaries),
 		).Render(w)
 
 	})
@@ -72,11 +72,11 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 			return
 		}
 
-		feedSummaries := []FeedSummary{}
+		feedSummaries := []mpdFeedSummary{}
 
 		for _, f := range feeds {
 
-			fsm := FeedSummary{}
+			fsm := mpdFeedSummary{}
 			fsm.Name = f.Title
 			fsm.FeedID = f.ID
 
@@ -101,7 +101,7 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 					return
 				}
 
-				enrichedArticles, err := dataEnrichArticles(queries, ctx, articles)
+				enrichedArticles, err := mpEnrichArticles(queries, ctx, articles)
 				if err != nil {
 					httpLogAndError(w, r, err.Error())
 					return
@@ -125,7 +125,7 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 		}
 
 		sse := datastar.NewSSE(w, r)
-		sse.PatchElementGostar(htmlHomePage(feedSummaries))
+		sse.PatchElementGostar(pageHome(feedSummaries))
 
 	})
 
@@ -140,14 +140,14 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 				return
 			}
 
-			ps, err := dataArticlePageData(queries, ctx, articleID)
+			ps, err := mpGetArticlePageData(queries, ctx, articleID)
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
 			}
 
 			sse := datastar.NewSSE(w, r)
-			sse.PatchElementGostar(htmlArticlePage(ps))
+			sse.PatchElementGostar(pageArticle(ps))
 		})
 
 		r.Get("/comment/{paragraphID}/write", func(w http.ResponseWriter, r *http.Request) {
@@ -164,17 +164,17 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 				return
 			}
 
-			mns, err := dataGetComments(queries, ctx, articleID, paragraphID)
+			commentsData, err := mpGetComments(queries, ctx, articleID, paragraphID)
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
 			}
 
 			// We're editing at this point
-			mns.ShowTextArea = true
+			commentsData.ShowTextArea = true
 
 			sse := datastar.NewSSE(w, r)
-			sse.PatchElementGostar(partialWriteComments(mns))
+			sse.PatchElementGostar(partialWriteComments(commentsData))
 			sse.ExecuteScript("feedsBalanceArticleLayout()")
 
 		})
@@ -197,7 +197,7 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 			// -------------------------------------------------
 			commentText := r.FormValue("comment-text")
 
-			mns, err := dataUpdateComments(queries, ctx, commentText, articleID, paragraphID)
+			mns, err := mpUpdateComments(queries, ctx, commentText, articleID, paragraphID)
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
@@ -232,20 +232,20 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 				return
 			}
 
-			err = dataSetArticleLike(queries, int64(likeValue), articleID, ctx)
+			err = mpSetArticleLike(queries, int64(likeValue), articleID, ctx)
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
 			}
 
-			ps, err := dataArticlePageData(queries, ctx, articleID)
+			ps, err := mpGetArticlePageData(queries, ctx, articleID)
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
 			}
 
 			sse := datastar.NewSSE(w, r)
-			sse.PatchElementGostar(htmlArticlePage(ps))
+			sse.PatchElementGostar(pageArticle(ps))
 			sse.ExecuteScript("feedsBalanceArticleLayout()")
 		})
 
@@ -253,7 +253,7 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 
 	r.Get("/update-reader", func(w http.ResponseWriter, r *http.Request) {
 
-		_, err := dataGetFeedUpdates(queries, r.Context())
+		_, err := mpGetFeedUpdates(queries, r.Context())
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return
@@ -282,8 +282,8 @@ func routesAdminPage(r chi.Router, queries *db.Queries) {
 			return
 		}
 
-		pp := PageProps{Title: "Feeds list"}
-		htmlLayout(pp, ListFeeds(feeds)).Render(w)
+		pp := pageProps{Title: "Feeds list"}
+		pageLayout(pp, partialListFeeds(feeds)).Render(w)
 	})
 
 	r.Route("/admin/feed/{feedID}", func(r chi.Router) {
@@ -306,8 +306,8 @@ func routesAdminPage(r chi.Router, queries *db.Queries) {
 			godump.Dump("before", feed)
 
 			vm := FeedFormTemplateData{Feed: feed, ButtonText: "Update feed"}
-			htmlLayout(
-				PageProps{
+			pageLayout(
+				pageProps{
 					Title: "Feed view",
 				},
 				partialFeedsAdminForm(vm)).Render(w)
@@ -322,7 +322,7 @@ func routesAdminPage(r chi.Router, queries *db.Queries) {
 				return
 			}
 
-			sigs := FeedCreateUpdateSignals{}
+			sigs := mpdCreateFeedSignals{}
 			err := datastar.ReadSignals(r, &sigs)
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
@@ -354,7 +354,7 @@ func routesAdminPage(r chi.Router, queries *db.Queries) {
 
 		r.Get("/create", func(w http.ResponseWriter, r *http.Request) {
 			data := FeedFormTemplateData(FeedFormTemplateData{ButtonText: "Create new"})
-			htmlLayout(PageProps{Title: "Create new feed"}, partialFeedsAdminForm(data)).Render(w)
+			pageLayout(pageProps{Title: "Create new feed"}, partialFeedsAdminForm(data)).Render(w)
 		})
 
 	})
