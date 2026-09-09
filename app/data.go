@@ -22,7 +22,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func getArticlePageData(queries *db.Queries, ctx context.Context, articleID int64) (ArticlePageTemplateData, error) {
+func dataArticlePageData(queries *db.Queries, ctx context.Context, articleID int64) (ArticlePageTemplateData, error) {
 
 	td := ArticlePageTemplateData{}
 
@@ -42,7 +42,7 @@ func getArticlePageData(queries *db.Queries, ctx context.Context, articleID int6
 	td.StarValue = fa.ArticleStars
 	td.ArticlePublished = fa.ArticlePublished.Format(layoutISO)
 
-	alreadyRead, toRead, err := getArticlesByFeedID(queries, fa.FeedID, ctx)
+	alreadyRead, toRead, err := dataGetArticlesByFeedID(queries, fa.FeedID, ctx)
 	if err != nil {
 		return td, err
 	}
@@ -53,7 +53,7 @@ func getArticlePageData(queries *db.Queries, ctx context.Context, articleID int6
 
 	td.PageContent = fa.ArticleContent
 
-	enrichedHTML, err := enrichHTMLOutput(td.PageContent, fa.FeedID, articleID)
+	enrichedHTML, err := dataEnrichHTMLOutput(td.PageContent, fa.FeedID, articleID)
 	if err != nil {
 		return td, err
 	}
@@ -61,7 +61,7 @@ func getArticlePageData(queries *db.Queries, ctx context.Context, articleID int6
 	td.PageContent = enrichedHTML
 	td.IsCache = true
 
-	mns, err := getComments(queries, ctx, articleID, -1)
+	mns, err := dataGetComments(queries, ctx, articleID, -1)
 
 	td.CommentsTemplateData = mns
 
@@ -70,7 +70,7 @@ func getArticlePageData(queries *db.Queries, ctx context.Context, articleID int6
 }
 
 /* This needs to update or insert a specific margin note and then return all the margin notes */
-func updateComments(queries *db.Queries, ctx context.Context, noteText string, articleID int64, paragraphID int64) (CommentsTemplateData, error) {
+func dataUpdateComments(queries *db.Queries, ctx context.Context, noteText string, articleID int64, paragraphID int64) (CommentsTemplateData, error) {
 
 	mns := CommentsTemplateData{}
 
@@ -100,7 +100,7 @@ func updateComments(queries *db.Queries, ctx context.Context, noteText string, a
 			return mns, err
 		}
 
-		return getComments(queries, ctx, articleID, paragraphID)
+		return dataGetComments(queries, ctx, articleID, paragraphID)
 	}
 
 	if err != nil {
@@ -122,11 +122,11 @@ func updateComments(queries *db.Queries, ctx context.Context, noteText string, a
 		return mns, err
 	}
 
-	return getComments(queries, ctx, articleID, paragraphID)
+	return dataGetComments(queries, ctx, articleID, paragraphID)
 
 }
 
-func getComments(queries *db.Queries, ctx context.Context, articleID int64, paragraphID int64) (CommentsTemplateData, error) {
+func dataGetComments(queries *db.Queries, ctx context.Context, articleID int64, paragraphID int64) (CommentsTemplateData, error) {
 
 	mns := CommentsTemplateData{}
 
@@ -156,7 +156,7 @@ func getComments(queries *db.Queries, ctx context.Context, articleID int64, para
 	return mns, nil
 }
 
-func setArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
+func dataSetArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
 
 	updatedValue := func(currentValue int64) int64 {
 		if currentValue == 3 {
@@ -177,7 +177,7 @@ func setArticleLike(queries *db.Queries, starredValue int64, articleID int64, ct
 	return nil
 }
 
-func getArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []feedsArticle, toRead []feedsArticle, err error) {
+func dataGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []feedsArticle, toRead []feedsArticle, err error) {
 
 	allArticles, err := queries.SelectArticlesByFeedID(ctx, feedID)
 	if err != nil {
@@ -211,7 +211,7 @@ func getArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context)
 }
 
 /* before data is passed to the front end we add some additional properties for interactivity*/
-func enrichHTMLOutput(htmlStr string, _ int64, articleID int64) (string, error) {
+func dataEnrichHTMLOutput(htmlStr string, _ int64, articleID int64) (string, error) {
 
 	addDataAttributes := func(doc *html.Node) *html.Node {
 
@@ -307,7 +307,7 @@ func enrichHTMLOutput(htmlStr string, _ int64, articleID int64) (string, error) 
 		return "", err
 	}
 
-	transformed, err := stringifyHTML(htmlNodes)
+	transformed, err := _stringifyHTML(htmlNodes)
 	if err != nil {
 		return "", err
 	}
@@ -317,14 +317,14 @@ func enrichHTMLOutput(htmlStr string, _ int64, articleID int64) (string, error) 
 }
 
 // this needs to return something slightly different
-func enrichArticles(queries *db.Queries, ctx context.Context, articles []db.SelectArticlesByFeedIDWithLimitRow) ([]EnrichedArticle, error) {
+func dataEnrichArticles(queries *db.Queries, ctx context.Context, articles []db.SelectArticlesByFeedIDWithLimitRow) ([]EnrichedArticle, error) {
 
 	ea := []EnrichedArticle{}
 	a := EnrichedArticle{}
 
 	for i := range articles {
 		if articles[i].ArticleContent != "" {
-			enrichedContent, err := enrichHTMLOutput(
+			enrichedContent, err := dataEnrichHTMLOutput(
 				articles[i].ArticleContent,
 				0,
 				articles[i].ArticleID,
@@ -361,7 +361,7 @@ func enrichArticles(queries *db.Queries, ctx context.Context, articles []db.Sele
 
 }
 
-func stringifyHTML(doc *html.Node) (string, error) {
+func _stringifyHTML(doc *html.Node) (string, error) {
 
 	var b strings.Builder
 
@@ -512,7 +512,7 @@ func ProcessScrapedHTML(input string) (string, int64, error) {
 
 	paragraphCount := enrichHTML(doc)
 
-	stringifiedHTML, err := StringifyHTML(doc)
+	stringifiedHTML, err := dataStringifyHTML(doc)
 	if err != nil {
 		return "", 0, err
 	}
@@ -521,7 +521,7 @@ func ProcessScrapedHTML(input string) (string, int64, error) {
 }
 
 // article for the article, div for the desc from feeds
-func StringifyHTML(doc *html.Node) (string, error) {
+func dataStringifyHTML(doc *html.Node) (string, error) {
 
 	var b strings.Builder
 
@@ -646,7 +646,7 @@ func _feedsSanitizeHTMLInput(doc *html.Node) {
 	clean(doc)
 }
 
-func GetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
+func dataGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
 	feeds, err := queries.SelectAllFeeds(ctx)
 	if err != nil {
@@ -685,7 +685,7 @@ func GetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
 			_feedsSanitizeHTMLInput(description)
 
-			output, err := StringifyHTML(description)
+			output, err := dataStringifyHTML(description)
 			if err != nil {
 				return 0, err
 			}
@@ -709,7 +709,7 @@ func GetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 				FeedID:                  feed.ID,
 				Title:                   item.Title,
 				Link:                    item.Link,
-				Published:               feedsGetFeedItemDate(item),
+				Published:               dataGetFeedItemDate(item),
 				ClickableParagraphCount: paragraphCount,
 				ArticleContent:          processed,
 				DateFound:               &now,
@@ -736,7 +736,7 @@ func GetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 	return int64(len(feeds)), nil
 }
 
-func feedsGetFeedItemDate(item *gofeed.Item) *time.Time {
+func dataGetFeedItemDate(item *gofeed.Item) *time.Time {
 	if item.PublishedParsed != nil {
 		return item.PublishedParsed
 	}

@@ -1,12 +1,1 @@
-{
-  "name": "www",
-  "version": "1.0.0",
-  "description": "",
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "prettier": "^3.4.2",
-    "prettier-plugin-go-template": "^0.0.15"
-  }
-}
+{"devDependencies": {"tailwindcss": "latest"}}

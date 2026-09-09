@@ -9,3 +9,4 @@ feeds.db
 feeds.db-*
 data/seed/urls.txt
 _templ.go
+/tailwindcss

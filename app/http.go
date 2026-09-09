@@ -22,17 +22,17 @@ var staticFS embed.FS
 func SetupHTTPServer(queries *db.Queries, user string, password string) chi.Router {
 
 	r := chi.NewRouter()
-	r.Handle("/public/*", neuterDirectory(http.FileServer(http.FS(staticFS))))
+	r.Handle("/public/*", httpNeuterDirectory(http.FileServer(http.FS(staticFS))))
 
 	r.Group(func(pages chi.Router) {
 		//pages.Use(debugHttpRequest)
-		setupHomeRoutes(pages, queries)
-		setupAdminRoutes(pages, queries)
+		routesHomePage(pages, queries)
+		routesAdminPage(pages, queries)
 	})
 	return r
 }
 
-func neuterDirectory(next http.Handler) http.Handler {
+func httpNeuterDirectory(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/") {
 			http.NotFound(w, r)
@@ -43,14 +43,14 @@ func neuterDirectory(next http.Handler) http.Handler {
 	})
 }
 
-func debugHttpRequest(next http.Handler) http.Handler {
+func httpDebugRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		dumpHttpRequest(r, false, false)
+		httpDumpRequest(r, false, false)
 		next.ServeHTTP(w, r)
 	})
 }
 
-func dumpHttpRequest(r *http.Request, readHeaders bool, readJsonBody bool) {
+func httpDumpRequest(r *http.Request, readHeaders bool, readJsonBody bool) {
 
 	fmt.Printf("\n=== %s %s ===\n", r.Method, r.URL)
 
@@ -90,15 +90,15 @@ func dumpHttpRequest(r *http.Request, readHeaders bool, readJsonBody bool) {
 
 }
 
-func requireNonZeroInt64(value string, key string, w http.ResponseWriter, r *http.Request) (int64, bool) {
+func httpRequireNonZeroInt64(value string, key string, w http.ResponseWriter, r *http.Request) (int64, bool) {
 	v, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		logAndError(w, r, err.Error(), http.StatusBadRequest)
+		httpLogAndError(w, r, err.Error(), http.StatusBadRequest)
 		return 0, false
 	}
 
 	if v == 0 {
-		logAndError(
+		httpLogAndError(
 			w,
 			r,
 			fmt.Sprintf("key '%s' must be a non-zero integer", key),
@@ -110,22 +110,22 @@ func requireNonZeroInt64(value string, key string, w http.ResponseWriter, r *htt
 	return v, true
 }
 
-func requireInt64Param(value string, w http.ResponseWriter, r *http.Request) (int64, bool) {
+func httpRequireInt64Param(value string, w http.ResponseWriter, r *http.Request) (int64, bool) {
 	v, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		logAndError(w, r, err.Error(), http.StatusBadRequest)
+		httpLogAndError(w, r, err.Error(), http.StatusBadRequest)
 		return 0, false
 	}
 
 	return v, true
 }
 
-func requireIDParam(w http.ResponseWriter, r *http.Request, key string) (int64, bool) {
-	return requireNonZeroInt64(chi.URLParam(r, key), key, w, r)
+func httpRequireIDParam(w http.ResponseWriter, r *http.Request, key string) (int64, bool) {
+	return httpRequireNonZeroInt64(chi.URLParam(r, key), key, w, r)
 }
 
-func requireNumericParam(w http.ResponseWriter, r *http.Request, key string) (int64, bool) {
-	return requireInt64Param(chi.URLParam(r, key), w, r)
+func httpRequireNumericParam(w http.ResponseWriter, r *http.Request, key string) (int64, bool) {
+	return httpRequireInt64Param(chi.URLParam(r, key), w, r)
 }
 
 // func requirePageType(w http.ResponseWriter, r *http.Request, key string) (string, bool) {
@@ -140,7 +140,7 @@ func requireNumericParam(w http.ResponseWriter, r *http.Request, key string) (in
 // 	}
 // }
 
-func logAndError(w http.ResponseWriter, _ *http.Request, msg string, statusCode ...int) {
+func httpLogAndError(w http.ResponseWriter, _ *http.Request, msg string, statusCode ...int) {
 	status := 500
 	if len(statusCode) > 0 {
 		status = statusCode[0]

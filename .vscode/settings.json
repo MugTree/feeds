@@ -1,13 +1,8 @@
 {
-  "css.validate": false,
-  "editor.formatOnSave": true,
-  "[templ]": {
-    "editor.defaultFormatter": "a-h.templ"
+  "tailwindCSS.includeLanguages": {
+    "go": "html"
   },
-  // "tailwindCSS.includeLanguages": {
-  //   "templ": "html"
-  // },
-  "emmet.includeLanguages": {
-    "templ": "html"
-  }
+  "tailwindCSS.experimental.classRegex": [
+    ["Class(?:es)?[({]([^)}]*)[)}]", "[\"`]([^\"`]*)[\"`]"]
+  ]
 }

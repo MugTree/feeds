@@ -15,7 +15,7 @@ import (
 	"github.com/starfederation/datastar/sdk/go/datastar"
 )
 
-func setupHomeRoutes(r chi.Router, queries *db.Queries) {
+func routesHomePage(r chi.Router, queries *db.Queries) {
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 
@@ -23,7 +23,7 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 
 		feeds, err := queries.SelectAllFeeds(ctx)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
@@ -36,12 +36,12 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 			feedSummaries = append(feedSummaries, s)
 		}
 
-		Layout(
+		htmlLayout(
 			PageProps{
 				Title:       "Feeds homepage",
 				Description: "",
 			},
-			PageHome(feedSummaries),
+			htmlHomePage(feedSummaries),
 		).Render(w)
 
 	})
@@ -50,25 +50,25 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 
 		ctx := r.Context()
 
-		feedID, ok := requireIDParam(w, r, "feedID")
+		feedID, ok := httpRequireIDParam(w, r, "feedID")
 		if !ok {
 			return
 		}
 
-		pageID, ok := requireIDParam(w, r, "pageID")
+		pageID, ok := httpRequireIDParam(w, r, "pageID")
 		if !ok {
 			return
 		}
 
 		feed, err := queries.SelectFeedByID(ctx, feedID)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
 		feeds, err := queries.SelectAllFeeds(ctx)
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
@@ -97,13 +97,13 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 					},
 				)
 				if err != nil {
-					logAndError(w, r, err.Error())
+					httpLogAndError(w, r, err.Error())
 					return
 				}
 
-				enrichedArticles, err := enrichArticles(queries, ctx, articles)
+				enrichedArticles, err := dataEnrichArticles(queries, ctx, articles)
 				if err != nil {
-					logAndError(w, r, err.Error())
+					httpLogAndError(w, r, err.Error())
 					return
 				}
 
@@ -111,7 +111,7 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 
 				articleCount, err := queries.SelectArticleCountByFeedID(ctx, fsm.FeedID)
 				if err != nil {
-					logAndError(w, r, err.Error())
+					httpLogAndError(w, r, err.Error())
 					return
 				}
 
@@ -125,7 +125,7 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 		}
 
 		sse := datastar.NewSSE(w, r)
-		sse.PatchElementGostar(PageHome(feedSummaries))
+		sse.PatchElementGostar(htmlHomePage(feedSummaries))
 
 	})
 
@@ -135,38 +135,38 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 		r.Get("/view", func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 
-			articleID, ok := requireIDParam(w, r, "articleID")
+			articleID, ok := httpRequireIDParam(w, r, "articleID")
 			if !ok {
 				return
 			}
 
-			ps, err := getArticlePageData(queries, ctx, articleID)
+			ps, err := dataArticlePageData(queries, ctx, articleID)
 			if err != nil {
-				logAndError(w, r, err.Error())
+				httpLogAndError(w, r, err.Error())
 				return
 			}
 
 			sse := datastar.NewSSE(w, r)
-			sse.PatchElementGostar(PageArticle(ps))
+			sse.PatchElementGostar(htmlArticlePage(ps))
 		})
 
 		r.Get("/comment/{paragraphID}/write", func(w http.ResponseWriter, r *http.Request) {
 
 			ctx := r.Context()
 
-			articleID, ok := requireIDParam(w, r, "articleID")
+			articleID, ok := httpRequireIDParam(w, r, "articleID")
 			if !ok {
 				return
 			}
 
-			paragraphID, ok := requireNumericParam(w, r, "paragraphID")
+			paragraphID, ok := httpRequireNumericParam(w, r, "paragraphID")
 			if !ok {
 				return
 			}
 
-			mns, err := getComments(queries, ctx, articleID, paragraphID)
+			mns, err := dataGetComments(queries, ctx, articleID, paragraphID)
 			if err != nil {
-				logAndError(w, r, err.Error())
+				httpLogAndError(w, r, err.Error())
 				return
 			}
 
@@ -174,7 +174,7 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 			mns.ShowTextArea = true
 
 			sse := datastar.NewSSE(w, r)
-			sse.PatchElementGostar(WriteComments(mns))
+			sse.PatchElementGostar(partialWriteComments(mns))
 			sse.ExecuteScript("feedsBalanceArticleLayout()")
 
 		})
@@ -183,12 +183,12 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 
 			ctx := r.Context()
 
-			articleID, ok := requireIDParam(w, r, "articleID")
+			articleID, ok := httpRequireIDParam(w, r, "articleID")
 			if !ok {
 				return
 			}
 
-			paragraphID, ok := requireNumericParam(w, r, "paragraphID")
+			paragraphID, ok := httpRequireNumericParam(w, r, "paragraphID")
 			if !ok {
 				return
 			}
@@ -197,16 +197,16 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 			// -------------------------------------------------
 			commentText := r.FormValue("comment-text")
 
-			mns, err := updateComments(queries, ctx, commentText, articleID, paragraphID)
+			mns, err := dataUpdateComments(queries, ctx, commentText, articleID, paragraphID)
 			if err != nil {
-				logAndError(w, r, err.Error())
+				httpLogAndError(w, r, err.Error())
 				return
 			}
 
 			mns.ShowTextArea = false
 
 			sse := datastar.NewSSE(w, r)
-			sse.PatchElementGostar(ViewComments(mns))
+			sse.PatchElementGostar(partialViewComments(mns))
 			sse.ExecuteScript("feedsBalanceArticleLayout()")
 		})
 
@@ -216,36 +216,36 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 
 			ctx := r.Context()
 
-			articleID, ok := requireIDParam(w, r, "articleID")
+			articleID, ok := httpRequireIDParam(w, r, "articleID")
 			if !ok {
 				return
 			}
 
 			likeValue, err := strconv.Atoi(r.PathValue("value"))
 			if err != nil {
-				logAndError(w, r, err.Error())
+				httpLogAndError(w, r, err.Error())
 				return
 			}
 
 			if likeValue < 0 && likeValue > 3 {
-				logAndError(w, r, fmt.Sprintf("incorrect like value: %v, needs to be between 0 and 3", likeValue))
+				httpLogAndError(w, r, fmt.Sprintf("incorrect like value: %v, needs to be between 0 and 3", likeValue))
 				return
 			}
 
-			err = setArticleLike(queries, int64(likeValue), articleID, ctx)
+			err = dataSetArticleLike(queries, int64(likeValue), articleID, ctx)
 			if err != nil {
-				logAndError(w, r, err.Error())
+				httpLogAndError(w, r, err.Error())
 				return
 			}
 
-			ps, err := getArticlePageData(queries, ctx, articleID)
+			ps, err := dataArticlePageData(queries, ctx, articleID)
 			if err != nil {
-				logAndError(w, r, err.Error())
+				httpLogAndError(w, r, err.Error())
 				return
 			}
 
 			sse := datastar.NewSSE(w, r)
-			sse.PatchElementGostar(PageArticle(ps))
+			sse.PatchElementGostar(htmlArticlePage(ps))
 			sse.ExecuteScript("feedsBalanceArticleLayout()")
 		})
 
@@ -253,9 +253,9 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 
 	r.Get("/update-reader", func(w http.ResponseWriter, r *http.Request) {
 
-		_, err := GetFeedUpdates(queries, r.Context())
+		_, err := dataGetFeedUpdates(queries, r.Context())
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
@@ -272,18 +272,18 @@ func setupHomeRoutes(r chi.Router, queries *db.Queries) {
 
 }
 
-func setupAdminRoutes(r chi.Router, queries *db.Queries) {
+func routesAdminPage(r chi.Router, queries *db.Queries) {
 
 	r.Get("/admin/feeds", func(w http.ResponseWriter, r *http.Request) {
 
 		feeds, err := queries.SelectAllFeeds(r.Context())
 		if err != nil {
-			logAndError(w, r, err.Error())
+			httpLogAndError(w, r, err.Error())
 			return
 		}
 
 		pp := PageProps{Title: "Feeds list"}
-		Layout(pp, ListFeeds(feeds)).Render(w)
+		htmlLayout(pp, ListFeeds(feeds)).Render(w)
 	})
 
 	r.Route("/admin/feed/{feedID}", func(r chi.Router) {
@@ -292,32 +292,32 @@ func setupAdminRoutes(r chi.Router, queries *db.Queries) {
 
 			ctx := r.Context()
 
-			feedID, ok := requireIDParam(w, r, "feedID")
+			feedID, ok := httpRequireIDParam(w, r, "feedID")
 			if !ok {
 				return
 			}
 
 			feed, err := queries.SelectFeedByID(ctx, feedID)
 			if err != nil {
-				logAndError(w, r, err.Error())
+				httpLogAndError(w, r, err.Error())
 				return
 			}
 
 			godump.Dump("before", feed)
 
 			vm := FeedFormTemplateData{Feed: feed, ButtonText: "Update feed"}
-			Layout(
+			htmlLayout(
 				PageProps{
 					Title: "Feed view",
 				},
-				FeedsAdminForm(vm)).Render(w)
+				partialFeedsAdminForm(vm)).Render(w)
 		})
 
 		r.Put("/update", func(w http.ResponseWriter, r *http.Request) {
 
 			ctx := r.Context()
 
-			feedID, ok := requireIDParam(w, r, "feedID")
+			feedID, ok := httpRequireIDParam(w, r, "feedID")
 			if !ok {
 				return
 			}
@@ -325,7 +325,7 @@ func setupAdminRoutes(r chi.Router, queries *db.Queries) {
 			sigs := FeedCreateUpdateSignals{}
 			err := datastar.ReadSignals(r, &sigs)
 			if err != nil {
-				logAndError(w, r, err.Error())
+				httpLogAndError(w, r, err.Error())
 				return
 			}
 
@@ -338,7 +338,7 @@ func setupAdminRoutes(r chi.Router, queries *db.Queries) {
 				ID:              feedID,
 			})
 			if err != nil {
-				logAndError(w, r, err.Error())
+				httpLogAndError(w, r, err.Error())
 				return
 			}
 
@@ -354,7 +354,7 @@ func setupAdminRoutes(r chi.Router, queries *db.Queries) {
 
 		r.Get("/create", func(w http.ResponseWriter, r *http.Request) {
 			data := FeedFormTemplateData(FeedFormTemplateData{ButtonText: "Create new"})
-			Layout(PageProps{Title: "Create new feed"}, FeedsAdminForm(data)).Render(w)
+			htmlLayout(PageProps{Title: "Create new feed"}, partialFeedsAdminForm(data)).Render(w)
 		})
 
 	})
