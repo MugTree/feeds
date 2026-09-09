@@ -140,14 +140,14 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 				return
 			}
 
-			ps, err := mpGetArticlePageData(queries, ctx, articleID)
+			articleData, err := mpGetArticlePageData(queries, ctx, articleID)
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
 			}
 
 			sse := datastar.NewSSE(w, r)
-			sse.PatchElementGostar(pageArticle(ps))
+			sse.PatchElementGostar(pageArticle(articleData))
 		})
 
 		r.Get("/comment/{paragraphID}/write", func(w http.ResponseWriter, r *http.Request) {

@@ -53,7 +53,7 @@ func mpGetArticlePageData(queries *db.Queries, ctx context.Context, articleID in
 
 	td.PageContent = fa.ArticleContent
 
-	enrichedHTML, err := mpEnrichHTMLOutput(td.PageContent, fa.FeedID, articleID)
+	enrichedHTML, err := mpEnrichHTMLOutputForDisplay(td.PageContent, fa.FeedID, articleID)
 	if err != nil {
 		return td, err
 	}
@@ -69,10 +69,9 @@ func mpGetArticlePageData(queries *db.Queries, ctx context.Context, articleID in
 
 }
 
-/* This needs to update or insert a specific margin note and then return all the margin notes */
-func mpUpdateComments(queries *db.Queries, ctx context.Context, noteText string, articleID int64, paragraphID int64) (mpdCommentsTemplateData, error) {
+func mpUpdateComments(queries *db.Queries, ctx context.Context, noteText string, articleID int64, paragraphID int64) (mpdCommentsData, error) {
 
-	mns := mpdCommentsTemplateData{}
+	mns := mpdCommentsData{}
 
 	fmt.Printf("Does a note already exist - comment id: %v - note:%s\n", paragraphID, noteText)
 
@@ -126,9 +125,9 @@ func mpUpdateComments(queries *db.Queries, ctx context.Context, noteText string,
 
 }
 
-func mpGetComments(queries *db.Queries, ctx context.Context, articleID int64, paragraphID int64) (mpdCommentsTemplateData, error) {
+func mpGetComments(queries *db.Queries, ctx context.Context, articleID int64, paragraphID int64) (mpdCommentsData, error) {
 
-	mns := mpdCommentsTemplateData{}
+	mns := mpdCommentsData{}
 
 	// CLARIFY!!!! if this is -1 then its the page render call
 	fmt.Printf("Selecting note state: %v\n", paragraphID)
@@ -210,8 +209,7 @@ func mpGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Contex
 	return alreadyRead, toRead, nil
 }
 
-/* before data is passed to the front end we add some additional properties for interactivity*/
-func mpEnrichHTMLOutput(htmlStr string, _ int64, articleID int64) (string, error) {
+func mpEnrichHTMLOutputForDisplay(htmlStr string, _ int64, articleID int64) (string, error) {
 
 	addDataAttributes := func(doc *html.Node) *html.Node {
 
@@ -316,7 +314,6 @@ func mpEnrichHTMLOutput(htmlStr string, _ int64, articleID int64) (string, error
 
 }
 
-// this needs to return something slightly different
 func mpEnrichArticles(queries *db.Queries, ctx context.Context, articles []db.SelectArticlesByFeedIDWithLimitRow) ([]mpdEnrichedArticle, error) {
 
 	ea := []mpdEnrichedArticle{}
@@ -324,7 +321,7 @@ func mpEnrichArticles(queries *db.Queries, ctx context.Context, articles []db.Se
 
 	for i := range articles {
 		if articles[i].ArticleContent != "" {
-			enrichedContent, err := mpEnrichHTMLOutput(
+			enrichedContent, err := mpEnrichHTMLOutputForDisplay(
 				articles[i].ArticleContent,
 				0,
 				articles[i].ArticleID,
@@ -361,55 +358,122 @@ func mpEnrichArticles(queries *db.Queries, ctx context.Context, articles []db.Se
 
 }
 
-func _stringifyHTML(doc *html.Node) (string, error) {
+func mpGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
-	var b strings.Builder
-
-	err := html.Render(&b, doc)
-
+	feeds, err := queries.SelectAllFeeds(ctx)
 	if err != nil {
-		return "", err
+		return 0, fmt.Errorf("get feeds: %w", err)
 	}
 
-	return b.String(), nil
+	parser := gofeed.NewParser()
+	parser.Client = &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	var articlesInserted = 0
+	for _, feed := range feeds {
+		goFeed, err := parser.ParseURL(fmt.Sprintf("%s/feed/", feed.Url))
+		if err != nil {
+			return 0, fmt.Errorf("parse feed %s: %w", feed.Url, err)
+		}
+
+		if goFeed == nil {
+			continue
+		}
+
+		for _, item := range goFeed.Items {
+			MpHTMLProcessingPipeline(queries, ctx, item, feed)
+			articlesInserted++
+		}
+	}
+
+	_, err = queries.InsertAndReturnFeedsCallData(ctx, db.InsertAndReturnFeedsCallDataParams{
+		RunType:         "user",
+		ArticlesCreated: int64(articlesInserted),
+	})
+
+	if err != nil {
+		return 0, fmt.Errorf("error inserting log call")
+	}
+
+	return int64(len(feeds)), nil
 }
 
-/* adding some properties to the HTML coming that we are ingesting */
+/*
+*
+This is called on generate or from the app when the user calls update
+*
+*/
+func MpHTMLProcessingPipeline(queries *db.Queries, ctx context.Context, feedItem *gofeed.Item, feed db.Feed) (int64, error) {
 
-func MpScrapeSiteHTML(ep MPDPageScrapeParams) (string, error) {
+	description, err := html.Parse(strings.NewReader(feedItem.Description))
+	if err != nil {
+		return 0, err
+	}
+
+	_sanitizeHTMLInput(description)
+
+	sanitisedDesc, err := _stringifyHTML(description)
+	if err != nil {
+		return 0, err
+	}
+
+	rawHtml, err := _scrapeSiteHTML(feed)
+	if err != nil {
+		return 0, err
+	}
+
+	processedHtml, paragraphCount, err := _processScrapedHTML(rawHtml)
+	if err != nil {
+		log.Fatalf("error getting site html: %v", err)
+	}
+
+	now := time.Now()
+
+	_, err = queries.InsertArticle(ctx, db.InsertArticleParams{
+		FeedID:                  feed.ID,
+		Title:                   feedItem.Title,
+		Link:                    feedItem.Link,
+		Published:               _getFeedItemDate(feedItem),
+		ClickableParagraphCount: paragraphCount,
+		ArticleContent:          processedHtml,
+		ScrapedHtml:             rawHtml,
+		DateFound:               &now,
+		Summary:                 sanitisedDesc,
+		Read:                    0,
+		Starred:                 0,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("insert article: %w", err)
+	}
+
+	return paragraphCount, nil
+
+}
+
+func _scrapeSiteHTML(feed db.Feed) (string, error) {
+
+	godump.Dump("feed", feed)
 
 	pageHtmlContent := ""
 
-	//ep.Container = afd.FeedCssSelContainer.String
-
-	// switch wp.FeedHtmlExtractionStrategy.String {
-	// case "no-clip":
-	// 	break
-	// case "clip-start":
-	// 	ep.ClipStartPoint = afd.FeedCssSelStart.String
-	// case "clip-end":
-	// 	ep.ClipEndPoint = afd.FeedCssSelStop.String
-	// case "clip-between":
-	// 	ep.ClipStartPoint = afd.FeedCssSelStart.String
-	// 	ep.ClipEndPoint = afd.FeedCssSelStop.String
-	// }
-
-	//TODO - need to add some timeout values here really
 	c := colly.NewCollector()
 
-	c.OnHTML(ep.Container, func(h *colly.HTMLElement) {
-		pageHtmlContent = MpExtractHTMLRangeFlat(h.DOM, ep.ClipStartPoint, ep.ClipEndPoint)
+	c.OnHTML(feed.CssSelContainer, func(h *colly.HTMLElement) {
+		pageHtmlContent = _extractHTMLRange(h.DOM, feed.CssSelStart, feed.CssSelStop)
 	})
 
-	if err := c.Visit(ep.Link); err != nil {
-		return "", fmt.Errorf("error using colly to visit page: %v - %v", ep.Link, err)
+	godump.Dump("raw: ", pageHtmlContent)
+
+	if err := c.Visit(feed.Url); err != nil {
+		return "", fmt.Errorf("error using colly to visit page: %v - %v", feed.Url, err)
 	}
 
 	return pageHtmlContent, nil
 
 }
 
-func MpExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSelector string) string {
+func _extractHTMLRange(container *goquery.Selection, startSelector, stopSelector string) string {
 
 	var chunks []string
 	started := startSelector == ""
@@ -443,7 +507,7 @@ func MpExtractHTMLRangeFlat(container *goquery.Selection, startSelector, stopSel
 	return strings.Join(chunks, "")
 }
 
-func MpProcessScrapedHTML(input string) (string, int64, error) {
+func _processScrapedHTML(input string) (string, int64, error) {
 
 	enrichHTML := func(doc *html.Node) int64 {
 
@@ -512,7 +576,7 @@ func MpProcessScrapedHTML(input string) (string, int64, error) {
 
 	paragraphCount := enrichHTML(doc)
 
-	stringifiedHTML, err := mpStringifyHTML(doc)
+	stringifiedHTML, err := _stringifyHTML(doc)
 	if err != nil {
 		return "", 0, err
 	}
@@ -520,8 +584,7 @@ func MpProcessScrapedHTML(input string) (string, int64, error) {
 	return stringifiedHTML, paragraphCount, nil
 }
 
-// article for the article, div for the desc from feeds
-func mpStringifyHTML(doc *html.Node) (string, error) {
+func _stringifyHTML(doc *html.Node) (string, error) {
 
 	var b strings.Builder
 
@@ -534,9 +597,6 @@ func mpStringifyHTML(doc *html.Node) (string, error) {
 	return b.String(), nil
 }
 
-/* remove the outer shell so we can place it into the users HTML without breaking the layout */
-
-/* most of the data that we scrape comes with a lot of stuff attached that we dont want*/
 func _sanitizeHTMLInput(doc *html.Node) {
 
 	allowedAttrs := func(tag string) map[string]struct{} {
@@ -646,97 +706,7 @@ func _sanitizeHTMLInput(doc *html.Node) {
 	clean(doc)
 }
 
-func mpGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
-
-	feeds, err := queries.SelectAllFeeds(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("get feeds: %w", err)
-	}
-
-	parser := gofeed.NewParser()
-	parser.Client = &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	var articlesInserted = 0
-
-	for _, feed := range feeds {
-
-		goFeed, err := parser.ParseURL(fmt.Sprintf("%s/feed/", feed.Url))
-		if err != nil {
-			return 0, fmt.Errorf("parse feed %s: %w", feed.Url, err)
-		}
-
-		if goFeed == nil {
-			continue
-		}
-
-		//#REFACTOR -  there's a good amount of duplication here with the generation script
-		// ./app/db/seed/generate.go
-
-		for _, item := range goFeed.Items {
-
-			now := time.Now()
-
-			description, err := html.Parse(strings.NewReader(item.Description))
-			if err != nil {
-				return 0, err
-			}
-
-			_sanitizeHTMLInput(description)
-
-			output, err := mpStringifyHTML(description)
-			if err != nil {
-				return 0, err
-			}
-
-			html, err := MpScrapeSiteHTML(MPDPageScrapeParams{
-				Link:           item.Link,
-				Container:      feed.CssSelContainer,
-				ClipStartPoint: feed.CssSelStart,
-				ClipEndPoint:   feed.CssSelStop,
-			})
-			if err != nil {
-				return 0, err
-			}
-
-			processed, paragraphCount, err := MpProcessScrapedHTML(html)
-			if err != nil {
-				log.Fatalf("error getting site html: %v", err)
-			}
-
-			_, err = queries.InsertArticle(ctx, db.InsertArticleParams{
-				FeedID:                  feed.ID,
-				Title:                   item.Title,
-				Link:                    item.Link,
-				Published:               mpGetFeedItemDate(item),
-				ClickableParagraphCount: paragraphCount,
-				ArticleContent:          processed,
-				DateFound:               &now,
-				Summary:                 output,
-				Read:                    0,
-				Starred:                 0,
-			})
-			if err != nil {
-				return 0, fmt.Errorf("insert article: %w", err)
-			}
-		}
-
-	}
-
-	_, err = queries.InsertAndReturnFeedsCallData(ctx, db.InsertAndReturnFeedsCallDataParams{
-		RunType:         "user",
-		ArticlesCreated: int64(articlesInserted),
-	})
-
-	if err != nil {
-		return 0, fmt.Errorf("error inserting log call")
-	}
-
-	return int64(len(feeds)), nil
-}
-
-func mpGetFeedItemDate(item *gofeed.Item) *time.Time {
+func _getFeedItemDate(item *gofeed.Item) *time.Time {
 	if item.PublishedParsed != nil {
 		return item.PublishedParsed
 	}
@@ -777,7 +747,7 @@ type mpdArticlePageData struct {
 	ArticleRead             int64
 	MarginNotes             map[int64]db.Comment
 	ClickableParagraphCount int64
-	CommentsTemplateData    mpdCommentsTemplateData
+	CommentsTemplateData    mpdCommentsData
 }
 
 func (ae mpdArticlePageData) ArticleHasBeenRead() bool {
@@ -809,7 +779,7 @@ type mpdFeedSummary struct {
 
 const layoutISO = "2006-01-02"
 
-type mpdCommentsTemplateData struct {
+type mpdCommentsData struct {
 	ShowTextArea                bool
 	ArticleID                   int64
 	NoteToEdit                  int64
@@ -836,7 +806,7 @@ type mpdCreateFeedSignals struct {
 
 type mpdEnrichedArticle struct {
 	Article      db.SelectArticlesByFeedIDWithLimitRow
-	CommentsData mpdCommentsTemplateData
+	CommentsData mpdCommentsData
 }
 
 type mpdFeedsArticle struct {

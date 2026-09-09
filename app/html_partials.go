@@ -65,7 +65,7 @@ func partialLikeArticle(articleID int64, starsValue int64) Node {
 	)
 }
 
-func partialViewComments(mns mpdCommentsTemplateData) Node {
+func partialViewComments(mns mpdCommentsData) Node {
 	comments := []Node{}
 	for i := range mns.TotalPotentialCommentsCount {
 		note, _ := mns.Comments[i]
@@ -80,7 +80,7 @@ func partialViewComments(mns mpdCommentsTemplateData) Node {
 	return Aside(ID("article-notes"), Group(comments))
 }
 
-func partialWriteComments(msn mpdCommentsTemplateData) Node {
+func partialWriteComments(msn mpdCommentsData) Node {
 	forms := []Node{}
 	for i := range msn.TotalPotentialCommentsCount {
 		note, _ := msn.Comments[i]

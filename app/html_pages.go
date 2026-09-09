@@ -77,20 +77,20 @@ func pageHome(summaries []mpdFeedSummary) Node {
 	)
 }
 
-func pageArticle(aps mpdArticlePageData) Node {
+func pageArticle(apd mpdArticlePageData) Node {
 	return Div(
 		ID("article"),
 		ds.Signals(map[string]any{"hideTitle": false}),
 		Div(
 			ID("article-top"),
 			H2(
-				Text(fmt.Sprintf("%v - %v", aps.FeedTitle, aps.PageTitle)),
+				Text(fmt.Sprintf("%v - %v", apd.FeedTitle, apd.PageTitle)),
 				Data("show", "!$hideTitle"),
 			),
 			Ul(
-				Li(Text(aps.ArticlePublished)),
-				Li(Text(aps.FeedTitle), ds.On("click", "$hideTitle = !$hideTitle")),
-				Li(partialLikeArticle(aps.ArticleId, aps.StarValue)),
+				Li(Text(apd.ArticlePublished)),
+				Li(Text(apd.FeedTitle), ds.On("click", "$hideTitle = !$hideTitle")),
+				Li(partialLikeArticle(apd.ArticleId, apd.StarValue)),
 			),
 		),
 		Section(
@@ -98,20 +98,20 @@ func pageArticle(aps mpdArticlePageData) Node {
 			ID("editor"),
 			ds.Signals(
 				map[string]any{
-					"HasBeenRead":                  aps.ArticleHasBeenRead(),
+					"HasBeenRead":                  apd.ArticleHasBeenRead(),
 					"HasScrolledToBottomOfArticle": false},
 			),
-			Raw(aps.PageContent),
-			partialViewComments(aps.CommentsTemplateData),
+			Raw(apd.PageContent),
+			partialViewComments(apd.CommentsTemplateData),
 		),
-		partialLikeArticle(aps.ArticleId, aps.StarValue),
+		partialLikeArticle(apd.ArticleId, apd.StarValue),
 		Section(
 			H3(ds.On("intersect", "$HasScrolledToBottomOfArticle = true")),
 			Button(
 				Class("have-read-article"),
 				Text("Mark as read"),
 				Data("show", "$HasScrolledToBottomOfArticle && !$HasBeenRead"),
-				ds.On("click", fmt.Sprintf("/article/%d/%d/set-read", aps.FeedID, aps.ArticleId)),
+				ds.On("click", fmt.Sprintf("/article/%d/%d/set-read", apd.FeedID, apd.ArticleId)),
 			),
 			P(
 				A(Text("Back to top"), Href("#homepage")),

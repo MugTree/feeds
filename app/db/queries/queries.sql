@@ -81,9 +81,6 @@ SELECT * FROM comments WHERE article_id = ? AND related_paragraph_id = ?;
 -- name: UpdateCommentByArticleIDAndRelatedParagraphID :exec
 UPDATE comments SET comment_text = ? WHERE article_id =? AND related_paragraph_id = ?;
 
-
-
-
 -- name: InsertArticle :one
 INSERT INTO articles (
 	feed_id, 
