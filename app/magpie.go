@@ -381,8 +381,8 @@ func mpGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 			continue
 		}
 
-		for _, item := range goFeed.Items {
-			MpHTMLProcessingPipeline(queries, ctx, item, feed)
+		for _, feedItem := range goFeed.Items {
+			MpHTMLProcessingPipeline(queries, ctx, feedItem, feed)
 			articlesInserted++
 		}
 	}
@@ -418,7 +418,15 @@ func MpHTMLProcessingPipeline(queries *db.Queries, ctx context.Context, feedItem
 		return 0, err
 	}
 
-	rawHtml, err := _scrapeSiteHTML(feed)
+	scps := mpdPageScrapeParams{
+		Link:           feedItem.Link,
+		Container:      feed.CssSelContainer,
+		ClipStartPoint: feed.CssSelStart,
+		ClipEndPoint:   feed.CssSelStop,
+		Strategy:       feed.HtmlExtractionStrategy,
+	}
+
+	rawHtml, err := _scrapeSiteHTML(scps)
 	if err != nil {
 		return 0, err
 	}
@@ -451,7 +459,7 @@ func MpHTMLProcessingPipeline(queries *db.Queries, ctx context.Context, feedItem
 
 }
 
-func _scrapeSiteHTML(feed db.Feed) (string, error) {
+func _scrapeSiteHTML(feed mpdPageScrapeParams) (string, error) {
 
 	godump.Dump("feed", feed)
 
@@ -459,14 +467,12 @@ func _scrapeSiteHTML(feed db.Feed) (string, error) {
 
 	c := colly.NewCollector()
 
-	c.OnHTML(feed.CssSelContainer, func(h *colly.HTMLElement) {
-		pageHtmlContent = _extractHTMLRange(h.DOM, feed.CssSelStart, feed.CssSelStop)
+	c.OnHTML(feed.Container, func(h *colly.HTMLElement) {
+		pageHtmlContent = _extractHTMLRange(h.DOM, feed.ClipStartPoint, feed.ClipEndPoint)
 	})
 
-	godump.Dump("raw: ", pageHtmlContent)
-
-	if err := c.Visit(feed.Url); err != nil {
-		return "", fmt.Errorf("error using colly to visit page: %v - %v", feed.Url, err)
+	if err := c.Visit(feed.Link); err != nil {
+		return "", fmt.Errorf("error using colly to visit page: %v - %v", feed.Link, err)
 	}
 
 	return pageHtmlContent, nil
@@ -754,19 +760,6 @@ func (ae mpdArticlePageData) ArticleHasBeenRead() bool {
 	return lib.IntToBool(ae.ArticleRead)
 }
 
-// type typesArticleStatus struct {
-// 	HasBeenRead                  bool
-// 	HasScrolledToBottomOfArticle bool
-// }
-
-// type typesCommentsTemplateData struct {
-// 	ShowTextArea                bool
-// 	ArticleID                   int64
-// 	NoteToEdit                  int64
-// 	TotalPotentialCommentsCount int64
-// 	Comments                    map[int64]db.Comment
-// }
-
 type mpdFeedSummary struct {
 	Name          string
 	ArticleCount  int64
@@ -787,7 +780,7 @@ type mpdCommentsData struct {
 	Comments                    map[int64]db.Comment
 }
 
-type MPDPageScrapeParams struct {
+type mpdPageScrapeParams struct {
 	Link           string
 	Container      string
 	ClipStartPoint string
