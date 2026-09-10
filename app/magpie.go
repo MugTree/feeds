@@ -459,6 +459,40 @@ func MpHTMLProcessingPipeline(queries *db.Queries, ctx context.Context, feedItem
 
 }
 
+func mpGetParagraphsByIndex(htmlInput string, index int) ([]string, error) {
+
+	paras := []string{}
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlInput))
+	if err != nil {
+		return paras, err
+	}
+
+	/*
+
+		workings
+		count := 12
+
+		for i := 0; i < count; i++ {
+
+		}
+	*/
+	/*
+
+		basically we need a for loop based upon the index
+
+		index 0 would get the range 0 to 2
+		index 1 would get the range 3 to 5
+
+		so i think the prraosh is to get all the paras and blocks and then just loop thorough and test if it is in the range if so we append to our slice
+	*/
+
+	//doc.
+	godump.Dump("index", index, "document", doc)
+
+	return []string{}, nil
+}
+
 func _scrapeSiteHTML(feed mpdPageScrapeParams) (string, error) {
 
 	godump.Dump("feed", feed)

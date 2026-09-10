@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 
+	"github.com/mugtree/feeds/app/db"
 	. "maragu.dev/gomponents"
 	ds "maragu.dev/gomponents-datastar"
 	. "maragu.dev/gomponents/components"
@@ -22,7 +23,7 @@ func pageLayout(props pageProps, children ...Node) Node {
 		Language:    "en",
 		Head: []Node{
 			Script(Src("/public/js/datastar.js"), Type("module")),
-			Link(Rel("stylesheet"), Href("/public/css/app.css")),
+			//Link(Rel("stylesheet"), Href("/public/css/app.css")),
 		},
 		Body: []Node{Class(""),
 			Div(
@@ -73,6 +74,34 @@ func pageHome(summaries []mpdFeedSummary) Node {
 		),
 		Div(
 			ID("article"),
+		),
+	)
+}
+
+func pageGameHome(articles []db.SelectArticlesByFeedIDRow) Node {
+	return Ul(
+		Map(articles, func(a db.SelectArticlesByFeedIDRow) Node {
+			return Li(
+				A(
+					Text(a.Published.String()),
+					Href(fmt.Sprintf("/game/magpie/%v/0", a.ID)),
+				),
+			)
+		}),
+	)
+}
+
+func pageGamePlay(article db.Article, paras []string) Node {
+	return Div(
+		If(len(paras) > 0,
+			Ul(Class("paras"),
+				Map(paras, func(p string) Node {
+					return Div(Text(p))
+				}),
+			),
+		), Div(
+			Class("raw"),
+			Raw(article.ArticleContent),
 		),
 	)
 }

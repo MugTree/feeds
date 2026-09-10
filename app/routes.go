@@ -46,6 +46,60 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 
 	})
 
+	r.Route("/game", func(r chi.Router) {
+
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+
+			articles, err := queries.SelectArticlesByFeedID(r.Context(), 1)
+			if err != nil {
+				httpLogAndError(w, r, err.Error())
+				return
+			}
+
+			pageLayout(
+				pageProps{
+					Title: "Game",
+				},
+				pageGameHome(articles),
+			).Render(w)
+
+		})
+
+		r.Get("/magpie/{pageID}/{index}", func(w http.ResponseWriter, r *http.Request) {
+
+			pageID, ok := httpRequireIDParam(w, r, "pageID")
+			if !ok {
+				return
+			}
+
+			index, ok := httpRequireNumericParam(w, r, "index")
+			if !ok {
+				return
+			}
+
+			article, err := queries.SelectArticleByID(r.Context(), pageID)
+			if err != nil {
+				httpLogAndError(w, r, err.Error())
+				return
+			}
+
+			paras, err := mpGetParagraphsByIndex(article.ArticleContent, int(index))
+			if err != nil {
+				httpLogAndError(w, r, err.Error())
+				return
+			}
+
+			pageLayout(
+				pageProps{
+					Title: article.Published.String(),
+				},
+				pageGamePlay(article, paras),
+			).Render(w)
+
+		})
+
+	})
+
 	r.Get("/feed/{feedID}/page/{pageID}", func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()

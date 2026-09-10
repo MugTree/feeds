@@ -77,7 +77,7 @@ func main() {
 			log.Fatalf("error parsing: %v", err)
 		}
 
-		_, err = queries.InsertFeed(ctx, db.InsertFeedParams{
+		insertedFeed, err := queries.InsertFeed(ctx, db.InsertFeedParams{
 			Url:                    goFeed.Link,
 			Title:                  goFeed.Title,
 			CssSelContainer:        feed.CssSelContainer, //fi.CSSSelectorContainer},
@@ -91,7 +91,7 @@ func main() {
 		}
 
 		for _, feedItem := range goFeed.Items {
-			app.MpHTMLProcessingPipeline(queries, ctx, feedItem, feed)
+			app.MpHTMLProcessingPipeline(queries, ctx, feedItem, insertedFeed)
 			articlesInserted++
 		}
 	}
