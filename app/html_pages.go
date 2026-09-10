@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/mugtree/feeds/app/db"
 	. "maragu.dev/gomponents"
@@ -23,7 +24,7 @@ func pageLayout(props pageProps, children ...Node) Node {
 		Language:    "en",
 		Head: []Node{
 			Script(Src("/public/js/datastar.js"), Type("module")),
-			Link(Rel("stylesheet"), Href("/public/css/app.css")),
+			//Link(Rel("stylesheet"), Href("/public/css/app.css")),
 		},
 		Body: []Node{Class(""),
 			Div(
@@ -91,15 +92,46 @@ func pageGameHome(articles []db.SelectArticlesByFeedIDRow) Node {
 	)
 }
 
-func pageGamePlay(article db.Article, chunk []mpdParagraph) Node {
+func pageGamePlay(article db.Article, chunk []mpdParagraph, index int) Node {
+
+	hasSummary := func(index int) bool {
+		return index == 2
+	}
+
 	return Div(Class("flex"),
-		If(len(chunk) > 0,
-			Div(
-				Ul(Class("paras"),
-					Map(chunk, func(p mpdParagraph) Node {
-						return Li(Text(p.Text))
-					}),
-				)),
+		If(len(chunk) > 0, Div(
+			Ul(
+				Class("paras"),
+				Map(chunk, func(p mpdParagraph) Node {
+					id := strconv.Itoa(p.Index)
+					return Li(
+						P(
+							ds.On("click", "!TODO - showRelatedPara()"),
+							Data("paragraph", id),
+							If(p.Type == "blockquote", Class("block-quote")),
+							Text(p.Text),
+						),
+						Textarea(
+							ID(id),
+							Data("editor", id),
+							ds.On("click", `@put('/comment')`),
+						),
+						If(
+							hasSummary(p.Index),
+							Textarea(
+								ID(fmt.Sprintf("summary-%v", id)),
+								Data("summary", id),
+								ds.On("click", `@put("/comment")`),
+							),
+						),
+					)
+				}),
+			),
+			Button(
+				Text("Next chunk >"),
+				ds.On("click", fmt.Sprintf(`@get("/game/magpie/%v")`, index)),
+			),
+		),
 		), Div(
 			Class("raw"),
 			Raw(article.ArticleContent),

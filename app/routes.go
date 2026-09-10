@@ -83,7 +83,7 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 				return
 			}
 
-			chunks, err := mpGetHTMLChunksByIndex(article.ArticleContent, int(index))
+			chunks, err := mpGetParagraphsByIndex(article.ArticleContent, int(index))
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
@@ -93,7 +93,7 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 				pageProps{
 					Title: article.Published.String(),
 				},
-				pageGamePlay(article, chunks),
+				pageGamePlay(article, chunks, int(index)),
 			).Render(w)
 
 		})

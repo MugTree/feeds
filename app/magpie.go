@@ -460,40 +460,56 @@ func MpHTMLProcessingPipeline(queries *db.Queries, ctx context.Context, feedItem
 }
 
 type mpdParagraph struct {
-	Text string
+	Text  string
+	Index int
+	Type  string
 }
 
-func mpGetHTMLChunksByIndex(htmlInput string, index int) ([]mpdParagraph, error) {
+func mpGetParagraphsByIndex(htmlInput string, index int) ([]mpdParagraph, error) {
 
-	allChunks := [][]mpdParagraph{}
+	allParagraphs := [][]mpdParagraph{}
+	paragraphsPerIndex := 3
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlInput))
 	if err != nil {
 		return []mpdParagraph{}, err
 	}
 
-	allNodes := doc.Find("body > p, body > blockquote")
+	docNodes := doc.Find("body > p, body > blockquote")
+	isIndexOutOfRange := func(index int) bool {
+		return index*paragraphsPerIndex >= docNodes.Length()
+	}
 
-	// is the index out of range
-	if index*3 >= allNodes.Length() {
+	if isIndexOutOfRange(index) {
 		return []mpdParagraph{}, errors.New("index out of range!")
 	}
 
-	for i := 0; i < allNodes.Length(); i += 3 {
+	var id = 0
+	for i := 0; i < docNodes.Length(); i += paragraphsPerIndex {
 
-		group := allNodes.Slice(i, min(i+3, allNodes.Length()))
+		// dont step outside of bounds
+		group := docNodes.Slice(i, min(i+paragraphsPerIndex, docNodes.Length()))
 		chunks := []mpdParagraph{}
 
-		group.Each(func(_ int, s *goquery.Selection) {
-			chunks = append(chunks, mpdParagraph{Text: s.Text()})
+		group.Each(func(j int, s *goquery.Selection) {
+			n := s.Get(0)
+			chunks = append(
+				chunks,
+				mpdParagraph{
+					Text:  s.Text(),
+					Index: id,
+					Type:  n.Data,
+				})
+			id++
 		})
-		allChunks = append(allChunks, chunks)
+
+		allParagraphs = append(allParagraphs, chunks)
 
 	}
 
-	godump.Dump("all", allChunks)
+	godump.Dump("all", allParagraphs)
 
-	return allChunks[index], nil
+	return allParagraphs[index], nil
 }
 
 func _scrapeSiteHTML(feed mpdPageScrapeParams) (string, error) {
