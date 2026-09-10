@@ -23,7 +23,7 @@ func pageLayout(props pageProps, children ...Node) Node {
 		Language:    "en",
 		Head: []Node{
 			Script(Src("/public/js/datastar.js"), Type("module")),
-			//Link(Rel("stylesheet"), Href("/public/css/app.css")),
+			Link(Rel("stylesheet"), Href("/public/css/app.css")),
 		},
 		Body: []Node{Class(""),
 			Div(
@@ -91,14 +91,15 @@ func pageGameHome(articles []db.SelectArticlesByFeedIDRow) Node {
 	)
 }
 
-func pageGamePlay(article db.Article, paras []string) Node {
-	return Div(
-		If(len(paras) > 0,
-			Ul(Class("paras"),
-				Map(paras, func(p string) Node {
-					return Div(Text(p))
-				}),
-			),
+func pageGamePlay(article db.Article, chunk []mpdParagraph) Node {
+	return Div(Class("flex"),
+		If(len(chunk) > 0,
+			Div(
+				Ul(Class("paras"),
+					Map(chunk, func(p mpdParagraph) Node {
+						return Li(Text(p.Text))
+					}),
+				)),
 		), Div(
 			Class("raw"),
 			Raw(article.ArticleContent),

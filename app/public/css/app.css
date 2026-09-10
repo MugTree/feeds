@@ -186,15 +186,14 @@
   .contents {
     display: contents;
   }
+  .flex {
+    display: flex;
+  }
   .hidden {
     display: none;
   }
   .table {
     display: table;
-  }
-  .text-2xl {
-    font-size: var(--text-2xl);
-    line-height: var(--tw-leading, var(--text-2xl--line-height));
   }
   .text-3xl {
     font-size: var(--text-3xl);

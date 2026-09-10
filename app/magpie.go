@@ -459,38 +459,41 @@ func MpHTMLProcessingPipeline(queries *db.Queries, ctx context.Context, feedItem
 
 }
 
-func mpGetParagraphsByIndex(htmlInput string, index int) ([]string, error) {
+type mpdParagraph struct {
+	Text string
+}
 
-	paras := []string{}
+func mpGetHTMLChunksByIndex(htmlInput string, index int) ([]mpdParagraph, error) {
+
+	allChunks := [][]mpdParagraph{}
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlInput))
 	if err != nil {
-		return paras, err
+		return []mpdParagraph{}, err
 	}
 
-	/*
+	allNodes := doc.Find("body > p, body > blockquote")
 
-		workings
-		count := 12
+	// is the index out of range
+	if index*3 >= allNodes.Length() {
+		return []mpdParagraph{}, errors.New("index out of range!")
+	}
 
-		for i := 0; i < count; i++ {
+	for i := 0; i < allNodes.Length(); i += 3 {
 
-		}
-	*/
-	/*
+		group := allNodes.Slice(i, min(i+3, allNodes.Length()))
+		chunks := []mpdParagraph{}
 
-		basically we need a for loop based upon the index
+		group.Each(func(_ int, s *goquery.Selection) {
+			chunks = append(chunks, mpdParagraph{Text: s.Text()})
+		})
+		allChunks = append(allChunks, chunks)
 
-		index 0 would get the range 0 to 2
-		index 1 would get the range 3 to 5
+	}
 
-		so i think the prraosh is to get all the paras and blocks and then just loop thorough and test if it is in the range if so we append to our slice
-	*/
+	godump.Dump("all", allChunks)
 
-	//doc.
-	godump.Dump("index", index, "document", doc)
-
-	return []string{}, nil
+	return allChunks[index], nil
 }
 
 func _scrapeSiteHTML(feed mpdPageScrapeParams) (string, error) {
