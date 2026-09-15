@@ -121,7 +121,7 @@ func pageGamePlay(article db.Article, articleParagraphs [][]articleParagraph, pa
 			Div(
 				Textarea(
 					ds.Bind("text"),
-					ds.On("input", `twoConsecutiveNewlines(evt) && @put("/game/article/notes")`),
+					ds.On("input", fmt.Sprintf(`twoConsecutiveNewlines(evt) && @put("/game/article/%v/page/%v/notes/add")`, article.ID, pageNumber)),
 					ID("user_input"),
 				),
 			),
@@ -171,46 +171,46 @@ func pageGamePlay(article db.Article, articleParagraphs [][]articleParagraph, pa
 	)
 }
 
-func pageArticle(apd mpdArticlePageData) Node {
-	return Div(
-		ID("article"),
-		ds.Signals(map[string]any{"hideTitle": false}),
-		Div(
-			ID("article-top"),
-			H2(
-				Text(fmt.Sprintf("%v - %v", apd.FeedTitle, apd.PageTitle)),
-				Data("show", "!$hideTitle"),
-			),
-			Ul(
-				Li(Text(apd.ArticlePublished)),
-				Li(Text(apd.FeedTitle), ds.On("click", "$hideTitle = !$hideTitle")),
-				Li(partialLikeArticle(apd.ArticleId, apd.StarValue)),
-			),
-		),
-		Section(
-			Class("editor"),
-			ID("editor"),
-			ds.Signals(
-				map[string]any{
-					"HasBeenRead":                  apd.ArticleHasBeenRead(),
-					"HasScrolledToBottomOfArticle": false},
-			),
-			Raw(apd.PageContent),
-			partialViewComments(apd.CommentsTemplateData),
-		),
-		partialLikeArticle(apd.ArticleId, apd.StarValue),
-		Section(
-			H3(ds.On("intersect", "$HasScrolledToBottomOfArticle = true")),
-			Button(
-				Class("have-read-article"),
-				Text("Mark as read"),
-				Data("show", "$HasScrolledToBottomOfArticle && !$HasBeenRead"),
-				ds.On("click", fmt.Sprintf("/article/%d/%d/set-read", apd.FeedID, apd.ArticleId)),
-			),
-			P(
-				A(Text("Back to top"), Href("#homepage")),
-			),
-		),
-		Script(Src("/public/js/feeds.js")),
-	)
-}
+// func pageArticle(apd mpdArticlePageData) Node {
+// 	return Div(
+// 		ID("article"),
+// 		ds.Signals(map[string]any{"hideTitle": false}),
+// 		Div(
+// 			ID("article-top"),
+// 			H2(
+// 				Text(fmt.Sprintf("%v - %v", apd.FeedTitle, apd.PageTitle)),
+// 				Data("show", "!$hideTitle"),
+// 			),
+// 			Ul(
+// 				Li(Text(apd.ArticlePublished)),
+// 				Li(Text(apd.FeedTitle), ds.On("click", "$hideTitle = !$hideTitle")),
+// 				Li(partialLikeArticle(apd.ArticleId, apd.StarValue)),
+// 			),
+// 		),
+// 		Section(
+// 			Class("editor"),
+// 			ID("editor"),
+// 			ds.Signals(
+// 				map[string]any{
+// 					"HasBeenRead":                  apd.ArticleHasBeenRead(),
+// 					"HasScrolledToBottomOfArticle": false},
+// 			),
+// 			Raw(apd.PageContent),
+// 			//partialViewComments(apd.CommentsTemplateData),
+// 		),
+// 		partialLikeArticle(apd.ArticleId, apd.StarValue),
+// 		Section(
+// 			H3(ds.On("intersect", "$HasScrolledToBottomOfArticle = true")),
+// 			Button(
+// 				Class("have-read-article"),
+// 				Text("Mark as read"),
+// 				Data("show", "$HasScrolledToBottomOfArticle && !$HasBeenRead"),
+// 				ds.On("click", fmt.Sprintf("/article/%d/%d/set-read", apd.FeedID, apd.ArticleId)),
+// 			),
+// 			P(
+// 				A(Text("Back to top"), Href("#homepage")),
+// 			),
+// 		),
+// 		Script(Src("/public/js/feeds.js")),
+// 	)
+// }

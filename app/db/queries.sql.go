@@ -10,29 +10,6 @@ import (
 	"time"
 )
 
-const insertAndReturnComment = `-- name: InsertAndReturnComment :one
-INSERT INTO comments (article_id, related_paragraph_id, comment_text, date_added ) VALUES (?,?,?, CURRENT_TIMESTAMP) RETURNING id, article_id, related_paragraph_id, comment_text, date_added
-`
-
-type InsertAndReturnCommentParams struct {
-	ArticleID          int64
-	RelatedParagraphID int64
-	CommentText        string
-}
-
-func (q *Queries) InsertAndReturnComment(ctx context.Context, arg InsertAndReturnCommentParams) (Comment, error) {
-	row := q.db.QueryRowContext(ctx, insertAndReturnComment, arg.ArticleID, arg.RelatedParagraphID, arg.CommentText)
-	var i Comment
-	err := row.Scan(
-		&i.ID,
-		&i.ArticleID,
-		&i.RelatedParagraphID,
-		&i.CommentText,
-		&i.DateAdded,
-	)
-	return i, err
-}
-
 const insertAndReturnFeedsCallData = `-- name: InsertAndReturnFeedsCallData :one
 INSERT INTO log (time_ran, run_type, articles_created) VALUES (CURRENT_TIMESTAMP, ?, ?) RETURNING id, time_ran, run_type, articles_created
 `
@@ -50,6 +27,29 @@ func (q *Queries) InsertAndReturnFeedsCallData(ctx context.Context, arg InsertAn
 		&i.TimeRan,
 		&i.RunType,
 		&i.ArticlesCreated,
+	)
+	return i, err
+}
+
+const insertAndReturnNote = `-- name: InsertAndReturnNote :one
+INSERT INTO notes (article_id, page_id, note_text, date_added ) VALUES (?,?,?, CURRENT_TIMESTAMP) RETURNING id, article_id, page_id, note_text, date_added
+`
+
+type InsertAndReturnNoteParams struct {
+	ArticleID int64
+	PageID    int64
+	NoteText  string
+}
+
+func (q *Queries) InsertAndReturnNote(ctx context.Context, arg InsertAndReturnNoteParams) (Note, error) {
+	row := q.db.QueryRowContext(ctx, insertAndReturnNote, arg.ArticleID, arg.PageID, arg.NoteText)
+	var i Note
+	err := row.Scan(
+		&i.ID,
+		&i.ArticleID,
+		&i.PageID,
+		&i.NoteText,
+		&i.DateAdded,
 	)
 	return i, err
 }
@@ -436,61 +436,6 @@ func (q *Queries) SelectArticlesByFeedIDWithLimit(ctx context.Context, arg Selec
 	return items, nil
 }
 
-const selectCommentsByArticleID = `-- name: SelectCommentsByArticleID :many
-SELECT id, article_id, related_paragraph_id, comment_text, date_added FROM comments WHERE article_id = ?
-`
-
-func (q *Queries) SelectCommentsByArticleID(ctx context.Context, articleID int64) ([]Comment, error) {
-	rows, err := q.db.QueryContext(ctx, selectCommentsByArticleID, articleID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Comment
-	for rows.Next() {
-		var i Comment
-		if err := rows.Scan(
-			&i.ID,
-			&i.ArticleID,
-			&i.RelatedParagraphID,
-			&i.CommentText,
-			&i.DateAdded,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const selectCommentsByArticleIDAndRelatedParagraphID = `-- name: SelectCommentsByArticleIDAndRelatedParagraphID :one
-SELECT id, article_id, related_paragraph_id, comment_text, date_added FROM comments WHERE article_id = ? AND related_paragraph_id = ?
-`
-
-type SelectCommentsByArticleIDAndRelatedParagraphIDParams struct {
-	ArticleID          int64
-	RelatedParagraphID int64
-}
-
-func (q *Queries) SelectCommentsByArticleIDAndRelatedParagraphID(ctx context.Context, arg SelectCommentsByArticleIDAndRelatedParagraphIDParams) (Comment, error) {
-	row := q.db.QueryRowContext(ctx, selectCommentsByArticleIDAndRelatedParagraphID, arg.ArticleID, arg.RelatedParagraphID)
-	var i Comment
-	err := row.Scan(
-		&i.ID,
-		&i.ArticleID,
-		&i.RelatedParagraphID,
-		&i.CommentText,
-		&i.DateAdded,
-	)
-	return i, err
-}
-
 const selectFeedAndArticletByArticleID = `-- name: SelectFeedAndArticletByArticleID :one
 SELECT 
 	a.id as article_id,
@@ -704,6 +649,44 @@ func (q *Queries) SelectLatest5StarredArticles(ctx context.Context) ([]SelectLat
 	return items, nil
 }
 
+const selectNotesByArticleIDAndPageID = `-- name: SelectNotesByArticleIDAndPageID :many
+SELECT id, article_id, page_id, note_text, date_added FROM notes WHERE article_id = ? AND page_id = ?
+`
+
+type SelectNotesByArticleIDAndPageIDParams struct {
+	ArticleID int64
+	PageID    int64
+}
+
+func (q *Queries) SelectNotesByArticleIDAndPageID(ctx context.Context, arg SelectNotesByArticleIDAndPageIDParams) ([]Note, error) {
+	rows, err := q.db.QueryContext(ctx, selectNotesByArticleIDAndPageID, arg.ArticleID, arg.PageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Note
+	for rows.Next() {
+		var i Note
+		if err := rows.Scan(
+			&i.ID,
+			&i.ArticleID,
+			&i.PageID,
+			&i.NoteText,
+			&i.DateAdded,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const selectSideBarData = `-- name: SelectSideBarData :many
 SELECT
 	f.title AS feed_title,
@@ -838,21 +821,6 @@ func (q *Queries) UpdateArticleSetStarredValue(ctx context.Context, arg UpdateAr
 	return err
 }
 
-const updateCommentByArticleIDAndRelatedParagraphID = `-- name: UpdateCommentByArticleIDAndRelatedParagraphID :exec
-UPDATE comments SET comment_text = ? WHERE article_id =? AND related_paragraph_id = ?
-`
-
-type UpdateCommentByArticleIDAndRelatedParagraphIDParams struct {
-	CommentText        string
-	ArticleID          int64
-	RelatedParagraphID int64
-}
-
-func (q *Queries) UpdateCommentByArticleIDAndRelatedParagraphID(ctx context.Context, arg UpdateCommentByArticleIDAndRelatedParagraphIDParams) error {
-	_, err := q.db.ExecContext(ctx, updateCommentByArticleIDAndRelatedParagraphID, arg.CommentText, arg.ArticleID, arg.RelatedParagraphID)
-	return err
-}
-
 const updateFeed = `-- name: UpdateFeed :one
 UPDATE feeds SET 
 	url = ?, 
@@ -898,4 +866,19 @@ func (q *Queries) UpdateFeed(ctx context.Context, arg UpdateFeedParams) (Feed, e
 		&i.HtmlExtractionStrategy,
 	)
 	return i, err
+}
+
+const updateNoteByArticleIDAndPageID = `-- name: UpdateNoteByArticleIDAndPageID :exec
+UPDATE notes SET note_text = ? WHERE article_id = ? AND page_id = ?
+`
+
+type UpdateNoteByArticleIDAndPageIDParams struct {
+	NoteText  string
+	ArticleID int64
+	PageID    int64
+}
+
+func (q *Queries) UpdateNoteByArticleIDAndPageID(ctx context.Context, arg UpdateNoteByArticleIDAndPageIDParams) error {
+	_, err := q.db.ExecContext(ctx, updateNoteByArticleIDAndPageID, arg.NoteText, arg.ArticleID, arg.PageID)
+	return err
 }

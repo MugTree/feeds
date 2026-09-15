@@ -1,10 +1,7 @@
 package app
 
 import (
-	"fmt"
-	"math"
 	"net/http"
-	"strconv"
 	"strings"
 
 	. "maragu.dev/gomponents"
@@ -99,38 +96,24 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 
 		})
 
-		r.Post("/article/{articleID}/index/{index}", func(w http.ResponseWriter, r *http.Request) {
+		type noteSignals = struct {
+			Text           string `json:"text"`
+			ParagraphCount int64  `json:"paragraphCount"`
+		}
+
+		r.Put("/article/{articleID}/page/{pageNumber}/notes/add", func(w http.ResponseWriter, r *http.Request) {
 
 			articleID, ok := httpRequireIDParam(w, r, "articleID")
 			if !ok {
 				return
 			}
 
-			index, ok := httpRequireNumericParam(w, r, "index")
+			pageNumber, ok := httpRequireNumericParam(w, r, "pageNumber")
 			if !ok {
 				return
 			}
 
-			article, err := queries.SelectArticleByID(r.Context(), articleID)
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
-
-			godump.Dump("article", article, "index", index)
-
-			// return all the users comments for the first pagination of the page
-			// provide a form so the user can summarise his current comments
-			// redirect to the next page if there is one
-
-		})
-
-		type noteSignals = struct {
-			Text           string `json:"text"`
-			ParagraphCount int64  `json:"paragraphCount"`
-		}
-
-		r.Put("/article/notes", func(w http.ResponseWriter, r *http.Request) {
+			godump.Dump("articleID", articleID, "pageNumber", pageNumber)
 
 			ns := noteSignals{}
 			err := datastar.ReadSignals(r, &ns)
@@ -152,225 +135,227 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 			}
 
 			godump.Dump("notes", notes)
+			/*
 
+
+
+
+			 */
 			sse := datastar.NewSSE(w, r)
 			sse.PatchElementGostar(Div(ID("notes"), Map(notes, func(n string) Node {
 				return P(Text(n))
 			})))
 
-			sse.ExecuteScript(`
-				console.log("yo");
-				equaliseHeights();
-			`)
+			sse.ExecuteScript(`equaliseHeights();`)
 
 		})
 
 	})
 
-	r.Get("/feed/{feedID}/page/{pageID}", func(w http.ResponseWriter, r *http.Request) {
+	// r.Get("/feed/{feedID}/page/{pageID}", func(w http.ResponseWriter, r *http.Request) {
 
-		ctx := r.Context()
+	// 	ctx := r.Context()
 
-		feedID, ok := httpRequireIDParam(w, r, "feedID")
-		if !ok {
-			return
-		}
+	// 	feedID, ok := httpRequireIDParam(w, r, "feedID")
+	// 	if !ok {
+	// 		return
+	// 	}
 
-		pageID, ok := httpRequireIDParam(w, r, "pageID")
-		if !ok {
-			return
-		}
+	// 	pageID, ok := httpRequireIDParam(w, r, "pageID")
+	// 	if !ok {
+	// 		return
+	// 	}
 
-		feed, err := queries.SelectFeedByID(ctx, feedID)
-		if err != nil {
-			httpLogAndError(w, r, err.Error())
-			return
-		}
+	// 	feed, err := queries.SelectFeedByID(ctx, feedID)
+	// 	if err != nil {
+	// 		httpLogAndError(w, r, err.Error())
+	// 		return
+	// 	}
 
-		feeds, err := queries.SelectAllFeeds(ctx)
-		if err != nil {
-			httpLogAndError(w, r, err.Error())
-			return
-		}
+	// 	feeds, err := queries.SelectAllFeeds(ctx)
+	// 	if err != nil {
+	// 		httpLogAndError(w, r, err.Error())
+	// 		return
+	// 	}
 
-		feedSummaries := []mpdFeedSummary{}
+	// 	feedSummaries := []mpdFeedSummary{}
 
-		for _, f := range feeds {
+	// 	for _, f := range feeds {
 
-			fsm := mpdFeedSummary{}
-			fsm.Name = f.Title
-			fsm.FeedID = f.ID
+	// 		fsm := mpdFeedSummary{}
+	// 		fsm.Name = f.Title
+	// 		fsm.FeedID = f.ID
 
-			// add the complete details where needed
-			if f.ID == feed.ID {
+	// 		// add the complete details where needed
+	// 		if f.ID == feed.ID {
 
-				fsm.PageID = pageID
-				fsm.ShowArticles = true
+	// 			fsm.PageID = pageID
+	// 			fsm.ShowArticles = true
 
-				offset := (pageID - 1) * 5
+	// 			offset := (pageID - 1) * 5
 
-				articles, err := queries.SelectArticlesByFeedIDWithLimit(
-					ctx,
-					db.SelectArticlesByFeedIDWithLimitParams{
-						FeedID: feedID,
-						Limit:  5,
-						Offset: offset,
-					},
-				)
-				if err != nil {
-					httpLogAndError(w, r, err.Error())
-					return
-				}
+	// 			articles, err := queries.SelectArticlesByFeedIDWithLimit(
+	// 				ctx,
+	// 				db.SelectArticlesByFeedIDWithLimitParams{
+	// 					FeedID: feedID,
+	// 					Limit:  5,
+	// 					Offset: offset,
+	// 				},
+	// 			)
+	// 			if err != nil {
+	// 				httpLogAndError(w, r, err.Error())
+	// 				return
+	// 			}
 
-				enrichedArticles, err := enrichArticles(queries, ctx, articles)
-				if err != nil {
-					httpLogAndError(w, r, err.Error())
-					return
-				}
+	// 			enrichedArticles, err := enrichArticles(queries, ctx, articles)
+	// 			if err != nil {
+	// 				httpLogAndError(w, r, err.Error())
+	// 				return
+	// 			}
 
-				fsm.Articles = enrichedArticles
+	// 			fsm.Articles = enrichedArticles
 
-				articleCount, err := queries.SelectArticleCountByFeedID(ctx, fsm.FeedID)
-				if err != nil {
-					httpLogAndError(w, r, err.Error())
-					return
-				}
+	// 			articleCount, err := queries.SelectArticleCountByFeedID(ctx, fsm.FeedID)
+	// 			if err != nil {
+	// 				httpLogAndError(w, r, err.Error())
+	// 				return
+	// 			}
 
-				fsm.ArticleCount = articleCount
-				fsm.LinksRequired = int64(math.Ceil(float64(articleCount) / float64(5)))
+	// 			fsm.ArticleCount = articleCount
+	// 			fsm.LinksRequired = int64(math.Ceil(float64(articleCount) / float64(5)))
 
-			}
+	// 		}
 
-			feedSummaries = append(feedSummaries, fsm)
+	// 		feedSummaries = append(feedSummaries, fsm)
 
-		}
+	// 	}
 
-		sse := datastar.NewSSE(w, r)
-		sse.PatchElementGostar(pageHome(feedSummaries))
+	// 	sse := datastar.NewSSE(w, r)
+	// 	sse.PatchElementGostar(pageHome(feedSummaries))
 
-	})
+	// })
 
-	r.Route("/article/{articleID}", func(r chi.Router) {
+	// r.Route("/article/{articleID}", func(r chi.Router) {
 
-		// view article
-		r.Get("/view", func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
+	// 	// view article
+	// 	r.Get("/view", func(w http.ResponseWriter, r *http.Request) {
+	// 		ctx := r.Context()
 
-			articleID, ok := httpRequireIDParam(w, r, "articleID")
-			if !ok {
-				return
-			}
+	// 		articleID, ok := httpRequireIDParam(w, r, "articleID")
+	// 		if !ok {
+	// 			return
+	// 		}
 
-			articleData, err := getArticlePageData(queries, ctx, articleID)
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
+	// 		articleData, err := getArticlePageData(queries, ctx, articleID)
+	// 		if err != nil {
+	// 			httpLogAndError(w, r, err.Error())
+	// 			return
+	// 		}
 
-			sse := datastar.NewSSE(w, r)
-			sse.PatchElementGostar(pageArticle(articleData))
-		})
+	// 		sse := datastar.NewSSE(w, r)
+	// 		sse.PatchElementGostar(pageArticle(articleData))
+	// 	})
 
-		r.Get("/comment/{paragraphID}/write", func(w http.ResponseWriter, r *http.Request) {
+	// 	r.Get("/comment/{paragraphID}/write", func(w http.ResponseWriter, r *http.Request) {
 
-			ctx := r.Context()
+	// 		ctx := r.Context()
 
-			articleID, ok := httpRequireIDParam(w, r, "articleID")
-			if !ok {
-				return
-			}
+	// 		articleID, ok := httpRequireIDParam(w, r, "articleID")
+	// 		if !ok {
+	// 			return
+	// 		}
 
-			paragraphID, ok := httpRequireNumericParam(w, r, "paragraphID")
-			if !ok {
-				return
-			}
+	// 		paragraphID, ok := httpRequireNumericParam(w, r, "paragraphID")
+	// 		if !ok {
+	// 			return
+	// 		}
 
-			commentsData, err := getComments(queries, ctx, articleID, paragraphID)
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
+	// 		commentsData, err := getComments(queries, ctx, articleID, paragraphID)
+	// 		if err != nil {
+	// 			httpLogAndError(w, r, err.Error())
+	// 			return
+	// 		}
 
-			// We're editing at this point
-			commentsData.ShowTextArea = true
+	// 		// We're editing at this point
+	// 		commentsData.ShowTextArea = true
 
-			sse := datastar.NewSSE(w, r)
-			sse.PatchElementGostar(partialWriteComments(commentsData))
-			sse.ExecuteScript("feedsBalanceArticleLayout()")
+	// 		sse := datastar.NewSSE(w, r)
+	// 		sse.PatchElementGostar(partialWriteComments(commentsData))
+	// 		sse.ExecuteScript("feedsBalanceArticleLayout()")
 
-		})
+	// 	})
 
-		r.Post("/comment/{paragraphID}/write", func(w http.ResponseWriter, r *http.Request) {
+	// 	r.Post("/comment/{paragraphID}/write", func(w http.ResponseWriter, r *http.Request) {
 
-			ctx := r.Context()
+	// 		ctx := r.Context()
 
-			articleID, ok := httpRequireIDParam(w, r, "articleID")
-			if !ok {
-				return
-			}
+	// 		articleID, ok := httpRequireIDParam(w, r, "articleID")
+	// 		if !ok {
+	// 			return
+	// 		}
 
-			paragraphID, ok := httpRequireNumericParam(w, r, "paragraphID")
-			if !ok {
-				return
-			}
+	// 		paragraphID, ok := httpRequireNumericParam(w, r, "paragraphID")
+	// 		if !ok {
+	// 			return
+	// 		}
 
-			// might make sense to error here if empty
-			// -------------------------------------------------
-			commentText := r.FormValue("comment-text")
+	// 		// might make sense to error here if empty
+	// 		// -------------------------------------------------
+	// 		commentText := r.FormValue("comment-text")
 
-			mns, err := updateComments(queries, ctx, commentText, articleID, paragraphID)
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
+	// 		mns, err := updateComments(queries, ctx, commentText, articleID, paragraphID)
+	// 		if err != nil {
+	// 			httpLogAndError(w, r, err.Error())
+	// 			return
+	// 		}
 
-			mns.ShowTextArea = false
+	// 		mns.ShowTextArea = false
 
-			sse := datastar.NewSSE(w, r)
-			sse.PatchElementGostar(partialViewComments(mns))
-			sse.ExecuteScript("feedsBalanceArticleLayout()")
-		})
+	// 		sse := datastar.NewSSE(w, r)
+	// 		sse.PatchElementGostar(partialViewComments(mns))
+	// 		sse.ExecuteScript("feedsBalanceArticleLayout()")
+	// 	})
 
-		// Like article
-		// ------------------------------------
-		r.Put("/like/{value}", func(w http.ResponseWriter, r *http.Request) {
+	// 	// Like article
+	// 	// ------------------------------------
+	// 	r.Put("/like/{value}", func(w http.ResponseWriter, r *http.Request) {
 
-			ctx := r.Context()
+	// 		ctx := r.Context()
 
-			articleID, ok := httpRequireIDParam(w, r, "articleID")
-			if !ok {
-				return
-			}
+	// 		articleID, ok := httpRequireIDParam(w, r, "articleID")
+	// 		if !ok {
+	// 			return
+	// 		}
 
-			likeValue, err := strconv.Atoi(r.PathValue("value"))
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
+	// 		likeValue, err := strconv.Atoi(r.PathValue("value"))
+	// 		if err != nil {
+	// 			httpLogAndError(w, r, err.Error())
+	// 			return
+	// 		}
 
-			if likeValue < 0 && likeValue > 3 {
-				httpLogAndError(w, r, fmt.Sprintf("incorrect like value: %v, needs to be between 0 and 3", likeValue))
-				return
-			}
+	// 		if likeValue < 0 && likeValue > 3 {
+	// 			httpLogAndError(w, r, fmt.Sprintf("incorrect like value: %v, needs to be between 0 and 3", likeValue))
+	// 			return
+	// 		}
 
-			err = setArticleLike(queries, int64(likeValue), articleID, ctx)
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
+	// 		err = setArticleLike(queries, int64(likeValue), articleID, ctx)
+	// 		if err != nil {
+	// 			httpLogAndError(w, r, err.Error())
+	// 			return
+	// 		}
 
-			ps, err := getArticlePageData(queries, ctx, articleID)
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
+	// 		ps, err := getArticlePageData(queries, ctx, articleID)
+	// 		if err != nil {
+	// 			httpLogAndError(w, r, err.Error())
+	// 			return
+	// 		}
 
-			sse := datastar.NewSSE(w, r)
-			sse.PatchElementGostar(pageArticle(ps))
-			sse.ExecuteScript("feedsBalanceArticleLayout()")
-		})
+	// 		sse := datastar.NewSSE(w, r)
+	// 		sse.PatchElementGostar(pageArticle(ps))
+	// 		sse.ExecuteScript("feedsBalanceArticleLayout()")
+	// 	})
 
-	})
+	// })
 
 	r.Get("/update-reader", func(w http.ResponseWriter, r *http.Request) {
 

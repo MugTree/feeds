@@ -1,6 +1,6 @@
-window.addEventListener("DOMContentLoaded", (e) => {
-  feedsBalanceArticleLayout();
-});
+// window.addEventListener("DOMContentLoaded", (e) => {
+//   feedsBalanceArticleLayout();
+// });
 
 // ensure the the layout looks good by setting the heights of the righthand column items to the
 // heights of the left

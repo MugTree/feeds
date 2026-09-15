@@ -53,64 +53,64 @@ func partialFeedBox(link string, fsm mpdFeedSummary) Node {
 	)
 }
 
-func partialLikeArticle(articleID int64, starsValue int64) Node {
-	return Div(
-		ID("star-value-bottom"),
-		ds.On("click", fmt.Sprintf("@put('/article/%v/like/%v')", articleID, starsValue)),
-		Text("Starred:"),
-		Img(
-			Width("60px"),
-			Src(fmt.Sprintf("/public/img/%v-star.png", starsValue)),
-		),
-	)
-}
+// func partialLikeArticle(articleID int64, starsValue int64) Node {
+// 	return Div(
+// 		ID("star-value-bottom"),
+// 		ds.On("click", fmt.Sprintf("@put('/article/%v/like/%v')", articleID, starsValue)),
+// 		Text("Starred:"),
+// 		Img(
+// 			Width("60px"),
+// 			Src(fmt.Sprintf("/public/img/%v-star.png", starsValue)),
+// 		),
+// 	)
+// }
 
-func partialViewComments(mns mpdCommentsData) Node {
-	comments := []Node{}
-	for i := range mns.TotalPotentialCommentsCount {
-		note, _ := mns.Comments[i]
-		comments = append(comments,
-			Div(
-				Data("comment-id", strconv.FormatInt(i, 10)),
-				Class("comment-holder"),
-				P(Text(note.CommentText)),
-			))
+// func partialViewComments(mns mpdCommentsData) Node {
+// 	comments := []Node{}
+// 	for i := range mns.TotalPotentialCommentsCount {
+// 		note, _ := mns.Comments[i]
+// 		comments = append(comments,
+// 			Div(
+// 				Data("comment-id", strconv.FormatInt(i, 10)),
+// 				Class("comment-holder"),
+// 				P(Text(note.CommentText)),
+// 			))
 
-	}
-	return Aside(ID("article-notes"), Group(comments))
-}
+// 	}
+// 	return Aside(ID("article-notes"), Group(comments))
+// }
 
-func partialWriteComments(msn mpdCommentsData) Node {
-	forms := []Node{}
-	for i := range msn.TotalPotentialCommentsCount {
-		note, _ := msn.Comments[i]
-		var elem Node
+// func partialWriteComments(msn mpdCommentsData) Node {
+// 	forms := []Node{}
+// 	for i := range msn.TotalPotentialCommentsCount {
+// 		note, _ := msn.Comments[i]
+// 		var elem Node
 
-		if i == msn.NoteToEdit && msn.ShowTextArea {
-			elem = Form(
-				Class("comment-edit"),
-				Data("comment-id", strconv.FormatInt(i, 10)),
-				Textarea(
-					Name("comment-text"),
-					Data("comment-id", strconv.FormatInt(i, 10)),
-					Text(note.CommentText),
-				),
-				Button(
-					Text("Edit"),
-					ds.On("click", fmt.Sprintf("@post('/article/%v/comment/%v/write', {contentType: 'form'})", msn.ArticleID, msn.NoteToEdit)),
-				),
-			)
-		} else {
-			elem = Div(
-				Class("comment-holder"),
-				Data("comment-id", strconv.FormatInt(i, 10)),
-				Text(note.CommentText),
-			)
-		}
-		forms = append(forms, elem)
-	}
-	return Aside(ID("article-notes"), Group(forms))
-}
+// 		if i == msn.NoteToEdit && msn.ShowTextArea {
+// 			elem = Form(
+// 				Class("comment-edit"),
+// 				Data("comment-id", strconv.FormatInt(i, 10)),
+// 				Textarea(
+// 					Name("comment-text"),
+// 					Data("comment-id", strconv.FormatInt(i, 10)),
+// 					Text(note.CommentText),
+// 				),
+// 				Button(
+// 					Text("Edit"),
+// 					ds.On("click", fmt.Sprintf("@post('/article/%v/comment/%v/write', {contentType: 'form'})", msn.ArticleID, msn.NoteToEdit)),
+// 				),
+// 			)
+// 		} else {
+// 			elem = Div(
+// 				Class("comment-holder"),
+// 				Data("comment-id", strconv.FormatInt(i, 10)),
+// 				Text(note.CommentText),
+// 			)
+// 		}
+// 		forms = append(forms, elem)
+// 	}
+// 	return Aside(ID("article-notes"), Group(forms))
+// }
 
 func partialBasicTextInput(labelText string, labelFor string, bindVal string, value string, notValid bool) Node {
 

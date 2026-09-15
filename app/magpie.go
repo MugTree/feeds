@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"html/template"
@@ -22,138 +21,138 @@ import (
 	"golang.org/x/net/html"
 )
 
-func getArticlePageData(queries *db.Queries, ctx context.Context, articleID int64) (mpdArticlePageData, error) {
+// func getArticlePageData(queries *db.Queries, ctx context.Context, articleID int64) (mpdArticlePageData, error) {
 
-	td := mpdArticlePageData{}
+// 	td := mpdArticlePageData{}
 
-	fa, err := queries.SelectFeedAndArticletByArticleID(ctx, articleID)
-	if err != nil {
-		return td, errors.New("error getting article data: " + err.Error())
-	}
+// 	fa, err := queries.SelectFeedAndArticletByArticleID(ctx, articleID)
+// 	if err != nil {
+// 		return td, errors.New("error getting article data: " + err.Error())
+// 	}
 
-	td.PageTitle = fa.ArticleTitle
-	td.FeedTitle = fa.FeedTitle
-	td.FeedUrl = fa.FeedUrl
-	td.Link = fa.ArticleLink
-	td.ArticleId = fa.ArticleID
-	td.FeedID = fa.FeedID
-	td.ArticleRead = fa.ArticleRead
+// 	td.PageTitle = fa.ArticleTitle
+// 	td.FeedTitle = fa.FeedTitle
+// 	td.FeedUrl = fa.FeedUrl
+// 	td.Link = fa.ArticleLink
+// 	td.ArticleId = fa.ArticleID
+// 	td.FeedID = fa.FeedID
+// 	td.ArticleRead = fa.ArticleRead
 
-	td.StarValue = fa.ArticleStars
-	td.ArticlePublished = fa.ArticlePublished.Format(layoutISO)
+// 	td.StarValue = fa.ArticleStars
+// 	td.ArticlePublished = fa.ArticlePublished.Format(layoutISO)
 
-	alreadyRead, toRead, err := getArticlesByFeedID(queries, fa.FeedID, ctx)
-	if err != nil {
-		return td, err
-	}
-	td.ArticlesRead = alreadyRead
-	td.ArticlesToRead = toRead
+// 	alreadyRead, toRead, err := getArticlesByFeedID(queries, fa.FeedID, ctx)
+// 	if err != nil {
+// 		return td, err
+// 	}
+// 	td.ArticlesRead = alreadyRead
+// 	td.ArticlesToRead = toRead
 
-	td.ClickableParagraphCount = fa.ArticleClickableParagraphCount
+// 	td.ClickableParagraphCount = fa.ArticleClickableParagraphCount
 
-	td.PageContent = fa.ArticleContent
+// 	td.PageContent = fa.ArticleContent
 
-	enrichedHTML, err := enrichHTMLOutputForDisplay(td.PageContent, fa.FeedID, articleID)
-	if err != nil {
-		return td, err
-	}
+// 	enrichedHTML, err := enrichHTMLOutputForDisplay(td.PageContent, fa.FeedID, articleID)
+// 	if err != nil {
+// 		return td, err
+// 	}
 
-	td.PageContent = enrichedHTML
-	td.IsCache = true
+// 	td.PageContent = enrichedHTML
+// 	td.IsCache = true
 
-	mns, err := getComments(queries, ctx, articleID, -1)
+// 	mns, err := getComments(queries, ctx, articleID, -1)
 
-	td.CommentsTemplateData = mns
+// 	td.CommentsTemplateData = mns
 
-	return td, nil
+// 	return td, nil
 
-}
+// }
 
-func updateComments(queries *db.Queries, ctx context.Context, noteText string, articleID int64, paragraphID int64) (mpdCommentsData, error) {
+// func updateComments(queries *db.Queries, ctx context.Context, noteText string, articleID int64, paragraphID int64) (mpdCommentsData, error) {
 
-	mns := mpdCommentsData{}
+// 	mns := mpdCommentsData{}
 
-	fmt.Printf("Does a note already exist - comment id: %v - note:%s\n", paragraphID, noteText)
+// 	fmt.Printf("Does a note already exist - comment id: %v - note:%s\n", paragraphID, noteText)
 
-	_, err := queries.SelectCommentsByArticleIDAndRelatedParagraphID(
-		ctx, db.SelectCommentsByArticleIDAndRelatedParagraphIDParams{
-			ArticleID:          articleID,
-			RelatedParagraphID: paragraphID,
-		},
-	)
+// 	_, err := queries.SelectCommentsByArticleIDAndRelatedParagraphID(
+// 		ctx, db.SelectCommentsByArticleIDAndRelatedParagraphIDParams{
+// 			ArticleID:          articleID,
+// 			RelatedParagraphID: paragraphID,
+// 		},
+// 	)
 
-	//  If a note doesn't exist to update we INSERT a new one
-	if err == sql.ErrNoRows {
-		fmt.Println("No!")
-		fmt.Printf("Creating a new note - paragraphID: %v - note:%s and returning all the notes\n", paragraphID, noteText)
+// 	//  If a note doesn't exist to update we INSERT a new one
+// 	if err == sql.ErrNoRows {
+// 		fmt.Println("No!")
+// 		fmt.Printf("Creating a new note - paragraphID: %v - note:%s and returning all the notes\n", paragraphID, noteText)
 
-		_, err := queries.InsertAndReturnComment(
-			ctx,
-			db.InsertAndReturnCommentParams{
-				CommentText:        noteText,
-				ArticleID:          articleID,
-				RelatedParagraphID: paragraphID,
-			},
-		)
-		if err != nil {
-			return mns, err
-		}
+// 		_, err := queries.InsertAndReturnComment(
+// 			ctx,
+// 			db.InsertAndReturnCommentParams{
+// 				CommentText:        noteText,
+// 				ArticleID:          articleID,
+// 				RelatedParagraphID: paragraphID,
+// 			},
+// 		)
+// 		if err != nil {
+// 			return mns, err
+// 		}
 
-		return getComments(queries, ctx, articleID, paragraphID)
-	}
+// 		return getComments(queries, ctx, articleID, paragraphID)
+// 	}
 
-	if err != nil {
-		return mns, err
-	}
+// 	if err != nil {
+// 		return mns, err
+// 	}
 
-	fmt.Println("Yes!")
-	fmt.Printf("Updating an existing note - paragraph id: %v - note:%s and returning all the notes\n", paragraphID, noteText)
+// 	fmt.Println("Yes!")
+// 	fmt.Printf("Updating an existing note - paragraph id: %v - note:%s and returning all the notes\n", paragraphID, noteText)
 
-	err = queries.UpdateCommentByArticleIDAndRelatedParagraphID(
-		ctx,
-		db.UpdateCommentByArticleIDAndRelatedParagraphIDParams{
-			CommentText:        noteText,
-			ArticleID:          articleID,
-			RelatedParagraphID: paragraphID,
-		},
-	)
-	if err != nil {
-		return mns, err
-	}
+// 	err = queries.UpdateCommentByArticleIDAndRelatedParagraphID(
+// 		ctx,
+// 		db.UpdateCommentByArticleIDAndRelatedParagraphIDParams{
+// 			CommentText:        noteText,
+// 			ArticleID:          articleID,
+// 			RelatedParagraphID: paragraphID,
+// 		},
+// 	)
+// 	if err != nil {
+// 		return mns, err
+// 	}
 
-	return getComments(queries, ctx, articleID, paragraphID)
+// 	return getComments(queries, ctx, articleID, paragraphID)
 
-}
+// }
 
-func getComments(queries *db.Queries, ctx context.Context, articleID int64, paragraphID int64) (mpdCommentsData, error) {
+// func getComments(queries *db.Queries, ctx context.Context, articleID int64, paragraphID int64) (mpdCommentsData, error) {
 
-	mns := mpdCommentsData{}
+// 	mns := mpdCommentsData{}
 
-	// CLARIFY!!!! if this is -1 then its the page render call
-	fmt.Printf("Selecting note state: %v\n", paragraphID)
-	mns.NoteToEdit = paragraphID
+// 	// CLARIFY!!!! if this is -1 then its the page render call
+// 	fmt.Printf("Selecting note state: %v\n", paragraphID)
+// 	mns.NoteToEdit = paragraphID
 
-	article, err := queries.SelectArticleByID(ctx, articleID)
-	if err != nil {
-		return mns, err
-	}
-	mns.TotalPotentialCommentsCount = article.ClickableParagraphCount
-	mns.ArticleID = article.ID
+// 	article, err := queries.SelectArticleByID(ctx, articleID)
+// 	if err != nil {
+// 		return mns, err
+// 	}
+// 	mns.TotalPotentialCommentsCount = article.ClickableParagraphCount
+// 	mns.ArticleID = article.ID
 
-	notes, err := queries.SelectCommentsByArticleID(ctx, articleID)
-	if err != nil {
-		return mns, err
-	}
+// 	notes, err := queries.SelectCommentsByArticleID(ctx, articleID)
+// 	if err != nil {
+// 		return mns, err
+// 	}
 
-	getParagraphID := func(n db.Comment) int64 {
-		return n.RelatedParagraphID
-	}
+// 	getParagraphID := func(n db.Comment) int64 {
+// 		return n.RelatedParagraphID
+// 	}
 
-	notesMap := lib.SliceToMap(notes, getParagraphID)
-	mns.Comments = notesMap
+// 	notesMap := lib.SliceToMap(notes, getParagraphID)
+// 	mns.Comments = notesMap
 
-	return mns, nil
-}
+// 	return mns, nil
+// }
 
 func setArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
 
@@ -314,49 +313,49 @@ func enrichHTMLOutputForDisplay(htmlStr string, _ int64, articleID int64) (strin
 
 }
 
-func enrichArticles(queries *db.Queries, ctx context.Context, articles []db.SelectArticlesByFeedIDWithLimitRow) ([]mpdEnrichedArticle, error) {
+// func enrichArticles(queries *db.Queries, ctx context.Context, articles []db.SelectArticlesByFeedIDWithLimitRow) ([]mpdEnrichedArticle, error) {
 
-	ea := []mpdEnrichedArticle{}
-	a := mpdEnrichedArticle{}
+// 	ea := []mpdEnrichedArticle{}
+// 	a := mpdEnrichedArticle{}
 
-	for i := range articles {
-		if articles[i].ArticleContent != "" {
-			enrichedContent, err := enrichHTMLOutputForDisplay(
-				articles[i].ArticleContent,
-				0,
-				articles[i].ArticleID,
-			)
+// 	for i := range articles {
+// 		if articles[i].ArticleContent != "" {
+// 			enrichedContent, err := enrichHTMLOutputForDisplay(
+// 				articles[i].ArticleContent,
+// 				0,
+// 				articles[i].ArticleID,
+// 			)
 
-			if err != nil {
-				return ea, err
-			}
+// 			if err != nil {
+// 				return ea, err
+// 			}
 
-			articles[i].ArticleContent = enrichedContent
-		}
+// 			articles[i].ArticleContent = enrichedContent
+// 		}
 
-		a.Article = articles[i]
-		comments, err := queries.SelectCommentsByArticleID(ctx, articles[i].ArticleID)
-		if err != nil {
-			return ea, err
-		}
+// 		a.Article = articles[i]
+// 		comments, err := queries.SelectCommentsByArticleID(ctx, articles[i].ArticleID)
+// 		if err != nil {
+// 			return ea, err
+// 		}
 
-		getParagraphID := func(n db.Comment) int64 {
-			return n.RelatedParagraphID
-		}
+// 		getParagraphID := func(n db.Comment) int64 {
+// 			return n.RelatedParagraphID
+// 		}
 
-		commentsMap := lib.SliceToMap(comments, getParagraphID)
-		a.CommentsData.Comments = commentsMap
-		a.CommentsData.ArticleID = a.Article.ArticleID
-		a.CommentsData.TotalPotentialCommentsCount = int64(len(comments))
-		a.CommentsData.ShowTextArea = false
+// 		commentsMap := lib.SliceToMap(comments, getParagraphID)
+// 		a.CommentsData.Comments = commentsMap
+// 		a.CommentsData.ArticleID = a.Article.ArticleID
+// 		a.CommentsData.TotalPotentialCommentsCount = int64(len(comments))
+// 		a.CommentsData.ShowTextArea = false
 
-		ea = append(ea, a)
+// 		ea = append(ea, a)
 
-	}
+// 	}
 
-	return ea, nil
+// 	return ea, nil
 
-}
+// }
 
 func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
@@ -842,29 +841,29 @@ type mpdSidebarLink struct {
 	FeedId int
 }
 
-type mpdArticlePageData struct {
-	FeedID                  int64
-	PageTitle               string
-	ArticlesRead            []mpdFeedsArticle
-	ArticlesToRead          []mpdFeedsArticle
-	FeedTitle               string
-	FeedUrl                 string
-	Link                    string
-	PageContent             string
-	ArticleId               int64
-	IsCache                 bool
-	StarValue               int64
-	Sidebar                 []mpdSidebarLink
-	ArticlePublished        string
-	ArticleRead             int64
-	MarginNotes             map[int64]db.Comment
-	ClickableParagraphCount int64
-	CommentsTemplateData    mpdCommentsData
-}
+// type mpdArticlePageData struct {
+// 	FeedID                  int64
+// 	PageTitle               string
+// 	ArticlesRead            []mpdFeedsArticle
+// 	ArticlesToRead          []mpdFeedsArticle
+// 	FeedTitle               string
+// 	FeedUrl                 string
+// 	Link                    string
+// 	PageContent             string
+// 	ArticleId               int64
+// 	IsCache                 bool
+// 	StarValue               int64
+// 	Sidebar                 []mpdSidebarLink
+// 	ArticlePublished        string
+// 	ArticleRead             int64
+// 	MarginNotes             map[int64]db.Comment
+// 	ClickableParagraphCount int64
+// 	CommentsTemplateData    mpdCommentsData
+// }
 
-func (ae mpdArticlePageData) ArticleHasBeenRead() bool {
-	return lib.IntToBool(ae.ArticleRead)
-}
+// func (ae mpdArticlePageData) ArticleHasBeenRead() bool {
+// 	return lib.IntToBool(ae.ArticleRead)
+// }
 
 type mpdFeedSummary struct {
 	Name          string
@@ -883,7 +882,7 @@ type mpdCommentsData struct {
 	ArticleID                   int64
 	NoteToEdit                  int64
 	TotalPotentialCommentsCount int64
-	Comments                    map[int64]db.Comment
+	//Comments                    map[int64]db.Comment
 }
 
 type pageScrapeParams struct {

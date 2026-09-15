@@ -23,14 +23,6 @@ type Article struct {
 	Starred                 int64
 }
 
-type Comment struct {
-	ID                 int64
-	ArticleID          int64
-	RelatedParagraphID int64
-	CommentText        string
-	DateAdded          time.Time
-}
-
 type Feed struct {
 	ID                     int64
 	Url                    string
@@ -47,4 +39,12 @@ type Log struct {
 	TimeRan         time.Time
 	RunType         string
 	ArticlesCreated int64
+}
+
+type Note struct {
+	ID        int64
+	ArticleID int64
+	PageID    int64
+	NoteText  string
+	DateAdded time.Time
 }

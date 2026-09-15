@@ -72,14 +72,14 @@ FROM
 INNER JOIN feeds f 
 ON f.id = a.feed_id where a.id = ?;
 
--- name: SelectCommentsByArticleID :many
-SELECT * FROM comments WHERE article_id = ?;
+-- name: SelectNotesByArticleIDAndPageID :many
+SELECT * FROM notes WHERE article_id = ? AND page_id = ?;
 
--- name: SelectCommentsByArticleIDAndRelatedParagraphID :one
-SELECT * FROM comments WHERE article_id = ? AND related_paragraph_id = ?;
+-- name: UpdateNoteByArticleIDAndPageID :exec
+UPDATE notes SET note_text = ? WHERE article_id = ? AND page_id = ?;
 
--- name: UpdateCommentByArticleIDAndRelatedParagraphID :exec
-UPDATE comments SET comment_text = ? WHERE article_id =? AND related_paragraph_id = ?;
+-- name: InsertAndReturnNote :one
+INSERT INTO notes (article_id, page_id, note_text, date_added ) VALUES (?,?,?, CURRENT_TIMESTAMP) RETURNING *;
 
 -- name: InsertArticle :one
 INSERT INTO articles (
@@ -139,8 +139,6 @@ WHERE
 	id = ?
 RETURNING *;
 
--- name: InsertAndReturnComment :one
-INSERT INTO comments (article_id, related_paragraph_id, comment_text, date_added ) VALUES (?,?,?, CURRENT_TIMESTAMP) RETURNING *;
 
 -- name: SelectAllFeeds :many
 SELECT * from feeds;	
