@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
@@ -65,25 +66,25 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 
 		})
 
-		r.Get("/magpie/{pageID}/{index}", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/article/{articleID}/page/{pageNumber}", func(w http.ResponseWriter, r *http.Request) {
 
-			pageID, ok := httpRequireIDParam(w, r, "pageID")
+			articleID, ok := httpRequireIDParam(w, r, "articleID")
 			if !ok {
 				return
 			}
 
-			index, ok := httpRequireNumericParam(w, r, "index")
+			pageNumber, ok := httpRequireNumericParam(w, r, "pageNumber")
 			if !ok {
 				return
 			}
 
-			article, err := queries.SelectArticleByID(r.Context(), pageID)
+			article, err := queries.SelectArticleByID(r.Context(), articleID)
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
 			}
 
-			chunks, err := mpGetParagraphsByIndex(article.ArticleContent, int(index))
+			paragraphs, err := getArticleParagraphsByPageNumber(article.ArticleContent, int(pageNumber))
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
@@ -93,8 +94,74 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 				pageProps{
 					Title: article.Published.String(),
 				},
-				pageGamePlay(article, chunks, int(index)),
+				pageGamePlay(article, paragraphs, int(pageNumber)),
 			).Render(w)
+
+		})
+
+		r.Post("/article/{articleID}/index/{index}", func(w http.ResponseWriter, r *http.Request) {
+
+			articleID, ok := httpRequireIDParam(w, r, "articleID")
+			if !ok {
+				return
+			}
+
+			index, ok := httpRequireNumericParam(w, r, "index")
+			if !ok {
+				return
+			}
+
+			article, err := queries.SelectArticleByID(r.Context(), articleID)
+			if err != nil {
+				httpLogAndError(w, r, err.Error())
+				return
+			}
+
+			godump.Dump("article", article, "index", index)
+
+			// return all the users comments for the first pagination of the page
+			// provide a form so the user can summarise his current comments
+			// redirect to the next page if there is one
+
+		})
+
+		type noteSignals = struct {
+			Text           string `json:"text"`
+			ParagraphCount int64  `json:"paragraphCount"`
+		}
+
+		r.Put("/article/notes", func(w http.ResponseWriter, r *http.Request) {
+
+			ns := noteSignals{}
+			err := datastar.ReadSignals(r, &ns)
+			if err != nil {
+				httpLogAndError(w, r, err.Error())
+				return
+			}
+
+			ns.Text = strings.Trim(ns.Text, "\n")
+			notes := strings.Split(ns.Text, "\n\n")
+
+			godump.Dump("signals", &ns)
+			godump.Dump("para count ", ns.ParagraphCount)
+
+			// are there more that +1 more notes than paragraphs
+			// if so remove them an just carry on
+			if len(notes) > int(ns.ParagraphCount)+1 {
+				notes = notes[0 : int(ns.ParagraphCount)+1]
+			}
+
+			godump.Dump("notes", notes)
+
+			sse := datastar.NewSSE(w, r)
+			sse.PatchElementGostar(Div(ID("notes"), Map(notes, func(n string) Node {
+				return P(Text(n))
+			})))
+
+			sse.ExecuteScript(`
+				console.log("yo");
+				equaliseHeights();
+			`)
 
 		})
 
@@ -155,7 +222,7 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 					return
 				}
 
-				enrichedArticles, err := mpEnrichArticles(queries, ctx, articles)
+				enrichedArticles, err := enrichArticles(queries, ctx, articles)
 				if err != nil {
 					httpLogAndError(w, r, err.Error())
 					return
@@ -194,7 +261,7 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 				return
 			}
 
-			articleData, err := mpGetArticlePageData(queries, ctx, articleID)
+			articleData, err := getArticlePageData(queries, ctx, articleID)
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
@@ -218,7 +285,7 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 				return
 			}
 
-			commentsData, err := mpGetComments(queries, ctx, articleID, paragraphID)
+			commentsData, err := getComments(queries, ctx, articleID, paragraphID)
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
@@ -251,7 +318,7 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 			// -------------------------------------------------
 			commentText := r.FormValue("comment-text")
 
-			mns, err := mpUpdateComments(queries, ctx, commentText, articleID, paragraphID)
+			mns, err := updateComments(queries, ctx, commentText, articleID, paragraphID)
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
@@ -286,13 +353,13 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 				return
 			}
 
-			err = mpSetArticleLike(queries, int64(likeValue), articleID, ctx)
+			err = setArticleLike(queries, int64(likeValue), articleID, ctx)
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
 			}
 
-			ps, err := mpGetArticlePageData(queries, ctx, articleID)
+			ps, err := getArticlePageData(queries, ctx, articleID)
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
@@ -307,7 +374,7 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 
 	r.Get("/update-reader", func(w http.ResponseWriter, r *http.Request) {
 
-		_, err := mpGetFeedUpdates(queries, r.Context())
+		_, err := getFeedUpdates(queries, r.Context())
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
 			return

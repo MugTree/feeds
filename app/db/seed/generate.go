@@ -91,7 +91,7 @@ func main() {
 		}
 
 		for _, feedItem := range goFeed.Items {
-			app.MpHTMLProcessingPipeline(queries, ctx, feedItem, insertedFeed)
+			app.HTMLProcessingPipeline(queries, ctx, feedItem, insertedFeed)
 			articlesInserted++
 		}
 	}

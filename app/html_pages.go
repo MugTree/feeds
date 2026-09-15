@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/mugtree/feeds/app/db"
 	. "maragu.dev/gomponents"
@@ -25,6 +24,7 @@ func pageLayout(props pageProps, children ...Node) Node {
 		Head: []Node{
 			Script(Src("/public/js/datastar.js"), Type("module")),
 			//Link(Rel("stylesheet"), Href("/public/css/app.css")),
+			Link(Rel("stylesheet"), Href("/public/css/main.css")),
 		},
 		Body: []Node{Class(""),
 			Div(
@@ -85,57 +85,89 @@ func pageGameHome(articles []db.SelectArticlesByFeedIDRow) Node {
 			return Li(
 				A(
 					Text(a.Published.String()),
-					Href(fmt.Sprintf("/game/magpie/%v/0", a.ID)),
+					Href(fmt.Sprintf("/game/article/%v/page/1", a.ID)),
 				),
 			)
 		}),
 	)
 }
 
-func pageGamePlay(article db.Article, chunk []mpdParagraph, index int) Node {
+func pageGamePlay(article db.Article, articleParagraphs [][]articleParagraph, pageNumber int) Node {
 
-	hasSummary := func(index int) bool {
-		return index == 2
+	showNextLink := func(pageNumber int) bool {
+		totalParagraphs := 0
+		for _, paras := range articleParagraphs {
+			totalParagraphs += len(paras)
+		}
+		return totalParagraphs > pageNumber*PARAGRAPHS_PER_PAGE
 	}
 
-	return Div(Class("flex"),
-		If(len(chunk) > 0, Div(
-			Ul(
-				Class("paras"),
-				Map(chunk, func(p mpdParagraph) Node {
-					id := strconv.Itoa(p.Index)
-					return Li(
-						P(
-							ds.On("click", "!TODO - showRelatedPara()"),
-							Data("paragraph", id),
-							If(p.Type == "blockquote", Class("block-quote")),
-							Text(p.Text),
-						),
-						Textarea(
-							ID(id),
-							Data("editor", id),
-							ds.On("click", `@put('/comment')`),
-						),
-						If(
-							hasSummary(p.Index),
-							Textarea(
-								ID(fmt.Sprintf("summary-%v", id)),
-								Data("summary", id),
-								ds.On("click", `@put("/comment")`),
-							),
-						),
-					)
-				}),
+	showPreviousLink := func(pageNumber int) bool {
+		return pageNumber > 1
+	}
+
+	pageIndex := pageNumber - 1
+	pageParagraphs := articleParagraphs[pageIndex]
+
+	return Div(Class("grid-parent"),
+
+		Div(Class("paragraphs"),
+			ds.Signals(map[string]any{"paragraphCount": len(pageParagraphs)}),
+			Map(pageParagraphs, func(p articleParagraph) Node {
+				return P(
+					Text(p.Text),
+				)
+			}),
+			Div(
+				Textarea(
+					ds.Bind("text"),
+					ds.On("input", `twoConsecutiveNewlines(evt) && @put("/game/article/notes")`),
+					ID("user_input"),
+				),
 			),
-			Button(
-				Text("Next chunk >"),
-				ds.On("click", fmt.Sprintf(`@get("/game/magpie/%v")`, index)),
+			Div(
+				If(showPreviousLink(pageNumber),
+					A(
+						Text("< Previous chunk"),
+						Href(fmt.Sprintf("/game/article/%v/page/%v", article.ID, pageNumber-1)),
+					)),
+				Span(Text("|")),
+				If(showNextLink(pageNumber),
+					A(
+						Text("Next chunk >"),
+						Href(fmt.Sprintf("/game/article/%v/page/%v", article.ID, pageNumber+1)),
+					),
+				),
 			),
 		),
-		), Div(
-			Class("raw"),
-			Raw(article.ArticleContent),
+		Div(ID("notes")),
+		Div(Class("overview"),
+
+			Map(articleParagraphs, func(paras []articleParagraph) Node {
+				return Map(paras, func(p articleParagraph) Node {
+					return P(Text(p.Text))
+				})
+			}),
+
+			//Raw(article.ArticleContent),
+			// Map(paragraphs, func(para []articleParagraph) Node {
+
+			// 	cla := Classes{}
+
+			// 	if mapIter == pageNumber {
+			// 		cla = Classes{"current-paragraphs": true}
+			// 	} else {
+			// 		cla = Classes{"other-paragraphs": true}
+			// 	}
+
+			// 	mapIter++
+
+			// 	return Map(para, func(p articleParagraph) Node {
+			// 		return P(Text(p.Text), cla)
+			// 	})
+			// }),
 		),
+		Script(Src("/public/js/feeds.js")),
 	)
 }
 

@@ -1,54 +1,26 @@
-package app
+package main
 
-import (
-	"context"
-	"database/sql"
-	"fmt"
-	"log"
-	"os"
-
-	_ "github.com/mattn/go-sqlite3"
-	"github.com/mugtree/feeds/app/db"
-)
+import "github.com/goforj/godump"
 
 func main() {
 
-	mustEnv := func(key string) string {
-		val, ok := os.LookupEnv(key)
-		if !ok {
-			log.Fatalf("missing .env: %s", key)
+	// a page can have 3 paragraphs how many pages do we need
+
+	numberOfParagraphs := 13
+
+	if numberOfParagraphs == 0 {
+		return
+	}
+
+	pagesRequired := 1
+
+	for i := range numberOfParagraphs {
+
+		if (i+1)%3 == 0 {
+			pagesRequired++
 		}
-		return val
 	}
 
-	appDb := mustEnv("APP_DB")
-	dbHandle, err := sql.Open("sqlite3", appDb)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	dbHandle.SetMaxOpenConns(1)
-	dbHandle.SetMaxIdleConns(1)
-
-	_, _ = dbHandle.Exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;`)
-
-	if err := dbHandle.Ping(); err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	queries := db.New(dbHandle)
-
-	err = queries.UpdateCommentByArticleIDAndRelatedParagraphID(context.Background(),
-		db.UpdateCommentByArticleIDAndRelatedParagraphIDParams{
-			CommentText:        "update 2",
-			ArticleID:          31,
-			RelatedParagraphID: 0,
-		},
-	)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	godump.Dump("pagesRequired: ", pagesRequired)
 
 }

@@ -22,7 +22,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func mpGetArticlePageData(queries *db.Queries, ctx context.Context, articleID int64) (mpdArticlePageData, error) {
+func getArticlePageData(queries *db.Queries, ctx context.Context, articleID int64) (mpdArticlePageData, error) {
 
 	td := mpdArticlePageData{}
 
@@ -42,7 +42,7 @@ func mpGetArticlePageData(queries *db.Queries, ctx context.Context, articleID in
 	td.StarValue = fa.ArticleStars
 	td.ArticlePublished = fa.ArticlePublished.Format(layoutISO)
 
-	alreadyRead, toRead, err := mpGetArticlesByFeedID(queries, fa.FeedID, ctx)
+	alreadyRead, toRead, err := getArticlesByFeedID(queries, fa.FeedID, ctx)
 	if err != nil {
 		return td, err
 	}
@@ -53,7 +53,7 @@ func mpGetArticlePageData(queries *db.Queries, ctx context.Context, articleID in
 
 	td.PageContent = fa.ArticleContent
 
-	enrichedHTML, err := mpEnrichHTMLOutputForDisplay(td.PageContent, fa.FeedID, articleID)
+	enrichedHTML, err := enrichHTMLOutputForDisplay(td.PageContent, fa.FeedID, articleID)
 	if err != nil {
 		return td, err
 	}
@@ -61,7 +61,7 @@ func mpGetArticlePageData(queries *db.Queries, ctx context.Context, articleID in
 	td.PageContent = enrichedHTML
 	td.IsCache = true
 
-	mns, err := mpGetComments(queries, ctx, articleID, -1)
+	mns, err := getComments(queries, ctx, articleID, -1)
 
 	td.CommentsTemplateData = mns
 
@@ -69,7 +69,7 @@ func mpGetArticlePageData(queries *db.Queries, ctx context.Context, articleID in
 
 }
 
-func mpUpdateComments(queries *db.Queries, ctx context.Context, noteText string, articleID int64, paragraphID int64) (mpdCommentsData, error) {
+func updateComments(queries *db.Queries, ctx context.Context, noteText string, articleID int64, paragraphID int64) (mpdCommentsData, error) {
 
 	mns := mpdCommentsData{}
 
@@ -99,7 +99,7 @@ func mpUpdateComments(queries *db.Queries, ctx context.Context, noteText string,
 			return mns, err
 		}
 
-		return mpGetComments(queries, ctx, articleID, paragraphID)
+		return getComments(queries, ctx, articleID, paragraphID)
 	}
 
 	if err != nil {
@@ -121,11 +121,11 @@ func mpUpdateComments(queries *db.Queries, ctx context.Context, noteText string,
 		return mns, err
 	}
 
-	return mpGetComments(queries, ctx, articleID, paragraphID)
+	return getComments(queries, ctx, articleID, paragraphID)
 
 }
 
-func mpGetComments(queries *db.Queries, ctx context.Context, articleID int64, paragraphID int64) (mpdCommentsData, error) {
+func getComments(queries *db.Queries, ctx context.Context, articleID int64, paragraphID int64) (mpdCommentsData, error) {
 
 	mns := mpdCommentsData{}
 
@@ -155,7 +155,7 @@ func mpGetComments(queries *db.Queries, ctx context.Context, articleID int64, pa
 	return mns, nil
 }
 
-func mpSetArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
+func setArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
 
 	updatedValue := func(currentValue int64) int64 {
 		if currentValue == 3 {
@@ -176,7 +176,7 @@ func mpSetArticleLike(queries *db.Queries, starredValue int64, articleID int64, 
 	return nil
 }
 
-func mpGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []mpdFeedsArticle, toRead []mpdFeedsArticle, err error) {
+func getArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []mpdFeedsArticle, toRead []mpdFeedsArticle, err error) {
 
 	allArticles, err := queries.SelectArticlesByFeedID(ctx, feedID)
 	if err != nil {
@@ -209,7 +209,7 @@ func mpGetArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Contex
 	return alreadyRead, toRead, nil
 }
 
-func mpEnrichHTMLOutputForDisplay(htmlStr string, _ int64, articleID int64) (string, error) {
+func enrichHTMLOutputForDisplay(htmlStr string, _ int64, articleID int64) (string, error) {
 
 	addDataAttributes := func(doc *html.Node) *html.Node {
 
@@ -314,14 +314,14 @@ func mpEnrichHTMLOutputForDisplay(htmlStr string, _ int64, articleID int64) (str
 
 }
 
-func mpEnrichArticles(queries *db.Queries, ctx context.Context, articles []db.SelectArticlesByFeedIDWithLimitRow) ([]mpdEnrichedArticle, error) {
+func enrichArticles(queries *db.Queries, ctx context.Context, articles []db.SelectArticlesByFeedIDWithLimitRow) ([]mpdEnrichedArticle, error) {
 
 	ea := []mpdEnrichedArticle{}
 	a := mpdEnrichedArticle{}
 
 	for i := range articles {
 		if articles[i].ArticleContent != "" {
-			enrichedContent, err := mpEnrichHTMLOutputForDisplay(
+			enrichedContent, err := enrichHTMLOutputForDisplay(
 				articles[i].ArticleContent,
 				0,
 				articles[i].ArticleID,
@@ -358,7 +358,7 @@ func mpEnrichArticles(queries *db.Queries, ctx context.Context, articles []db.Se
 
 }
 
-func mpGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
+func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
 	feeds, err := queries.SelectAllFeeds(ctx)
 	if err != nil {
@@ -382,7 +382,7 @@ func mpGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 		}
 
 		for _, feedItem := range goFeed.Items {
-			MpHTMLProcessingPipeline(queries, ctx, feedItem, feed)
+			HTMLProcessingPipeline(queries, ctx, feedItem, feed)
 			articlesInserted++
 		}
 	}
@@ -404,7 +404,7 @@ func mpGetFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 This is called on generate or from the app when the user calls update
 *
 */
-func MpHTMLProcessingPipeline(queries *db.Queries, ctx context.Context, feedItem *gofeed.Item, feed db.Feed) (int64, error) {
+func HTMLProcessingPipeline(queries *db.Queries, ctx context.Context, feedItem *gofeed.Item, feed db.Feed) (int64, error) {
 
 	description, err := html.Parse(strings.NewReader(feedItem.Description))
 	if err != nil {
@@ -418,7 +418,7 @@ func MpHTMLProcessingPipeline(queries *db.Queries, ctx context.Context, feedItem
 		return 0, err
 	}
 
-	scps := mpdPageScrapeParams{
+	scps := pageScrapeParams{
 		Link:           feedItem.Link,
 		Container:      feed.CssSelContainer,
 		ClipStartPoint: feed.CssSelStart,
@@ -459,60 +459,113 @@ func MpHTMLProcessingPipeline(queries *db.Queries, ctx context.Context, feedItem
 
 }
 
-type mpdParagraph struct {
-	Text  string
-	Index int
-	Type  string
+type articleParagraph struct {
+	Text              string
+	PositionInArticle int
 }
 
-func mpGetParagraphsByIndex(htmlInput string, index int) ([]mpdParagraph, error) {
+// needs to return all the paragraphs we'll still need the index to
+// check for out of range errors
+// in the page we can sample the ones we need and use all the paras to create a visual guide to one sideo
+// likely that would be about one third of the  width
+// hide the blockquotes with CSS
 
-	allParagraphs := [][]mpdParagraph{}
-	paragraphsPerIndex := 3
+/*
+
+article
+pageOfArticle
+paragraph
+comment
+summary
+
+*/
+
+const PARAGRAPHS_PER_PAGE int = 3
+
+func getArticleParagraphsByPageNumber(htmlInput string, pageNumber int) ([][]articleParagraph, error) {
+
+	allParagraphs := [][]articleParagraph{}
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlInput))
 	if err != nil {
-		return []mpdParagraph{}, err
+		return allParagraphs, err
 	}
 
-	docNodes := doc.Find("body > p, body > blockquote")
-	isIndexOutOfRange := func(index int) bool {
-		return index*paragraphsPerIndex >= docNodes.Length()
+	selection := doc.Find("p")
+	if selection.Length() == 0 {
+		return allParagraphs, errors.New("no paragraphs")
 	}
 
-	if isIndexOutOfRange(index) {
-		return []mpdParagraph{}, errors.New("index out of range!")
+	lastPageOfArticle := 1
+	for i := range selection.Length() {
+		if (i+1)%PARAGRAPHS_PER_PAGE == 0 {
+			lastPageOfArticle++
+		}
 	}
 
-	var id = 0
-	for i := 0; i < docNodes.Length(); i += paragraphsPerIndex {
+	if pageNumber > lastPageOfArticle {
+		return allParagraphs, fmt.Errorf("page %v beyond last page %v", pageNumber, lastPageOfArticle)
+	}
+
+	var paragraphPosition = 0
+	for i := 0; i < selection.Length(); i += PARAGRAPHS_PER_PAGE {
 
 		// dont step outside of bounds
-		group := docNodes.Slice(i, min(i+paragraphsPerIndex, docNodes.Length()))
-		chunks := []mpdParagraph{}
+		group := selection.Slice(i, min(i+PARAGRAPHS_PER_PAGE, selection.Length()))
+		chunks := []articleParagraph{}
 
 		group.Each(func(j int, s *goquery.Selection) {
-			n := s.Get(0)
 			chunks = append(
 				chunks,
-				mpdParagraph{
-					Text:  s.Text(),
-					Index: id,
-					Type:  n.Data,
+				articleParagraph{
+					Text:              s.Text(),
+					PositionInArticle: paragraphPosition,
 				})
-			id++
+			paragraphPosition++
 		})
 
 		allParagraphs = append(allParagraphs, chunks)
 
 	}
 
-	godump.Dump("all", allParagraphs)
-
-	return allParagraphs[index], nil
+	return allParagraphs, nil
 }
 
-func _scrapeSiteHTML(feed mpdPageScrapeParams) (string, error) {
+// just return some HTML as a string
+func getArticleOutline(articleID int64, pageNumber int) string {
+
+	/*
+
+		The idea here would be to create some html based upon the users summaries
+		----------------
+
+		for example if the
+		/game/article/1/page/2
+
+		The user will have filled in the first page most likely (but not necessarily)
+
+		So we would have our comments - these would have a pageID and and articleID
+
+		i think the idea of every page having a summary makes sense so it might be that
+		a page has only one comment and then a summary but so be it. An improvement here
+		might be that that if a page has only one para that is the summary
+
+		last note on the page is the summary
+
+		last note is based on the length of the paragraphs
+
+		if there is some input
+
+		maybe the
+
+
+	*/
+
+	return ""
+
+}
+
+func _scrapeSiteHTML(feed pageScrapeParams) (string, error) {
 
 	godump.Dump("feed", feed)
 
@@ -833,7 +886,7 @@ type mpdCommentsData struct {
 	Comments                    map[int64]db.Comment
 }
 
-type mpdPageScrapeParams struct {
+type pageScrapeParams struct {
 	Link           string
 	Container      string
 	ClipStartPoint string
