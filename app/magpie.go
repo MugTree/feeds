@@ -480,19 +480,18 @@ summary
 
 const PARAGRAPHS_PER_PAGE int = 3
 
-func getArticleParagraphs(htmlInput string, pageNumber int) ([]articleParagraph, bool, error) {
+func getArticleParagraphs(htmlInput string, pageNumber int) ([][]articleParagraph, int, error) {
 
 	allParagraphs := [][]articleParagraph{}
-	selPara := []articleParagraph{}
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlInput))
 	if err != nil {
-		return selPara, false, err
+		return allParagraphs, 0, err
 	}
 
 	selection := doc.Find("p")
 	if selection.Length() == 0 {
-		return selPara, false, errors.New("no paragraphs")
+		return allParagraphs, 0, errors.New("no paragraphs")
 	}
 
 	lastPageOfArticle := 1
@@ -503,7 +502,7 @@ func getArticleParagraphs(htmlInput string, pageNumber int) ([]articleParagraph,
 	}
 
 	if pageNumber > lastPageOfArticle {
-		return selPara, false, fmt.Errorf("page %v beyond last page %v", pageNumber, lastPageOfArticle)
+		return allParagraphs, 0, fmt.Errorf("page %v beyond last page %v", pageNumber, lastPageOfArticle)
 	}
 
 	var paragraphPosition = 0
@@ -527,20 +526,7 @@ func getArticleParagraphs(htmlInput string, pageNumber int) ([]articleParagraph,
 
 	}
 
-	selPara = allParagraphs[pageNumber]
-
-	hasNextPage := false
-	totalParagraphs := 0
-
-	for _, paras := range allParagraphs {
-		totalParagraphs += len(paras)
-	}
-
-	if totalParagraphs > pageNumber*PARAGRAPHS_PER_PAGE {
-		hasNextPage = true
-	}
-
-	return selPara, hasNextPage, nil
+	return allParagraphs, lastPageOfArticle, nil
 }
 
 func _scrapeSiteHTML(feed pageScrapeParams) (string, error) {

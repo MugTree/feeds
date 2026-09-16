@@ -110,23 +110,26 @@ func textAreaInput(articleID int, pageNumber int, notes []string) Node {
 	)
 }
 
-func pageGamePlay(article db.Article, articleParagraphs []articleParagraph, pageNumber int, notes []string, conclusion string, showNext bool) Node {
+func pageGamePlay(article db.Article, _ [][]articleParagraph, pageParagraphs []articleParagraph, pageNumber int, notes []string, conclusion string, lastPage int) Node {
 
+	godump.Dump("pageNumber", pageNumber, "lastPage", lastPage)
+
+	showNext := func(pageNumber int) bool {
+		return pageNumber < lastPage
+	}
 	showPreviousLink := func(pageNumber int) bool {
 		return pageNumber > 1
 	}
 
 	notesCount := len(notes)
 
-	godump.Dump("notes", notes)
-
 	return Div(
 		ID("game"),
 		Class("grid-parent"),
 
 		Div(Class("paragraphs"),
-			ds.Signals(map[string]any{"paragraphCount": len(articleParagraphs), "notesCount": notesCount}),
-			Map(articleParagraphs, func(p articleParagraph) Node {
+			ds.Signals(map[string]any{"paragraphCount": len(pageParagraphs), "notesCount": notesCount}),
+			Map(pageParagraphs, func(p articleParagraph) Node {
 				return P(
 					Text(p.Text),
 				)
@@ -140,8 +143,9 @@ func pageGamePlay(article db.Article, articleParagraphs []articleParagraph, page
 						Text("< Previous chunk"),
 						Href(fmt.Sprintf("/game/article/%v/page/%v", article.ID, pageNumber-1)),
 					)),
-				Span(Text("|")),
-				If(showNext,
+				Span(
+					Text("|")),
+				If(showNext(pageNumber),
 					A(
 						Text("Next chunk >"),
 						Href(fmt.Sprintf("/game/article/%v/page/%v", article.ID, pageNumber+1)),
@@ -157,7 +161,7 @@ func pageGamePlay(article db.Article, articleParagraphs []articleParagraph, page
 			),
 		)),
 		Div(Class("overview"),
-			Map(articleParagraphs, func(p articleParagraph) Node {
+			Map(pageParagraphs, func(p articleParagraph) Node {
 				return P(Text(p.Text))
 			}),
 

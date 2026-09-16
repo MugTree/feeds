@@ -112,7 +112,7 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 				return
 			}
 
-			paragraphs, showNext, err := getArticleParagraphs(article.ArticleContent, int(pageNumber))
+			articleParagraphs, lastPage, err := getArticleParagraphs(article.ArticleContent, int(pageNumber))
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
@@ -126,15 +126,17 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 
 			separateConclusionFromNotes := func(notes []string, paragraphs []articleParagraph) ([]string, string) {
 
+				fmt.Println("separateConclusionFromNotes()", "notes_input", notes)
 				if len(notes) == 0 {
 					return []string{}, ""
 				}
 
 				if len(notes) > int(len(paragraphs)) {
-					notes = notes[:len(notes)-1]
+					newNotes := notes[:len(notes)-1]
 					conclusion := notes[len(notes)-1]
-					fmt.Printf("adding a conclusion %s", conclusion)
-					return notes, conclusion
+
+					fmt.Println("separateConclusionFromNotes()", "newNotes", newNotes, "conclusion", conclusion)
+					return newNotes, conclusion
 				}
 				return notes, ""
 			}
@@ -157,15 +159,30 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 				// trim the input
 				// are there more that +1 more notes than paragraphs
 				// if so remove them an just carry on
-				if len(notes) >= int(ns.ParagraphCount)+1 {
+				if len(notes) > int(ns.ParagraphCount)+1 {
 					notes = notes[0 : int(ns.ParagraphCount)+1]
 					fmt.Printf("trimming notes to %v", len(notes))
 				}
 
-				notes, conclusion := separateConclusionFromNotes(notes, paragraphs)
+				pageParagraphs := articleParagraphs[pageNumber-1]
+				notes, conclusion := separateConclusionFromNotes(notes, pageParagraphs)
 
 				sse := datastar.NewSSE(w, r)
-				sse.PatchElementGostar(pageGamePlay(article, paragraphs, int(pageNumber), notes, conclusion, showNext))
+				sse.PatchElementGostar(
+					Div(ID("notes"), If(len(notes) > 0,
+						Map(notes, func(n string) Node {
+							return P(Text(n))
+						},
+						),
+					),
+					),
+				)
+
+				sse.PatchElementGostar(Div(ID("conclusion"),
+					If(conclusion != "",
+						P(Text(conclusion)),
+					),
+				))
 				sse.ExecuteScript(`equaliseHeights();`)
 				return
 
@@ -189,9 +206,10 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 				notes = strings.Split(noteText.NoteText, "\n\n")
 			}
 
-			notes, conclusion := separateConclusionFromNotes(notes, paragraphs)
+			pageParagraphs := articleParagraphs[pageNumber-1]
+			notes, conclusion := separateConclusionFromNotes(notes, pageParagraphs)
 
-			pageLayout(pageProps{Title: "game"}, pageGamePlay(article, paragraphs, int(pageNumber), notes, conclusion, showNext)).Render(w)
+			pageLayout(pageProps{Title: "game"}, pageGamePlay(article, articleParagraphs, pageParagraphs, int(pageNumber), notes, conclusion, lastPage)).Render(w)
 
 		})
 
