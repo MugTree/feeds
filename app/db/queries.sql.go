@@ -31,29 +31,6 @@ func (q *Queries) InsertAndReturnFeedsCallData(ctx context.Context, arg InsertAn
 	return i, err
 }
 
-const insertAndReturnNote = `-- name: InsertAndReturnNote :one
-INSERT INTO notes (article_id, page_id, note_text, date_added ) VALUES (?,?,?, CURRENT_TIMESTAMP) RETURNING id, article_id, page_id, note_text, date_added
-`
-
-type InsertAndReturnNoteParams struct {
-	ArticleID int64
-	PageID    int64
-	NoteText  string
-}
-
-func (q *Queries) InsertAndReturnNote(ctx context.Context, arg InsertAndReturnNoteParams) (Note, error) {
-	row := q.db.QueryRowContext(ctx, insertAndReturnNote, arg.ArticleID, arg.PageID, arg.NoteText)
-	var i Note
-	err := row.Scan(
-		&i.ID,
-		&i.ArticleID,
-		&i.PageID,
-		&i.NoteText,
-		&i.DateAdded,
-	)
-	return i, err
-}
-
 const insertArticle = `-- name: InsertArticle :one
 INSERT INTO articles (
 	feed_id, 
@@ -649,42 +626,26 @@ func (q *Queries) SelectLatest5StarredArticles(ctx context.Context) ([]SelectLat
 	return items, nil
 }
 
-const selectNotesByArticleIDAndPageID = `-- name: SelectNotesByArticleIDAndPageID :many
-SELECT id, article_id, page_id, note_text, date_added FROM notes WHERE article_id = ? AND page_id = ?
+const selectNotesByArticleIDAndPageID = `-- name: SelectNotesByArticleIDAndPageID :one
+SELECT id, article_id, page_number, note_text, date_added FROM notes WHERE article_id = ? AND page_number = ?
 `
 
 type SelectNotesByArticleIDAndPageIDParams struct {
-	ArticleID int64
-	PageID    int64
+	ArticleID  int64
+	PageNumber int64
 }
 
-func (q *Queries) SelectNotesByArticleIDAndPageID(ctx context.Context, arg SelectNotesByArticleIDAndPageIDParams) ([]Note, error) {
-	rows, err := q.db.QueryContext(ctx, selectNotesByArticleIDAndPageID, arg.ArticleID, arg.PageID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Note
-	for rows.Next() {
-		var i Note
-		if err := rows.Scan(
-			&i.ID,
-			&i.ArticleID,
-			&i.PageID,
-			&i.NoteText,
-			&i.DateAdded,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) SelectNotesByArticleIDAndPageID(ctx context.Context, arg SelectNotesByArticleIDAndPageIDParams) (Note, error) {
+	row := q.db.QueryRowContext(ctx, selectNotesByArticleIDAndPageID, arg.ArticleID, arg.PageNumber)
+	var i Note
+	err := row.Scan(
+		&i.ID,
+		&i.ArticleID,
+		&i.PageNumber,
+		&i.NoteText,
+		&i.DateAdded,
+	)
+	return i, err
 }
 
 const selectSideBarData = `-- name: SelectSideBarData :many
@@ -868,17 +829,31 @@ func (q *Queries) UpdateFeed(ctx context.Context, arg UpdateFeedParams) (Feed, e
 	return i, err
 }
 
-const updateNoteByArticleIDAndPageID = `-- name: UpdateNoteByArticleIDAndPageID :exec
-UPDATE notes SET note_text = ? WHERE article_id = ? AND page_id = ?
+const upsertAndReturnNote = `-- name: UpsertAndReturnNote :one
+INSERT INTO notes (article_id, page_number, note_text, date_added) 
+VALUES (?, ?, ?, CURRENT_TIMESTAMP) 
+ON CONFLICT(article_id, page_number)
+DO UPDATE SET 
+    note_text = excluded.note_text,
+    date_added = CURRENT_TIMESTAMP
+RETURNING id, article_id, page_number, note_text, date_added
 `
 
-type UpdateNoteByArticleIDAndPageIDParams struct {
-	NoteText  string
-	ArticleID int64
-	PageID    int64
+type UpsertAndReturnNoteParams struct {
+	ArticleID  int64
+	PageNumber int64
+	NoteText   string
 }
 
-func (q *Queries) UpdateNoteByArticleIDAndPageID(ctx context.Context, arg UpdateNoteByArticleIDAndPageIDParams) error {
-	_, err := q.db.ExecContext(ctx, updateNoteByArticleIDAndPageID, arg.NoteText, arg.ArticleID, arg.PageID)
-	return err
+func (q *Queries) UpsertAndReturnNote(ctx context.Context, arg UpsertAndReturnNoteParams) (Note, error) {
+	row := q.db.QueryRowContext(ctx, upsertAndReturnNote, arg.ArticleID, arg.PageNumber, arg.NoteText)
+	var i Note
+	err := row.Scan(
+		&i.ID,
+		&i.ArticleID,
+		&i.PageNumber,
+		&i.NoteText,
+		&i.DateAdded,
+	)
+	return i, err
 }

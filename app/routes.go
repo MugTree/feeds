@@ -1,6 +1,8 @@
 package app
 
 import (
+	"database/sql"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -63,7 +65,36 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 
 		})
 
+		type noteSignals = struct {
+			Text           string `json:"text"`
+			ParagraphCount int64  `json:"paragraphCount"`
+		}
+
+		/*
+
+			Both routines need to
+			----------------------------
+
+			check url input
+			pull the article paragraphs
+			split the notes text
+			check for a conclusion
+
+			No signals
+			--------------
+			get any notes based on page id
+
+			With signals
+			------------
+			read signals
+			checks for too many notes and trim the extras
+
+
+		*/
+
 		r.Get("/article/{articleID}/page/{pageNumber}", func(w http.ResponseWriter, r *http.Request) {
+
+			ctx := r.Context()
 
 			articleID, ok := httpRequireIDParam(w, r, "articleID")
 			if !ok {
@@ -81,73 +112,92 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 				return
 			}
 
-			paragraphs, err := getArticleParagraphsByPageNumber(article.ArticleContent, int(pageNumber))
+			paragraphs, showNext, err := getArticleParagraphs(article.ArticleContent, int(pageNumber))
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
 			}
 
-			pageLayout(
-				pageProps{
-					Title: article.Published.String(),
-				},
-				pageGamePlay(article, paragraphs, int(pageNumber)),
-			).Render(w)
+			notesFromStr := func(ns string) []string {
+				ns = strings.Trim(ns, "\n")
+				notes := strings.Split(ns, "\n\n")
+				return notes
+			}
+
+			separateConclusionFromNotes := func(notes []string, paragraphs []articleParagraph) ([]string, string) {
+
+				if len(notes) == 0 {
+					return []string{}, ""
+				}
+
+				if len(notes) > int(len(paragraphs)) {
+					notes = notes[:len(notes)-1]
+					conclusion := notes[len(notes)-1]
+					fmt.Printf("adding a conclusion %s", conclusion)
+					return notes, conclusion
+				}
+				return notes, ""
+			}
+
+			if r.URL.Query().Has("datastar") {
+
+				ns := noteSignals{}
+
+				err := datastar.ReadSignals(r, &ns)
+				if err != nil {
+					httpLogAndError(w, r, err.Error())
+					return
+				}
+
+				godump.Dump("signals", &ns)
+				godump.Dump("para count ", ns.ParagraphCount)
+
+				notes := notesFromStr(ns.Text)
+
+				// trim the input
+				// are there more that +1 more notes than paragraphs
+				// if so remove them an just carry on
+				if len(notes) >= int(ns.ParagraphCount)+1 {
+					notes = notes[0 : int(ns.ParagraphCount)+1]
+					fmt.Printf("trimming notes to %v", len(notes))
+				}
+
+				notes, conclusion := separateConclusionFromNotes(notes, paragraphs)
+
+				sse := datastar.NewSSE(w, r)
+				sse.PatchElementGostar(pageGamePlay(article, paragraphs, int(pageNumber), notes, conclusion, showNext))
+				sse.ExecuteScript(`equaliseHeights();`)
+				return
+
+			}
+
+			noteText, err := queries.SelectNotesByArticleIDAndPageID(ctx,
+				db.SelectNotesByArticleIDAndPageIDParams{
+					PageNumber: pageNumber,
+					ArticleID:  articleID,
+				})
+
+			if err != nil {
+				if err != sql.ErrNoRows {
+					httpLogAndError(w, r, err.Error())
+					return
+				}
+			}
+
+			notes := []string{}
+			if noteText.NoteText != "" {
+				notes = strings.Split(noteText.NoteText, "\n\n")
+			}
+
+			notes, conclusion := separateConclusionFromNotes(notes, paragraphs)
+
+			pageLayout(pageProps{Title: "game"}, pageGamePlay(article, paragraphs, int(pageNumber), notes, conclusion, showNext)).Render(w)
 
 		})
 
-		type noteSignals = struct {
-			Text           string `json:"text"`
-			ParagraphCount int64  `json:"paragraphCount"`
-		}
+		r.Put("/article/{articleID}/page/{pageNumber}/annotate", func(w http.ResponseWriter, r *http.Request) {
 
-		r.Put("/article/{articleID}/page/{pageNumber}/notes/add", func(w http.ResponseWriter, r *http.Request) {
-
-			articleID, ok := httpRequireIDParam(w, r, "articleID")
-			if !ok {
-				return
-			}
-
-			pageNumber, ok := httpRequireNumericParam(w, r, "pageNumber")
-			if !ok {
-				return
-			}
-
-			godump.Dump("articleID", articleID, "pageNumber", pageNumber)
-
-			ns := noteSignals{}
-			err := datastar.ReadSignals(r, &ns)
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
-
-			ns.Text = strings.Trim(ns.Text, "\n")
-			notes := strings.Split(ns.Text, "\n\n")
-
-			godump.Dump("signals", &ns)
-			godump.Dump("para count ", ns.ParagraphCount)
-
-			// are there more that +1 more notes than paragraphs
-			// if so remove them an just carry on
-			if len(notes) > int(ns.ParagraphCount)+1 {
-				notes = notes[0 : int(ns.ParagraphCount)+1]
-			}
-
-			godump.Dump("notes", notes)
-			/*
-
-
-
-
-			 */
-			sse := datastar.NewSSE(w, r)
-			sse.PatchElementGostar(Div(ID("notes"), Map(notes, func(n string) Node {
-				return P(Text(n))
-			})))
-
-			sse.ExecuteScript(`equaliseHeights();`)
-
+			fmt.Println("NOT IMPL")
 		})
 
 	})

@@ -1,7 +1,7 @@
 .grid-parent {
   display: grid;
   gap: 24px;
-  grid-template-columns: 1fr 1fr 500px;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
 }
 
 .current-paragraphs {
@@ -14,9 +14,9 @@
   background-color: lightgray;
 }
 
-.overview p {
+/* .overview p {
   font-size: 12px;
-}
+} */
 
 .sticky-note {
   /* width: 200px;

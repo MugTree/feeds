@@ -42,9 +42,9 @@ type Log struct {
 }
 
 type Note struct {
-	ID        int64
-	ArticleID int64
-	PageID    int64
-	NoteText  string
-	DateAdded time.Time
+	ID         int64
+	ArticleID  int64
+	PageNumber int64
+	NoteText   string
+	DateAdded  time.Time
 }

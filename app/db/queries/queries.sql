@@ -72,14 +72,17 @@ FROM
 INNER JOIN feeds f 
 ON f.id = a.feed_id where a.id = ?;
 
--- name: SelectNotesByArticleIDAndPageID :many
-SELECT * FROM notes WHERE article_id = ? AND page_id = ?;
+-- name: SelectNotesByArticleIDAndPageID :one
+SELECT * FROM notes WHERE article_id = ? AND page_number = ?;
 
--- name: UpdateNoteByArticleIDAndPageID :exec
-UPDATE notes SET note_text = ? WHERE article_id = ? AND page_id = ?;
-
--- name: InsertAndReturnNote :one
-INSERT INTO notes (article_id, page_id, note_text, date_added ) VALUES (?,?,?, CURRENT_TIMESTAMP) RETURNING *;
+-- name: UpsertAndReturnNote :one
+INSERT INTO notes (article_id, page_number, note_text, date_added) 
+VALUES (?, ?, ?, CURRENT_TIMESTAMP) 
+ON CONFLICT(article_id, page_number)
+DO UPDATE SET 
+    note_text = excluded.note_text,
+    date_added = CURRENT_TIMESTAMP
+RETURNING *;
 
 -- name: InsertArticle :one
 INSERT INTO articles (

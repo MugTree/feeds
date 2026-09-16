@@ -2,7 +2,9 @@ package app
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/goforj/godump"
 	"github.com/mugtree/feeds/app/db"
 	. "maragu.dev/gomponents"
 	ds "maragu.dev/gomponents-datastar"
@@ -92,38 +94,45 @@ func pageGameHome(articles []db.SelectArticlesByFeedIDRow) Node {
 	)
 }
 
-func pageGamePlay(article db.Article, articleParagraphs [][]articleParagraph, pageNumber int) Node {
+func textAreaInput(articleID int, pageNumber int, notes []string) Node {
 
-	showNextLink := func(pageNumber int) bool {
-		totalParagraphs := 0
-		for _, paras := range articleParagraphs {
-			totalParagraphs += len(paras)
-		}
-		return totalParagraphs > pageNumber*PARAGRAPHS_PER_PAGE
+	textAreaVal := ""
+	if len(notes) > 0 {
+		fmt.Println("adding notes")
+		textAreaVal = strings.Join(notes, "\n\n")
 	}
+
+	return Textarea(
+		ds.Bind("text"),
+		ds.On("input", fmt.Sprintf(`twoConsecutiveNewlines(evt) && @get("/game/article/%v/page/%v")`, articleID, pageNumber)),
+		ID("user_input"),
+		Text(textAreaVal),
+	)
+}
+
+func pageGamePlay(article db.Article, articleParagraphs []articleParagraph, pageNumber int, notes []string, conclusion string, showNext bool) Node {
 
 	showPreviousLink := func(pageNumber int) bool {
 		return pageNumber > 1
 	}
 
-	pageIndex := pageNumber - 1
-	pageParagraphs := articleParagraphs[pageIndex]
+	notesCount := len(notes)
 
-	return Div(Class("grid-parent"),
+	godump.Dump("notes", notes)
+
+	return Div(
+		ID("game"),
+		Class("grid-parent"),
 
 		Div(Class("paragraphs"),
-			ds.Signals(map[string]any{"paragraphCount": len(pageParagraphs)}),
-			Map(pageParagraphs, func(p articleParagraph) Node {
+			ds.Signals(map[string]any{"paragraphCount": len(articleParagraphs), "notesCount": notesCount}),
+			Map(articleParagraphs, func(p articleParagraph) Node {
 				return P(
 					Text(p.Text),
 				)
 			}),
 			Div(
-				Textarea(
-					ds.Bind("text"),
-					ds.On("input", fmt.Sprintf(`twoConsecutiveNewlines(evt) && @put("/game/article/%v/page/%v/notes/add")`, article.ID, pageNumber)),
-					ID("user_input"),
-				),
+				textAreaInput(int(article.ID), pageNumber, notes),
 			),
 			Div(
 				If(showPreviousLink(pageNumber),
@@ -132,7 +141,7 @@ func pageGamePlay(article db.Article, articleParagraphs [][]articleParagraph, pa
 						Href(fmt.Sprintf("/game/article/%v/page/%v", article.ID, pageNumber-1)),
 					)),
 				Span(Text("|")),
-				If(showNextLink(pageNumber),
+				If(showNext,
 					A(
 						Text("Next chunk >"),
 						Href(fmt.Sprintf("/game/article/%v/page/%v", article.ID, pageNumber+1)),
@@ -140,13 +149,16 @@ func pageGamePlay(article db.Article, articleParagraphs [][]articleParagraph, pa
 				),
 			),
 		),
-		Div(ID("notes")),
+		/* doesnt really need the if */
+		Div(ID("notes"), If(len(notes) > 0,
+			Map(notes, func(n string) Node {
+				return P(Text(n))
+			},
+			),
+		)),
 		Div(Class("overview"),
-
-			Map(articleParagraphs, func(paras []articleParagraph) Node {
-				return Map(paras, func(p articleParagraph) Node {
-					return P(Text(p.Text))
-				})
+			Map(articleParagraphs, func(p articleParagraph) Node {
+				return P(Text(p.Text))
 			}),
 
 			//Raw(article.ArticleContent),
@@ -167,7 +179,13 @@ func pageGamePlay(article db.Article, articleParagraphs [][]articleParagraph, pa
 			// 	})
 			// }),
 		),
+		Div(ID("conclusion"),
+			If(conclusion != "",
+				P(Text(conclusion)),
+			),
+		),
 		Script(Src("/public/js/feeds.js")),
+		Script(Raw("console.log('loading...'); equaliseHeights()")),
 	)
 }
 

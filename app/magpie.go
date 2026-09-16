@@ -17,7 +17,6 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/mmcdole/gofeed"
 	"github.com/mugtree/feeds/app/db"
-	"github.com/mugtree/feeds/lib"
 	"golang.org/x/net/html"
 )
 
@@ -154,164 +153,164 @@ import (
 // 	return mns, nil
 // }
 
-func setArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
+// func setArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
 
-	updatedValue := func(currentValue int64) int64 {
-		if currentValue == 3 {
-			return 0
-		}
-		return currentValue + 1
-	}(starredValue)
+// 	updatedValue := func(currentValue int64) int64 {
+// 		if currentValue == 3 {
+// 			return 0
+// 		}
+// 		return currentValue + 1
+// 	}(starredValue)
 
-	err := queries.UpdateArticleSetStarredValue(ctx,
-		db.UpdateArticleSetStarredValueParams{
-			Starred: int64(updatedValue),
-			ID:      articleID},
-	)
-	if err != nil {
-		return err
-	}
+// 	err := queries.UpdateArticleSetStarredValue(ctx,
+// 		db.UpdateArticleSetStarredValueParams{
+// 			Starred: int64(updatedValue),
+// 			ID:      articleID},
+// 	)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-func getArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []mpdFeedsArticle, toRead []mpdFeedsArticle, err error) {
+// func getArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []mpdFeedsArticle, toRead []mpdFeedsArticle, err error) {
 
-	allArticles, err := queries.SelectArticlesByFeedID(ctx, feedID)
-	if err != nil {
-		return alreadyRead, toRead, err
-	}
+// 	allArticles, err := queries.SelectArticlesByFeedID(ctx, feedID)
+// 	if err != nil {
+// 		return alreadyRead, toRead, err
+// 	}
 
-	for _, row := range allArticles {
+// 	for _, row := range allArticles {
 
-		a := mpdFeedsArticle{
-			Id:        row.ID,
-			FeedId:    row.FeedID,
-			Title:     row.Title,
-			Link:      row.Link,
-			Published: row.Published.Format(layoutISO),
-			DateFound: row.DateFound.Format(layoutISO),
-			Summary:   row.Summary,
-			Read:      lib.IntToBool(row.Read),
-			Liked:     row.Starred,
-			FeedTitle: row.FeedTitle,
-		}
+// 		a := mpdFeedsArticle{
+// 			Id:        row.ID,
+// 			FeedId:    row.FeedID,
+// 			Title:     row.Title,
+// 			Link:      row.Link,
+// 			Published: row.Published.Format(layoutISO),
+// 			DateFound: row.DateFound.Format(layoutISO),
+// 			Summary:   row.Summary,
+// 			Read:      lib.IntToBool(row.Read),
+// 			Liked:     row.Starred,
+// 			FeedTitle: row.FeedTitle,
+// 		}
 
-		if a.Read {
-			alreadyRead = append(alreadyRead, a)
-			continue
-		}
+// 		if a.Read {
+// 			alreadyRead = append(alreadyRead, a)
+// 			continue
+// 		}
 
-		toRead = append(toRead, a)
-	}
+// 		toRead = append(toRead, a)
+// 	}
 
-	return alreadyRead, toRead, nil
-}
+// 	return alreadyRead, toRead, nil
+// }
 
-func enrichHTMLOutputForDisplay(htmlStr string, _ int64, articleID int64) (string, error) {
+// func enrichHTMLOutputForDisplay(htmlStr string, _ int64, articleID int64) (string, error) {
 
-	addDataAttributes := func(doc *html.Node) *html.Node {
+// 	addDataAttributes := func(doc *html.Node) *html.Node {
 
-		var walk func(*html.Node)
+// 		var walk func(*html.Node)
 
-		count := 0
+// 		count := 0
 
-		walk = func(n *html.Node) {
+// 		walk = func(n *html.Node) {
 
-			count++
+// 			count++
 
-			if n.Type == html.ElementNode {
+// 			if n.Type == html.ElementNode {
 
-				var paragraphID string
+// 				var paragraphID string
 
-				for _, attr := range n.Attr {
-					if attr.Key == "data-paragraph-id" {
-						paragraphID = attr.Val
-						break
-					}
-				}
+// 				for _, attr := range n.Attr {
+// 					if attr.Key == "data-paragraph-id" {
+// 						paragraphID = attr.Val
+// 						break
+// 					}
+// 				}
 
-				if paragraphID != "" {
-					n.Attr = append(n.Attr, html.Attribute{
-						Key: "data-on:click",
-						Val: fmt.Sprintf("@get('/article/%v/comment/%v/write')", articleID, paragraphID),
-					})
-				}
+// 				if paragraphID != "" {
+// 					n.Attr = append(n.Attr, html.Attribute{
+// 						Key: "data-on:click",
+// 						Val: fmt.Sprintf("@get('/article/%v/comment/%v/write')", articleID, paragraphID),
+// 					})
+// 				}
 
-			}
+// 			}
 
-			for c := n.FirstChild; c != nil; c = c.NextSibling {
-				walk(c)
-			}
+// 			for c := n.FirstChild; c != nil; c = c.NextSibling {
+// 				walk(c)
+// 			}
 
-		}
+// 		}
 
-		walk(doc)
+// 		walk(doc)
 
-		return doc
+// 		return doc
 
-	}
+// 	}
 
-	removeOuterHTMLShell := func(doc *html.Node) (*html.Node, error) {
+// 	removeOuterHTMLShell := func(doc *html.Node) (*html.Node, error) {
 
-		var walk func(*html.Node)
+// 		var walk func(*html.Node)
 
-		walk = func(n *html.Node) {
-			// if doc != nil {
-			// 	return
-			// }
+// 		walk = func(n *html.Node) {
+// 			// if doc != nil {
+// 			// 	return
+// 			// }
 
-			if n.Type == html.ElementNode && n.Data == "body" {
-				doc = n
-				return
-			}
+// 			if n.Type == html.ElementNode && n.Data == "body" {
+// 				doc = n
+// 				return
+// 			}
 
-			for c := n.FirstChild; c != nil; c = c.NextSibling {
-				walk(c)
-			}
-		}
+// 			for c := n.FirstChild; c != nil; c = c.NextSibling {
+// 				walk(c)
+// 			}
+// 		}
 
-		walk(doc)
+// 		walk(doc)
 
-		if doc == nil {
-			return nil, fmt.Errorf("body element not found")
-		}
+// 		if doc == nil {
+// 			return nil, fmt.Errorf("body element not found")
+// 		}
 
-		article := &html.Node{
-			Type: html.ElementNode,
-			Data: "article",
-		}
+// 		article := &html.Node{
+// 			Type: html.ElementNode,
+// 			Data: "article",
+// 		}
 
-		// Move every child from <body> into <article>.
-		for doc.FirstChild != nil {
-			child := doc.FirstChild
-			doc.RemoveChild(child)
-			article.AppendChild(child)
-		}
+// 		// Move every child from <body> into <article>.
+// 		for doc.FirstChild != nil {
+// 			child := doc.FirstChild
+// 			doc.RemoveChild(child)
+// 			article.AppendChild(child)
+// 		}
 
-		return article, nil
-	}
+// 		return article, nil
+// 	}
 
-	htmlNodes, err := html.Parse(strings.NewReader(htmlStr))
-	if err != nil {
-		return "", err
-	}
+// 	htmlNodes, err := html.Parse(strings.NewReader(htmlStr))
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	htmlNodes = addDataAttributes(htmlNodes)
+// 	htmlNodes = addDataAttributes(htmlNodes)
 
-	htmlNodes, err = removeOuterHTMLShell(htmlNodes)
-	if err != nil {
-		return "", err
-	}
+// 	htmlNodes, err = removeOuterHTMLShell(htmlNodes)
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	transformed, err := _stringifyHTML(htmlNodes)
-	if err != nil {
-		return "", err
-	}
+// 	transformed, err := _stringifyHTML(htmlNodes)
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	return transformed, nil
+// 	return transformed, nil
 
-}
+// }
 
 // func enrichArticles(queries *db.Queries, ctx context.Context, articles []db.SelectArticlesByFeedIDWithLimitRow) ([]mpdEnrichedArticle, error) {
 
@@ -481,18 +480,19 @@ summary
 
 const PARAGRAPHS_PER_PAGE int = 3
 
-func getArticleParagraphsByPageNumber(htmlInput string, pageNumber int) ([][]articleParagraph, error) {
+func getArticleParagraphs(htmlInput string, pageNumber int) ([]articleParagraph, bool, error) {
 
 	allParagraphs := [][]articleParagraph{}
+	selPara := []articleParagraph{}
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlInput))
 	if err != nil {
-		return allParagraphs, err
+		return selPara, false, err
 	}
 
 	selection := doc.Find("p")
 	if selection.Length() == 0 {
-		return allParagraphs, errors.New("no paragraphs")
+		return selPara, false, errors.New("no paragraphs")
 	}
 
 	lastPageOfArticle := 1
@@ -503,7 +503,7 @@ func getArticleParagraphsByPageNumber(htmlInput string, pageNumber int) ([][]art
 	}
 
 	if pageNumber > lastPageOfArticle {
-		return allParagraphs, fmt.Errorf("page %v beyond last page %v", pageNumber, lastPageOfArticle)
+		return selPara, false, fmt.Errorf("page %v beyond last page %v", pageNumber, lastPageOfArticle)
 	}
 
 	var paragraphPosition = 0
@@ -527,41 +527,20 @@ func getArticleParagraphsByPageNumber(htmlInput string, pageNumber int) ([][]art
 
 	}
 
-	return allParagraphs, nil
-}
+	selPara = allParagraphs[pageNumber]
 
-// just return some HTML as a string
-func getArticleOutline(articleID int64, pageNumber int) string {
+	hasNextPage := false
+	totalParagraphs := 0
 
-	/*
+	for _, paras := range allParagraphs {
+		totalParagraphs += len(paras)
+	}
 
-		The idea here would be to create some html based upon the users summaries
-		----------------
+	if totalParagraphs > pageNumber*PARAGRAPHS_PER_PAGE {
+		hasNextPage = true
+	}
 
-		for example if the
-		/game/article/1/page/2
-
-		The user will have filled in the first page most likely (but not necessarily)
-
-		So we would have our comments - these would have a pageID and and articleID
-
-		i think the idea of every page having a summary makes sense so it might be that
-		a page has only one comment and then a summary but so be it. An improvement here
-		might be that that if a page has only one para that is the summary
-
-		last note on the page is the summary
-
-		last note is based on the length of the paragraphs
-
-		if there is some input
-
-		maybe the
-
-
-	*/
-
-	return ""
-
+	return selPara, hasNextPage, nil
 }
 
 func _scrapeSiteHTML(feed pageScrapeParams) (string, error) {
@@ -834,12 +813,12 @@ func DUMMY_godump(message string, val any) {
 	godump.Dump(message, val)
 }
 
-type mpdSidebarLink struct {
-	Name   string
-	Link   string
-	Unread int64
-	FeedId int
-}
+// type mpdSidebarLink struct {
+// 	Name   string
+// 	Link   string
+// 	Unread int64
+// 	FeedId int
+// }
 
 // type mpdArticlePageData struct {
 // 	FeedID                  int64
