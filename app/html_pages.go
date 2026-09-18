@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/goforj/godump"
 	"github.com/mugtree/feeds/app/db"
 	. "maragu.dev/gomponents"
 	ds "maragu.dev/gomponents-datastar"
@@ -94,7 +93,7 @@ func pageGameHome(articles []db.SelectArticlesByFeedIDRow) Node {
 	)
 }
 
-func textAreaInput(articleID int, pageNumber int, notes []string) Node {
+func textAreaInput(notes []string) Node {
 
 	textAreaVal := ""
 	if len(notes) > 0 {
@@ -103,16 +102,14 @@ func textAreaInput(articleID int, pageNumber int, notes []string) Node {
 	}
 
 	return Textarea(
-		ds.Bind("text"),
-		ds.On("input", fmt.Sprintf(`twoConsecutiveNewlines(evt) && @get("/game/article/%v/page/%v")`, articleID, pageNumber)),
+		ds.Bind("notes"),
+		ds.On("input", "$complete = textAreaComplete(evt)"),
 		ID("user_input"),
 		Text(textAreaVal),
 	)
 }
 
-func pageGamePlay(article db.Article, _ [][]articleParagraph, pageParagraphs []articleParagraph, pageNumber int, notes []string, conclusion string, lastPage int) Node {
-
-	godump.Dump("pageNumber", pageNumber, "lastPage", lastPage)
+func pageGamePlay(article db.Article, _ [][]articleParagraph, pageParagraphs []articleParagraph, pageNumber int, notes []string, lastPage int) Node {
 
 	showNext := func(pageNumber int) bool {
 		return pageNumber < lastPage
@@ -121,22 +118,23 @@ func pageGamePlay(article db.Article, _ [][]articleParagraph, pageParagraphs []a
 		return pageNumber > 1
 	}
 
-	notesCount := len(notes)
-
 	return Div(
 		ID("game"),
+		ds.Signals(
+			map[string]any{
+				"paragraphCount": len(pageParagraphs),
+				"complete":       false,
+				"notes":          "",
+			}),
 		Class("grid-parent"),
-
-		Div(Class("paragraphs"),
-			ds.Signals(map[string]any{"paragraphCount": len(pageParagraphs), "notesCount": notesCount}),
+		Div(
+			Class("paragraphs"),
 			Map(pageParagraphs, func(p articleParagraph) Node {
 				return P(
 					Text(p.Text),
 				)
 			}),
-			Div(
-				textAreaInput(int(article.ID), pageNumber, notes),
-			),
+
 			Div(
 				If(showPreviousLink(pageNumber),
 					A(
@@ -153,13 +151,15 @@ func pageGamePlay(article db.Article, _ [][]articleParagraph, pageParagraphs []a
 				),
 			),
 		),
-		/* doesnt really need the if */
-		Div(ID("notes"), If(len(notes) > 0,
-			Map(notes, func(n string) Node {
-				return P(Text(n))
-			},
+		Div(
+			textAreaInput(notes),
+			Button(
+				ds.Show("$complete == true"),
+				Text("save"),
+				ds.On("click", fmt.Sprintf(`@put("/game/article/%v/page/%v")`, article.ID, pageNumber)),
 			),
-		)),
+		),
+		//		notesPanel(notes),
 		Div(Class("overview"),
 			Map(pageParagraphs, func(p articleParagraph) Node {
 				return P(Text(p.Text))
@@ -182,11 +182,6 @@ func pageGamePlay(article db.Article, _ [][]articleParagraph, pageParagraphs []a
 			// 		return P(Text(p.Text), cla)
 			// 	})
 			// }),
-		),
-		Div(ID("conclusion"),
-			If(conclusion != "",
-				P(Text(conclusion)),
-			),
 		),
 		Script(Src("/public/js/feeds.js")),
 		Script(Raw("console.log('loading...'); equaliseHeights()")),

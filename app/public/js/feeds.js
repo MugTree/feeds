@@ -21,28 +21,39 @@
 //   });
 // }
 
-function equaliseHeights() {
-  const nodes = document.querySelectorAll(".paragraphs p");
-  const paragraphs = [...nodes].map((n) => n);
-  const heights = paragraphs.map((p) => p.getBoundingClientRect().height);
+// function equaliseHeights() {
+//   const nodes = document.querySelectorAll(".paragraphs p");
+//   const paragraphs = [...nodes].map((n) => n);
+//   const heights = paragraphs.map((p) => p.getBoundingClientRect().height);
 
-  const noteNodes = document.querySelectorAll("#notes p");
-  const notes = [...noteNodes].map((n) => n);
+//   const noteNodes = document.querySelectorAll("#notes p");
+//   const notes = [...noteNodes].map((n) => n);
 
+//   console.log("notes :>> ", notes);
+
+//   for (let i = 0; i < notes.length; i++) {
+//     notes[i].setAttribute("style", "height: " + heights[i] + "px");
+//   }
+// }
+
+// function twoConsecutiveNewlines(evt) {
+//   const userInput = evt.target;
+//   const position = userInput.selectionStart;
+//   const text = userInput.value;
+//   if (text[position - 1] === "\n" && text[position - 2] === "\n") {
+//     console.log("New paragraph created!");
+//     return true;
+//   }
+//   return false;
+// }
+
+function textAreaComplete(evt) {
+  const notes = evt.target.value.split("\n\n");
   console.log("notes :>> ", notes);
-
-  for (let i = 0; i < notes.length; i++) {
-    notes[i].setAttribute("style", "height: " + heights[i] + "px");
-  }
-}
-
-function twoConsecutiveNewlines(evt) {
-  const userInput = evt.target;
-  const position = userInput.selectionStart;
-  const text = userInput.value;
-  if (text[position - 1] === "\n" && text[position - 2] === "\n") {
-    console.log("New paragraph created!");
+  if (notes.length > 3 && /^\S/.test(notes[3])) {
+    console.log("valid :>> ", true);
     return true;
   }
+
   return false;
 }

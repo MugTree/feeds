@@ -478,6 +478,20 @@ summary
 
 */
 
+// func separateConclusionFromNotes(notes []string, paragraphs []articleParagraph) ([]string, string) {
+
+// 	if len(notes) == 0 {
+// 		return []string{}, ""
+// 	}
+
+// 	if len(notes) > int(len(paragraphs)) {
+// 		newNotes := notes[:len(notes)-1]
+// 		conclusion := notes[len(notes)-1]
+// 		return newNotes, conclusion
+// 	}
+// 	return notes, ""
+// }
+
 const PARAGRAPHS_PER_PAGE int = 3
 
 func getArticleParagraphs(htmlInput string, pageNumber int) ([][]articleParagraph, int, error) {
