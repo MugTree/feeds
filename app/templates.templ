@@ -1,0 +1,33 @@
+package app
+
+templ LayoutTemplate() {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>Document</title>
+			<script type="module" src="/public/js/datastar.js"></script>
+			<link rel="apple-touch-icon" href="icon-192.png"/>
+			<link rel="manifest" href="/public/js/manifest.json"/>
+			<link
+				rel="stylesheet"
+				href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+			/>
+			<link href="/public/css/main.css" rel="stylesheet"/>
+		</head>
+		<script>
+
+</script>
+		<body>
+			<main>
+				{ children... }
+			</main>
+			<script src="/public/js/script.js"></script>
+		</body>
+	</html>
+}
+
+templ Page() {
+	<div></div>
+}

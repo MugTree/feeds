@@ -17,55 +17,55 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/mmcdole/gofeed"
 	"github.com/mugtree/feeds/app/db"
+	"github.com/mugtree/feeds/lib"
 	"golang.org/x/net/html"
 )
 
-// func getArticlePageData(queries *db.Queries, ctx context.Context, articleID int64) (mpdArticlePageData, error) {
+func getArticlePageData(queries *db.Queries, ctx context.Context, articleID int64) (ArticlePageData, error) {
 
-// 	td := mpdArticlePageData{}
+	td := ArticlePageData{}
 
-// 	fa, err := queries.SelectFeedAndArticletByArticleID(ctx, articleID)
-// 	if err != nil {
-// 		return td, errors.New("error getting article data: " + err.Error())
-// 	}
+	fa, err := queries.SelectFeedAndArticletByArticleID(ctx, articleID)
+	if err != nil {
+		return td, errors.New("error getting article data: " + err.Error())
+	}
 
-// 	td.PageTitle = fa.ArticleTitle
-// 	td.FeedTitle = fa.FeedTitle
-// 	td.FeedUrl = fa.FeedUrl
-// 	td.Link = fa.ArticleLink
-// 	td.ArticleId = fa.ArticleID
-// 	td.FeedID = fa.FeedID
-// 	td.ArticleRead = fa.ArticleRead
+	td.PageTitle = fa.ArticleTitle
+	td.FeedTitle = fa.FeedTitle
+	td.FeedUrl = fa.FeedUrl
+	td.Link = fa.ArticleLink
+	td.ArticleId = fa.ArticleID
+	td.FeedID = fa.FeedID
+	td.ArticleRead = fa.ArticleRead
 
-// 	td.StarValue = fa.ArticleStars
-// 	td.ArticlePublished = fa.ArticlePublished.Format(layoutISO)
+	td.StarValue = fa.ArticleStars
+	td.ArticlePublished = fa.ArticlePublished.Format(layoutISO)
 
-// 	alreadyRead, toRead, err := getArticlesByFeedID(queries, fa.FeedID, ctx)
-// 	if err != nil {
-// 		return td, err
-// 	}
-// 	td.ArticlesRead = alreadyRead
-// 	td.ArticlesToRead = toRead
+	alreadyRead, toRead, err := getArticlesByFeedID(queries, fa.FeedID, ctx)
+	if err != nil {
+		return td, err
+	}
+	td.ArticlesRead = alreadyRead
+	td.ArticlesToRead = toRead
 
-// 	td.ClickableParagraphCount = fa.ArticleClickableParagraphCount
+	td.ClickableParagraphCount = fa.ArticleClickableParagraphCount
 
-// 	td.PageContent = fa.ArticleContent
+	td.PageContent = fa.ArticleContent
 
-// 	enrichedHTML, err := enrichHTMLOutputForDisplay(td.PageContent, fa.FeedID, articleID)
-// 	if err != nil {
-// 		return td, err
-// 	}
+	//enrichedHTML, err := enrichHTMLOutputForDisplay(td.PageContent, fa.FeedID, articleID)
+	// if err != nil {
+	// 	return td, err
+	// }
 
-// 	td.PageContent = enrichedHTML
-// 	td.IsCache = true
+	td.IsCache = true
 
-// 	mns, err := getComments(queries, ctx, articleID, -1)
+	//mns, err := getComments(queries, ctx, articleID, -1)
 
-// 	td.CommentsTemplateData = mns
+	//td.CommentsTemplateData = mns
 
-// 	return td, nil
+	return td, nil
 
-// }
+}
 
 // func updateComments(queries *db.Queries, ctx context.Context, noteText string, articleID int64, paragraphID int64) (mpdCommentsData, error) {
 
@@ -153,208 +153,59 @@ import (
 // 	return mns, nil
 // }
 
-// func setArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
+func setArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
 
-// 	updatedValue := func(currentValue int64) int64 {
-// 		if currentValue == 3 {
-// 			return 0
-// 		}
-// 		return currentValue + 1
-// 	}(starredValue)
+	updatedValue := func(currentValue int64) int64 {
+		if currentValue == 3 {
+			return 0
+		}
+		return currentValue + 1
+	}(starredValue)
 
-// 	err := queries.UpdateArticleSetStarredValue(ctx,
-// 		db.UpdateArticleSetStarredValueParams{
-// 			Starred: int64(updatedValue),
-// 			ID:      articleID},
-// 	)
-// 	if err != nil {
-// 		return err
-// 	}
+	err := queries.UpdateArticleSetStarredValue(ctx,
+		db.UpdateArticleSetStarredValueParams{
+			Starred: int64(updatedValue),
+			ID:      articleID},
+	)
+	if err != nil {
+		return err
+	}
 
-// 	return nil
-// }
+	return nil
+}
 
-// func getArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []mpdFeedsArticle, toRead []mpdFeedsArticle, err error) {
+func getArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []mpdFeedsArticle, toRead []mpdFeedsArticle, err error) {
 
-// 	allArticles, err := queries.SelectArticlesByFeedID(ctx, feedID)
-// 	if err != nil {
-// 		return alreadyRead, toRead, err
-// 	}
+	allArticles, err := queries.SelectArticlesByFeedID(ctx, feedID)
+	if err != nil {
+		return alreadyRead, toRead, err
+	}
 
-// 	for _, row := range allArticles {
+	for _, row := range allArticles {
 
-// 		a := mpdFeedsArticle{
-// 			Id:        row.ID,
-// 			FeedId:    row.FeedID,
-// 			Title:     row.Title,
-// 			Link:      row.Link,
-// 			Published: row.Published.Format(layoutISO),
-// 			DateFound: row.DateFound.Format(layoutISO),
-// 			Summary:   row.Summary,
-// 			Read:      lib.IntToBool(row.Read),
-// 			Liked:     row.Starred,
-// 			FeedTitle: row.FeedTitle,
-// 		}
+		a := mpdFeedsArticle{
+			Id:        row.ID,
+			FeedId:    row.FeedID,
+			Title:     row.Title,
+			Link:      row.Link,
+			Published: row.Published.Format(layoutISO),
+			DateFound: row.DateFound.Format(layoutISO),
+			Summary:   row.Summary,
+			Read:      lib.IntToBool(row.Read),
+			Liked:     row.Starred,
+			FeedTitle: row.FeedTitle,
+		}
 
-// 		if a.Read {
-// 			alreadyRead = append(alreadyRead, a)
-// 			continue
-// 		}
+		if a.Read {
+			alreadyRead = append(alreadyRead, a)
+			continue
+		}
 
-// 		toRead = append(toRead, a)
-// 	}
+		toRead = append(toRead, a)
+	}
 
-// 	return alreadyRead, toRead, nil
-// }
-
-// func enrichHTMLOutputForDisplay(htmlStr string, _ int64, articleID int64) (string, error) {
-
-// 	addDataAttributes := func(doc *html.Node) *html.Node {
-
-// 		var walk func(*html.Node)
-
-// 		count := 0
-
-// 		walk = func(n *html.Node) {
-
-// 			count++
-
-// 			if n.Type == html.ElementNode {
-
-// 				var paragraphID string
-
-// 				for _, attr := range n.Attr {
-// 					if attr.Key == "data-paragraph-id" {
-// 						paragraphID = attr.Val
-// 						break
-// 					}
-// 				}
-
-// 				if paragraphID != "" {
-// 					n.Attr = append(n.Attr, html.Attribute{
-// 						Key: "data-on:click",
-// 						Val: fmt.Sprintf("@get('/article/%v/comment/%v/write')", articleID, paragraphID),
-// 					})
-// 				}
-
-// 			}
-
-// 			for c := n.FirstChild; c != nil; c = c.NextSibling {
-// 				walk(c)
-// 			}
-
-// 		}
-
-// 		walk(doc)
-
-// 		return doc
-
-// 	}
-
-// 	removeOuterHTMLShell := func(doc *html.Node) (*html.Node, error) {
-
-// 		var walk func(*html.Node)
-
-// 		walk = func(n *html.Node) {
-// 			// if doc != nil {
-// 			// 	return
-// 			// }
-
-// 			if n.Type == html.ElementNode && n.Data == "body" {
-// 				doc = n
-// 				return
-// 			}
-
-// 			for c := n.FirstChild; c != nil; c = c.NextSibling {
-// 				walk(c)
-// 			}
-// 		}
-
-// 		walk(doc)
-
-// 		if doc == nil {
-// 			return nil, fmt.Errorf("body element not found")
-// 		}
-
-// 		article := &html.Node{
-// 			Type: html.ElementNode,
-// 			Data: "article",
-// 		}
-
-// 		// Move every child from <body> into <article>.
-// 		for doc.FirstChild != nil {
-// 			child := doc.FirstChild
-// 			doc.RemoveChild(child)
-// 			article.AppendChild(child)
-// 		}
-
-// 		return article, nil
-// 	}
-
-// 	htmlNodes, err := html.Parse(strings.NewReader(htmlStr))
-// 	if err != nil {
-// 		return "", err
-// 	}
-
-// 	htmlNodes = addDataAttributes(htmlNodes)
-
-// 	htmlNodes, err = removeOuterHTMLShell(htmlNodes)
-// 	if err != nil {
-// 		return "", err
-// 	}
-
-// 	transformed, err := _stringifyHTML(htmlNodes)
-// 	if err != nil {
-// 		return "", err
-// 	}
-
-// 	return transformed, nil
-
-// }
-
-// func enrichArticles(queries *db.Queries, ctx context.Context, articles []db.SelectArticlesByFeedIDWithLimitRow) ([]mpdEnrichedArticle, error) {
-
-// 	ea := []mpdEnrichedArticle{}
-// 	a := mpdEnrichedArticle{}
-
-// 	for i := range articles {
-// 		if articles[i].ArticleContent != "" {
-// 			enrichedContent, err := enrichHTMLOutputForDisplay(
-// 				articles[i].ArticleContent,
-// 				0,
-// 				articles[i].ArticleID,
-// 			)
-
-// 			if err != nil {
-// 				return ea, err
-// 			}
-
-// 			articles[i].ArticleContent = enrichedContent
-// 		}
-
-// 		a.Article = articles[i]
-// 		comments, err := queries.SelectCommentsByArticleID(ctx, articles[i].ArticleID)
-// 		if err != nil {
-// 			return ea, err
-// 		}
-
-// 		getParagraphID := func(n db.Comment) int64 {
-// 			return n.RelatedParagraphID
-// 		}
-
-// 		commentsMap := lib.SliceToMap(comments, getParagraphID)
-// 		a.CommentsData.Comments = commentsMap
-// 		a.CommentsData.ArticleID = a.Article.ArticleID
-// 		a.CommentsData.TotalPotentialCommentsCount = int64(len(comments))
-// 		a.CommentsData.ShowTextArea = false
-
-// 		ea = append(ea, a)
-
-// 	}
-
-// 	return ea, nil
-
-// }
+	return alreadyRead, toRead, nil
+}
 
 func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
@@ -475,124 +326,6 @@ type ArticleParagraph struct {
 // in the page we can sample the ones we need and use all the paras to create a visual guide to one sideo
 // likely that would be about one third of the  width
 // hide the blockquotes with CSS
-
-/*
-
-article
-pageOfArticle
-paragraph
-comment
-summary
-
-*/
-
-// func separateConclusionFromNotes(notes []string, paragraphs []articleParagraph) ([]string, string) {
-
-// 	if len(notes) == 0 {
-// 		return []string{}, ""
-// 	}
-
-// 	if len(notes) > int(len(paragraphs)) {
-// 		newNotes := notes[:len(notes)-1]
-// 		conclusion := notes[len(notes)-1]
-// 		return newNotes, conclusion
-// 	}
-// 	return notes, ""
-// }
-
-const PARAGRAPHS_PER_PAGE int = 3
-
-func getAuthorParagraphsAsPages(htmlInput string, pageNumber int) (pages [][]ArticleParagraph, lastPageOfArticle int, err error) {
-
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlInput))
-	if err != nil {
-		return pages, 0, err
-	}
-
-	selection := doc.Find("p")
-	if selection.Length() == 0 {
-		return pages, 0, errors.New("no paragraphs")
-	}
-
-	lastPageOfArticle = 1
-	for i := range selection.Length() {
-		if (i+1)%PARAGRAPHS_PER_PAGE == 0 {
-			lastPageOfArticle++
-		}
-	}
-
-	if pageNumber > lastPageOfArticle {
-		return pages, 0, fmt.Errorf("page %v beyond last page %v", pageNumber, lastPageOfArticle)
-	}
-
-	var paragraphPosition = 0
-	for i := 0; i < selection.Length(); i += PARAGRAPHS_PER_PAGE {
-
-		// dont step outside of bounds
-		selection := selection.Slice(i, min(i+PARAGRAPHS_PER_PAGE, selection.Length()))
-		page := []ArticleParagraph{}
-
-		selection.Each(func(j int, s *goquery.Selection) {
-			page = append(
-				page,
-				ArticleParagraph{
-					Text:              s.Text(),
-					PositionInArticle: paragraphPosition,
-					Creator:           Author,
-				})
-			paragraphPosition++
-		})
-
-		pages = append(pages, page)
-
-	}
-
-	return pages, lastPageOfArticle, nil
-}
-
-func getSolvedParagraphsAsPages(notesDict map[int]db.Note, authorPages [][]ArticleParagraph) [][]ArticleParagraph {
-
-	if len(notesDict) == 0 {
-		fmt.Println("no notes")
-		return authorPages
-	}
-
-	solved := [][]ArticleParagraph{}
-
-	for k, authorPage := range authorPages {
-
-		page := []ArticleParagraph{}
-
-		pCount := len(authorPage)
-		note, pageHasNote := notesDict[k]
-
-		if pageHasNote {
-
-			// note will have many lines and will be the
-			// slice in the array index tstarts at pCount
-			pageNote := strings.Split(note.NoteText, "\n\n")
-			conclusion := pageNote[pCount:]
-
-			for _, c := range conclusion {
-
-				fmt.Println("---------------------------------------------")
-				fmt.Print("Has note: ")
-				fmt.Print(c)
-				fmt.Println("---------------------------------------------")
-
-				page = append(page, ArticleParagraph{Text: c, Creator: User})
-			}
-
-		} else {
-			page = authorPage
-		}
-
-		solved = append(solved, page)
-	}
-
-	return solved
-
-}
 
 func _scrapeSiteHTML(feed pageScrapeParams) (string, error) {
 
@@ -864,32 +597,32 @@ func DUMMY_godump(message string, val any) {
 	godump.Dump(message, val)
 }
 
-// type mpdSidebarLink struct {
-// 	Name   string
-// 	Link   string
-// 	Unread int64
-// 	FeedId int
-// }
+type SidebarLink struct {
+	Name   string
+	Link   string
+	Unread int64
+	FeedId int
+}
 
-// type mpdArticlePageData struct {
-// 	FeedID                  int64
-// 	PageTitle               string
-// 	ArticlesRead            []mpdFeedsArticle
-// 	ArticlesToRead          []mpdFeedsArticle
-// 	FeedTitle               string
-// 	FeedUrl                 string
-// 	Link                    string
-// 	PageContent             string
-// 	ArticleId               int64
-// 	IsCache                 bool
-// 	StarValue               int64
-// 	Sidebar                 []mpdSidebarLink
-// 	ArticlePublished        string
-// 	ArticleRead             int64
-// 	MarginNotes             map[int64]db.Comment
-// 	ClickableParagraphCount int64
-// 	CommentsTemplateData    mpdCommentsData
-// }
+type ArticlePageData struct {
+	FeedID                  int64
+	PageTitle               string
+	ArticlesRead            []mpdFeedsArticle
+	ArticlesToRead          []mpdFeedsArticle
+	FeedTitle               string
+	FeedUrl                 string
+	Link                    string
+	PageContent             string
+	ArticleId               int64
+	IsCache                 bool
+	StarValue               int64
+	Sidebar                 []SidebarLink
+	ArticlePublished        string
+	ArticleRead             int64
+	MarginNotes             map[int64]db.Note
+	ClickableParagraphCount int64
+	CommentsTemplateData    mpdCommentsData
+}
 
 // func (ae mpdArticlePageData) ArticleHasBeenRead() bool {
 // 	return lib.IntToBool(ae.ArticleRead)
@@ -901,7 +634,7 @@ type mpdFeedSummary struct {
 	FeedID        int64
 	PageID        int64
 	LinksRequired int64
-	Articles      []mpdEnrichedArticle //[]db.SelectArticlesByFeedIDWithLimitRow
+	Articles      []db.SelectArticlesByFeedIDWithLimitRow
 	ShowArticles  bool
 }
 
@@ -932,10 +665,10 @@ type mpdCreateFeedSignals struct {
 	HTMLExtractionStrategy string `json:"html-extraction-strategy"`
 }
 
-type mpdEnrichedArticle struct {
-	Article      db.SelectArticlesByFeedIDWithLimitRow
-	CommentsData mpdCommentsData
-}
+// type mpdEnrichedArticle struct {
+// 	Article      db.SelectArticlesByFeedIDWithLimitRow
+// 	CommentsData mpdCommentsData
+// }
 
 type mpdFeedsArticle struct {
 	Id        int64  `json:"id" db:"id"`

@@ -4,5 +4,14 @@
   },
   "tailwindCSS.experimental.classRegex": [
     ["Class(?:es)?[({]([^)}]*)[)}]", "[\"`]([^\"`]*)[\"`]"]
-  ]
+  ],
+  "css.validate": false,
+  "editor.formatOnSave": true,
+
+  "[templ]": {
+    "editor.defaultFormatter": "a-h.templ"
+  },
+  "emmet.includeLanguages": {
+    "templ": "html"
+  }
 }

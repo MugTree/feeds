@@ -13,6 +13,7 @@ require (
 
 require (
 	github.com/CAFxX/httpcompression v0.0.9 // indirect
+	github.com/a-h/templ v0.3.1020 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/antchfx/htmlquery v1.3.4 // indirect
