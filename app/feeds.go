@@ -457,8 +457,16 @@ func HTMLProcessingPipeline(queries *db.Queries, ctx context.Context, feedItem *
 
 }
 
-type articleParagraph struct {
+type ArticleParagraphCreator int
+
+const (
+	Author ArticleParagraphCreator = iota
+	User
+)
+
+type ArticleParagraph struct {
 	Text              string
+	Creator           ArticleParagraphCreator
 	PositionInArticle int
 }
 
@@ -494,21 +502,19 @@ summary
 
 const PARAGRAPHS_PER_PAGE int = 3
 
-func getArticleParagraphs(htmlInput string, pageNumber int) ([][]articleParagraph, int, error) {
-
-	allParagraphs := [][]articleParagraph{}
+func getAuthorParagraphsAsPages(htmlInput string, pageNumber int) (pages [][]ArticleParagraph, lastPageOfArticle int, err error) {
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlInput))
 	if err != nil {
-		return allParagraphs, 0, err
+		return pages, 0, err
 	}
 
 	selection := doc.Find("p")
 	if selection.Length() == 0 {
-		return allParagraphs, 0, errors.New("no paragraphs")
+		return pages, 0, errors.New("no paragraphs")
 	}
 
-	lastPageOfArticle := 1
+	lastPageOfArticle = 1
 	for i := range selection.Length() {
 		if (i+1)%PARAGRAPHS_PER_PAGE == 0 {
 			lastPageOfArticle++
@@ -516,31 +522,76 @@ func getArticleParagraphs(htmlInput string, pageNumber int) ([][]articleParagrap
 	}
 
 	if pageNumber > lastPageOfArticle {
-		return allParagraphs, 0, fmt.Errorf("page %v beyond last page %v", pageNumber, lastPageOfArticle)
+		return pages, 0, fmt.Errorf("page %v beyond last page %v", pageNumber, lastPageOfArticle)
 	}
 
 	var paragraphPosition = 0
 	for i := 0; i < selection.Length(); i += PARAGRAPHS_PER_PAGE {
 
 		// dont step outside of bounds
-		group := selection.Slice(i, min(i+PARAGRAPHS_PER_PAGE, selection.Length()))
-		chunks := []articleParagraph{}
+		selection := selection.Slice(i, min(i+PARAGRAPHS_PER_PAGE, selection.Length()))
+		page := []ArticleParagraph{}
 
-		group.Each(func(j int, s *goquery.Selection) {
-			chunks = append(
-				chunks,
-				articleParagraph{
+		selection.Each(func(j int, s *goquery.Selection) {
+			page = append(
+				page,
+				ArticleParagraph{
 					Text:              s.Text(),
 					PositionInArticle: paragraphPosition,
+					Creator:           Author,
 				})
 			paragraphPosition++
 		})
 
-		allParagraphs = append(allParagraphs, chunks)
+		pages = append(pages, page)
 
 	}
 
-	return allParagraphs, lastPageOfArticle, nil
+	return pages, lastPageOfArticle, nil
+}
+
+func getSolvedParagraphsAsPages(notesDict map[int]db.Note, authorPages [][]ArticleParagraph) [][]ArticleParagraph {
+
+	if len(notesDict) == 0 {
+		fmt.Println("no notes")
+		return authorPages
+	}
+
+	solved := [][]ArticleParagraph{}
+
+	for k, authorPage := range authorPages {
+
+		page := []ArticleParagraph{}
+
+		pCount := len(authorPage)
+		note, pageHasNote := notesDict[k]
+
+		if pageHasNote {
+
+			// note will have many lines and will be the
+			// slice in the array index tstarts at pCount
+			pageNote := strings.Split(note.NoteText, "\n\n")
+			conclusion := pageNote[pCount:]
+
+			for _, c := range conclusion {
+
+				fmt.Println("---------------------------------------------")
+				fmt.Print("Has note: ")
+				fmt.Print(c)
+				fmt.Println("---------------------------------------------")
+
+				page = append(page, ArticleParagraph{Text: c, Creator: User})
+			}
+
+		} else {
+			page = authorPage
+		}
+
+		solved = append(solved, page)
+	}
+
+	return solved
+
 }
 
 func _scrapeSiteHTML(feed pageScrapeParams) (string, error) {

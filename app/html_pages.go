@@ -102,14 +102,14 @@ func textAreaInput(notes []string) Node {
 	}
 
 	return Textarea(
-		ds.Bind("notes"),
+		ds.Bind("notesText"),
 		ds.On("input", "$complete = textAreaComplete(evt)"),
 		ID("user_input"),
 		Text(textAreaVal),
 	)
 }
 
-func pageGamePlay(article db.Article, _ [][]articleParagraph, pageParagraphs []articleParagraph, pageNumber int, notes []string, lastPage int) Node {
+func pageGamePlay(article db.Article, articleParagraphs [][]ArticleParagraph, pageParagraphs []ArticleParagraph, pageNumber int, notes []string, lastPage int) Node {
 
 	showNext := func(pageNumber int) bool {
 		return pageNumber < lastPage
@@ -129,7 +129,7 @@ func pageGamePlay(article db.Article, _ [][]articleParagraph, pageParagraphs []a
 		Class("grid-parent"),
 		Div(
 			Class("paragraphs"),
-			Map(pageParagraphs, func(p articleParagraph) Node {
+			Map(pageParagraphs, func(p ArticleParagraph) Node {
 				return P(
 					Text(p.Text),
 				)
@@ -160,28 +160,12 @@ func pageGamePlay(article db.Article, _ [][]articleParagraph, pageParagraphs []a
 			),
 		),
 		//		notesPanel(notes),
-		Div(Class("overview"),
-			Map(pageParagraphs, func(p articleParagraph) Node {
-				return P(Text(p.Text))
+		Div(ID("conclusion"),
+			Map(articleParagraphs, func(pp []ArticleParagraph) Node {
+				return Map(pp, func(p ArticleParagraph) Node {
+					return P(Text(p.Text))
+				})
 			}),
-
-			//Raw(article.ArticleContent),
-			// Map(paragraphs, func(para []articleParagraph) Node {
-
-			// 	cla := Classes{}
-
-			// 	if mapIter == pageNumber {
-			// 		cla = Classes{"current-paragraphs": true}
-			// 	} else {
-			// 		cla = Classes{"other-paragraphs": true}
-			// 	}
-
-			// 	mapIter++
-
-			// 	return Map(para, func(p articleParagraph) Node {
-			// 		return P(Text(p.Text), cla)
-			// 	})
-			// }),
 		),
 		Script(Src("/public/js/feeds.js")),
 		Script(Raw("console.log('loading...'); equaliseHeights()")),

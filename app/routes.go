@@ -2,6 +2,7 @@ package app
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/goforj/godump"
 	"github.com/mugtree/feeds/app/db"
+	"github.com/mugtree/feeds/lib"
 	"github.com/starfederation/datastar/sdk/go/datastar"
 )
 
@@ -106,13 +108,13 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 				return
 			}
 
-			articleParagraphs, lastPage, err := getArticleParagraphs(article.ArticleContent, int(pageNumber))
+			authorParagraphs, lastPage, err := getAuthorParagraphsAsPages(article.ArticleContent, int(pageNumber))
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
 			}
 
-			pageParagraphs := articleParagraphs[pageNumber-1]
+			pageParagraphs := authorParagraphs[pageNumber-1]
 
 			noteText, err := queries.SelectNotesByArticleIDAndPageID(ctx,
 				db.SelectNotesByArticleIDAndPageIDParams{
@@ -136,7 +138,7 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 				pageProps{Title: "game"},
 				pageGamePlay(
 					article,
-					articleParagraphs,
+					authorParagraphs,
 					pageParagraphs,
 					int(pageNumber),
 					notes,
@@ -146,21 +148,109 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 		})
 
 		type gameSignals = struct {
-			Notes          string `json:"notes"`
+			NotesText      string `json:"notesText"`
 			ParagraphCount int64  `json:"paragraphCount"`
 		}
 
 		r.Put("/article/{articleID}/page/{pageNumber}", func(w http.ResponseWriter, r *http.Request) {
 
-			gs := gameSignals{}
+			articleID, ok := httpRequireIDParam(w, r, "articleID")
+			if !ok {
+				return
+			}
 
+			pageNumber, ok := httpRequireNumericParam(w, r, "pageNumber")
+			if !ok {
+				return
+			}
+
+			gs := gameSignals{}
 			err := datastar.ReadSignals(r, &gs)
 			if err != nil {
 				httpLogAndError(w, r, err.Error())
 				return
 			}
 
-			godump.Dump(gs)
+			notes := strings.Split(gs.NotesText, "\n\n")
+			if len(notes) < int(gs.ParagraphCount) {
+				httpLogAndError(w, r, fmt.Errorf("notes count: %v should be longer than %v", len(notes), gs.ParagraphCount).Error())
+				return
+			}
+
+			ctx := r.Context()
+			_, err = queries.UpsertAndReturnNote(
+				ctx,
+				db.UpsertAndReturnNoteParams{
+					ArticleID:  articleID,
+					PageNumber: pageNumber,
+					NoteText:   gs.NotesText},
+			)
+			if err != nil {
+				httpLogAndError(w, r, err.Error())
+				return
+			}
+
+			article, err := queries.SelectArticleByID(ctx, articleID)
+			if err != nil {
+				httpLogAndError(w, r, err.Error())
+				return
+			}
+
+			authorParagraphs, _, err := getAuthorParagraphsAsPages(article.ArticleContent, int(pageNumber))
+			if err != nil {
+				httpLogAndError(w, r, err.Error())
+				return
+			}
+
+			userNotes, err := queries.SelectNotesByArticleID(ctx, articleID)
+			if err != nil {
+				httpLogAndError(w, r, err.Error())
+				return
+			}
+
+			godump.Dump(userNotes)
+
+			notesDict := lib.SliceToMap(userNotes, func(n db.Note) int {
+				return int(n.ID)
+			})
+
+			conclusion := getSolvedParagraphsAsPages(notesDict, authorParagraphs)
+			godump.Dump(conclusion[pageNumber-1])
+			//godump.Dump(conclusion[pageNumber-1])
+			// for i, v := range conclusion[pageNumber] {
+			// 	godump.Dump(fmt.Printf("para:%v %v", i, v.Creator))
+			// }
+
+			// //godump.Dump("sigs", gs)
+
+			// conclusionNotes := notes[gs.ParagraphCount:]
+			// godump.Dump("conclusionNotes", conclusionNotes)
+
+			// retainedParagraphs := authorParagraphs[1:]
+			// godump.Dump("retainedParagraphs", retainedParagraphs)
+
+			// newParagraphs := []ArticleParagraph{}
+			// for _, c := range conclusionNotes {
+			// 	newParagraphs = append(newParagraphs, ArticleParagraph{Text: c})
+			// }
+
+			// altered := slices.Insert(retainedParagraphs, 0, newParagraphs)
+
+			// godump.Dump(altered)
+
+			sse := datastar.NewSSE(w, r)
+
+			var i = 0
+			sse.PatchElementGostar(Div(ID("conclusion"),
+				Map(conclusion, func(pp []ArticleParagraph) Node {
+					return Map(pp, func(p ArticleParagraph) Node {
+						i++
+						return P(Text(p.Text), If(i == 1, Style("font-weight: bold")))
+					})
+				}),
+			),
+			)
+
 		})
 
 	})

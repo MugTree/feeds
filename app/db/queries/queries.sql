@@ -75,6 +75,9 @@ ON f.id = a.feed_id where a.id = ?;
 -- name: SelectNotesByArticleIDAndPageID :one
 SELECT * FROM notes WHERE article_id = ? AND page_number = ?;
 
+-- name: SelectNotesByArticleID :many
+SELECT * FROM notes WHERE article_id = ? ORDER BY page_number ASC;
+
 -- name: UpsertAndReturnNote :one
 INSERT INTO notes (article_id, page_number, note_text, date_added) 
 VALUES (?, ?, ?, CURRENT_TIMESTAMP) 

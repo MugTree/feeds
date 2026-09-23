@@ -626,6 +626,39 @@ func (q *Queries) SelectLatest5StarredArticles(ctx context.Context) ([]SelectLat
 	return items, nil
 }
 
+const selectNotesByArticleID = `-- name: SelectNotesByArticleID :many
+SELECT id, article_id, page_number, note_text, date_added FROM notes WHERE article_id = ? ORDER BY page_number ASC
+`
+
+func (q *Queries) SelectNotesByArticleID(ctx context.Context, articleID int64) ([]Note, error) {
+	rows, err := q.db.QueryContext(ctx, selectNotesByArticleID, articleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Note
+	for rows.Next() {
+		var i Note
+		if err := rows.Scan(
+			&i.ID,
+			&i.ArticleID,
+			&i.PageNumber,
+			&i.NoteText,
+			&i.DateAdded,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const selectNotesByArticleIDAndPageID = `-- name: SelectNotesByArticleIDAndPageID :one
 SELECT id, article_id, page_number, note_text, date_added FROM notes WHERE article_id = ? AND page_number = ?
 `
