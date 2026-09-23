@@ -1,10 +1,7 @@
 package app
 
 import (
-	"database/sql"
-	"fmt"
 	"net/http"
-	"strings"
 
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
@@ -12,7 +9,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/goforj/godump"
 	"github.com/mugtree/feeds/app/db"
-	"github.com/mugtree/feeds/lib"
 	"github.com/starfederation/datastar/sdk/go/datastar"
 )
 
@@ -47,213 +43,212 @@ func routesHomePage(r chi.Router, queries *db.Queries) {
 
 	})
 
-	r.Route("/game", func(r chi.Router) {
+	// r.Route("/game", func(r chi.Router) {
 
-		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+	// 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 
-			articles, err := queries.SelectArticlesByFeedID(r.Context(), 1)
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
+	// 		articles, err := queries.SelectArticlesByFeedID(r.Context(), 1)
+	// 		if err != nil {
+	// 			httpLogAndError(w, r, err.Error())
+	// 			return
+	// 		}
 
-			pageLayout(
-				pageProps{
-					Title: "Game",
-				},
-				pageGameHome(articles),
-			).Render(w)
+	// 		pageLayout(
+	// 			pageProps{
+	// 				Title: "Game",
+	// 			},
+	// 			pageGameHome(articles),
+	// 		).Render(w)
 
-		})
+	// 	})
 
-		/*
+	// 	/*
 
-			Both routines need to
-			----------------------------
+	// 		Both routines need to
+	// 		----------------------------
 
-			check url input
-			pull the article paragraphs
-			split the notes text
-			check for a conclusion
+	// 		check url input
+	// 		pull the article paragraphs
+	// 		split the notes text
+	// 		check for a conclusion
 
-			No signals
-			--------------
-			get any notes based on page id
+	// 		No signals
+	// 		--------------
+	// 		get any notes based on page id
 
-			With signals
-			------------
-			read signals
-			checks for too many notes and trim the extras
+	// 		With signals
+	// 		------------
+	// 		read signals
+	// 		checks for too many notes and trim the extras
 
+	// 	*/
 
-		*/
+	// 	r.Get("/article/{articleID}/page/{pageNumber}", func(w http.ResponseWriter, r *http.Request) {
 
-		r.Get("/article/{articleID}/page/{pageNumber}", func(w http.ResponseWriter, r *http.Request) {
+	// 		ctx := r.Context()
 
-			ctx := r.Context()
+	// 		articleID, ok := httpRequireIDParam(w, r, "articleID")
+	// 		if !ok {
+	// 			return
+	// 		}
 
-			articleID, ok := httpRequireIDParam(w, r, "articleID")
-			if !ok {
-				return
-			}
+	// 		pageNumber, ok := httpRequireNumericParam(w, r, "pageNumber")
+	// 		if !ok {
+	// 			return
+	// 		}
 
-			pageNumber, ok := httpRequireNumericParam(w, r, "pageNumber")
-			if !ok {
-				return
-			}
+	// 		article, err := queries.SelectArticleByID(r.Context(), articleID)
+	// 		if err != nil {
+	// 			httpLogAndError(w, r, err.Error())
+	// 			return
+	// 		}
 
-			article, err := queries.SelectArticleByID(r.Context(), articleID)
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
+	// 		authorParagraphs, lastPage, err := getAuthorParagraphsAsPages(article.ArticleContent, int(pageNumber))
+	// 		if err != nil {
+	// 			httpLogAndError(w, r, err.Error())
+	// 			return
+	// 		}
 
-			authorParagraphs, lastPage, err := getAuthorParagraphsAsPages(article.ArticleContent, int(pageNumber))
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
+	// 		pageParagraphs := authorParagraphs[pageNumber-1]
 
-			pageParagraphs := authorParagraphs[pageNumber-1]
+	// 		noteText, err := queries.SelectNotesByArticleIDAndPageID(ctx,
+	// 			db.SelectNotesByArticleIDAndPageIDParams{
+	// 				PageNumber: pageNumber,
+	// 				ArticleID:  articleID,
+	// 			})
 
-			noteText, err := queries.SelectNotesByArticleIDAndPageID(ctx,
-				db.SelectNotesByArticleIDAndPageIDParams{
-					PageNumber: pageNumber,
-					ArticleID:  articleID,
-				})
+	// 		if err != nil {
+	// 			if err != sql.ErrNoRows {
+	// 				httpLogAndError(w, r, err.Error())
+	// 				return
+	// 			}
+	// 		}
 
-			if err != nil {
-				if err != sql.ErrNoRows {
-					httpLogAndError(w, r, err.Error())
-					return
-				}
-			}
+	// 		notes := []string{}
+	// 		if noteText.NoteText != "" {
+	// 			notes = strings.Split(noteText.NoteText, "\n\n")
+	// 		}
 
-			notes := []string{}
-			if noteText.NoteText != "" {
-				notes = strings.Split(noteText.NoteText, "\n\n")
-			}
+	// 		pageLayout(
+	// 			pageProps{Title: "game"},
+	// 			pageGamePlay(
+	// 				article,
+	// 				authorParagraphs,
+	// 				pageParagraphs,
+	// 				int(pageNumber),
+	// 				notes,
+	// 				lastPage,
+	// 			)).Render(w)
 
-			pageLayout(
-				pageProps{Title: "game"},
-				pageGamePlay(
-					article,
-					authorParagraphs,
-					pageParagraphs,
-					int(pageNumber),
-					notes,
-					lastPage,
-				)).Render(w)
+	// 	})
 
-		})
+	// 	type gameSignals = struct {
+	// 		NotesText      string `json:"notesText"`
+	// 		ParagraphCount int64  `json:"paragraphCount"`
+	// 	}
 
-		type gameSignals = struct {
-			NotesText      string `json:"notesText"`
-			ParagraphCount int64  `json:"paragraphCount"`
-		}
+	// 	r.Put("/article/{articleID}/page/{pageNumber}", func(w http.ResponseWriter, r *http.Request) {
 
-		r.Put("/article/{articleID}/page/{pageNumber}", func(w http.ResponseWriter, r *http.Request) {
+	// 		articleID, ok := httpRequireIDParam(w, r, "articleID")
+	// 		if !ok {
+	// 			return
+	// 		}
 
-			articleID, ok := httpRequireIDParam(w, r, "articleID")
-			if !ok {
-				return
-			}
+	// 		pageNumber, ok := httpRequireNumericParam(w, r, "pageNumber")
+	// 		if !ok {
+	// 			return
+	// 		}
 
-			pageNumber, ok := httpRequireNumericParam(w, r, "pageNumber")
-			if !ok {
-				return
-			}
+	// 		gs := gameSignals{}
+	// 		err := datastar.ReadSignals(r, &gs)
+	// 		if err != nil {
+	// 			httpLogAndError(w, r, err.Error())
+	// 			return
+	// 		}
 
-			gs := gameSignals{}
-			err := datastar.ReadSignals(r, &gs)
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
+	// 		notes := strings.Split(gs.NotesText, "\n\n")
+	// 		if len(notes) < int(gs.ParagraphCount) {
+	// 			httpLogAndError(w, r, fmt.Errorf("notes count: %v should be longer than %v", len(notes), gs.ParagraphCount).Error())
+	// 			return
+	// 		}
 
-			notes := strings.Split(gs.NotesText, "\n\n")
-			if len(notes) < int(gs.ParagraphCount) {
-				httpLogAndError(w, r, fmt.Errorf("notes count: %v should be longer than %v", len(notes), gs.ParagraphCount).Error())
-				return
-			}
+	// 		ctx := r.Context()
+	// 		_, err = queries.UpsertAndReturnNote(
+	// 			ctx,
+	// 			db.UpsertAndReturnNoteParams{
+	// 				ArticleID:  articleID,
+	// 				PageNumber: pageNumber,
+	// 				NoteText:   gs.NotesText},
+	// 		)
+	// 		if err != nil {
+	// 			httpLogAndError(w, r, err.Error())
+	// 			return
+	// 		}
 
-			ctx := r.Context()
-			_, err = queries.UpsertAndReturnNote(
-				ctx,
-				db.UpsertAndReturnNoteParams{
-					ArticleID:  articleID,
-					PageNumber: pageNumber,
-					NoteText:   gs.NotesText},
-			)
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
+	// 		article, err := queries.SelectArticleByID(ctx, articleID)
+	// 		if err != nil {
+	// 			httpLogAndError(w, r, err.Error())
+	// 			return
+	// 		}
 
-			article, err := queries.SelectArticleByID(ctx, articleID)
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
+	// 		authorParagraphs, _, err := getAuthorParagraphsAsPages(article.ArticleContent, int(pageNumber))
+	// 		if err != nil {
+	// 			httpLogAndError(w, r, err.Error())
+	// 			return
+	// 		}
 
-			authorParagraphs, _, err := getAuthorParagraphsAsPages(article.ArticleContent, int(pageNumber))
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
+	// 		userNotes, err := queries.SelectNotesByArticleID(ctx, articleID)
+	// 		if err != nil {
+	// 			httpLogAndError(w, r, err.Error())
+	// 			return
+	// 		}
 
-			userNotes, err := queries.SelectNotesByArticleID(ctx, articleID)
-			if err != nil {
-				httpLogAndError(w, r, err.Error())
-				return
-			}
+	// 		godump.Dump(userNotes)
 
-			godump.Dump(userNotes)
+	// 		notesDict := lib.SliceToMap(userNotes, func(n db.Note) int {
+	// 			return int(n.ID)
+	// 		})
 
-			notesDict := lib.SliceToMap(userNotes, func(n db.Note) int {
-				return int(n.ID)
-			})
+	// 		conclusion := getSolvedParagraphsAsPages(notesDict, authorParagraphs)
+	// 		godump.Dump(conclusion[pageNumber-1])
+	// 		//godump.Dump(conclusion[pageNumber-1])
+	// 		// for i, v := range conclusion[pageNumber] {
+	// 		// 	godump.Dump(fmt.Printf("para:%v %v", i, v.Creator))
+	// 		// }
 
-			conclusion := getSolvedParagraphsAsPages(notesDict, authorParagraphs)
-			godump.Dump(conclusion[pageNumber-1])
-			//godump.Dump(conclusion[pageNumber-1])
-			// for i, v := range conclusion[pageNumber] {
-			// 	godump.Dump(fmt.Printf("para:%v %v", i, v.Creator))
-			// }
+	// 		// //godump.Dump("sigs", gs)
 
-			// //godump.Dump("sigs", gs)
+	// 		// conclusionNotes := notes[gs.ParagraphCount:]
+	// 		// godump.Dump("conclusionNotes", conclusionNotes)
 
-			// conclusionNotes := notes[gs.ParagraphCount:]
-			// godump.Dump("conclusionNotes", conclusionNotes)
+	// 		// retainedParagraphs := authorParagraphs[1:]
+	// 		// godump.Dump("retainedParagraphs", retainedParagraphs)
 
-			// retainedParagraphs := authorParagraphs[1:]
-			// godump.Dump("retainedParagraphs", retainedParagraphs)
+	// 		// newParagraphs := []ArticleParagraph{}
+	// 		// for _, c := range conclusionNotes {
+	// 		// 	newParagraphs = append(newParagraphs, ArticleParagraph{Text: c})
+	// 		// }
 
-			// newParagraphs := []ArticleParagraph{}
-			// for _, c := range conclusionNotes {
-			// 	newParagraphs = append(newParagraphs, ArticleParagraph{Text: c})
-			// }
+	// 		// altered := slices.Insert(retainedParagraphs, 0, newParagraphs)
 
-			// altered := slices.Insert(retainedParagraphs, 0, newParagraphs)
+	// 		// godump.Dump(altered)
 
-			// godump.Dump(altered)
+	// 		sse := datastar.NewSSE(w, r)
 
-			sse := datastar.NewSSE(w, r)
+	// 		var i = 0
+	// 		sse.PatchElementGostar(Div(ID("conclusion"),
+	// 			Map(conclusion, func(pp []ArticleParagraph) Node {
+	// 				return Map(pp, func(p ArticleParagraph) Node {
+	// 					i++
+	// 					return P(Text(p.Text), If(i == 1, Style("font-weight: bold")))
+	// 				})
+	// 			}),
+	// 		),
+	// 		)
 
-			var i = 0
-			sse.PatchElementGostar(Div(ID("conclusion"),
-				Map(conclusion, func(pp []ArticleParagraph) Node {
-					return Map(pp, func(p ArticleParagraph) Node {
-						i++
-						return P(Text(p.Text), If(i == 1, Style("font-weight: bold")))
-					})
-				}),
-			),
-			)
+	// 	})
 
-		})
-
-	})
+	// })
 
 	// r.Get("/feed/{feedID}/page/{pageID}", func(w http.ResponseWriter, r *http.Request) {
 
