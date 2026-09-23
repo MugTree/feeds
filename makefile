@@ -13,12 +13,12 @@ lint:
 
 run-tests:
 	cd www && go test -v && cd ..
-  
-format-html:
-	templ fmt ./app 
 
 dev: 
-	air  
+	air
+
+format-html:
+	templ fmt ./app 
 
 debug:
 	go build -gcflags="all=-N -l" -o ./tmp/server .

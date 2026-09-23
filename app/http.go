@@ -44,21 +44,21 @@ func SetupHTTPServer(queries *db.Queries, user string, password string) chi.Rout
 			return
 		}
 
-		feedSummaries := []mpdFeedSummary{}
+		summaries := []FeedSummary{}
 		for _, f := range feeds {
-			s := mpdFeedSummary{}
+			s := FeedSummary{}
 			s.Name = f.Title
 			s.PageID = 1
 			s.FeedID = f.ID
-			feedSummaries = append(feedSummaries, s)
+			summaries = append(summaries, s)
 		}
 
 		TemplateLayout(
-			pageProps{
+			TemplatePageProps{
 				Title:       "Feeds homepage",
 				Description: "",
 			},
-			TemplateHomePage(feedSummaries),
+			TemplateHomePage(summaries),
 		).Render(w)
 	}
 
@@ -76,8 +76,13 @@ func SetupHTTPServer(queries *db.Queries, user string, password string) chi.Rout
 			return
 		}
 
-		sse := datastar.NewSSE(w, r)
-		sse.PatchElementGostar(TemplateArticlePage(articleData))
+		TemplateLayout(
+			TemplatePageProps{
+				Title: articleData.PageTitle,
+			},
+			TemplateArticlePage(articleData),
+		).Render(w)
+
 	}
 
 	feedPageHandler := func(w http.ResponseWriter, r *http.Request) {
@@ -106,11 +111,11 @@ func SetupHTTPServer(queries *db.Queries, user string, password string) chi.Rout
 			return
 		}
 
-		feedSummaries := []mpdFeedSummary{}
+		feedSummaries := []FeedSummary{}
 
 		for _, f := range feeds {
 
-			fsm := mpdFeedSummary{}
+			fsm := FeedSummary{}
 			fsm.Name = f.Title
 			fsm.FeedID = f.ID
 
@@ -231,7 +236,7 @@ func SetupHTTPServer(queries *db.Queries, user string, password string) chi.Rout
 			return
 		}
 
-		pp := pageProps{Title: "Feeds list"}
+		pp := TemplatePageProps{Title: "Feeds list"}
 		TemplateLayout(pp, partialListFeeds(feeds)).Render(w)
 	}
 
@@ -254,7 +259,7 @@ func SetupHTTPServer(queries *db.Queries, user string, password string) chi.Rout
 
 		vm := FeedFormTemplateData{Feed: feed, ButtonText: "Update feed"}
 		TemplateLayout(
-			pageProps{
+			TemplatePageProps{
 				Title: "Feed view",
 			},
 			TemplateFeedsPageAdminForm(vm)).Render(w)
@@ -305,6 +310,7 @@ func SetupHTTPServer(queries *db.Queries, user string, password string) chi.Rout
 	r.Get("/article/{articleID}/write-comment", writeCommentHandler)
 	r.Put("/article/{articleID}/like/{value}", likeArticleHander)
 	r.Get("/update-reader", updateReaderHandler)
+
 	r.Get("/admin/feeds", listFeedsAdminHandler)
 	r.Get("/admin/feed/{feedID}/view", viewFeedAdminHandler)
 	r.Put("/admin/feed/{feedID}/update", updateFeedAdminHandler)

@@ -621,14 +621,14 @@ type ArticlePageData struct {
 	ArticleRead             int64
 	MarginNotes             map[int64]db.Note
 	ClickableParagraphCount int64
-	CommentsTemplateData    mpdCommentsData
+	CommentsTemplateData    CommentsData
 }
 
 // func (ae mpdArticlePageData) ArticleHasBeenRead() bool {
 // 	return lib.IntToBool(ae.ArticleRead)
 // }
 
-type mpdFeedSummary struct {
+type FeedSummary struct {
 	Name          string
 	ArticleCount  int64
 	FeedID        int64
@@ -640,7 +640,7 @@ type mpdFeedSummary struct {
 
 const layoutISO = "2006-01-02"
 
-type mpdCommentsData struct {
+type CommentsData struct {
 	ShowTextArea                bool
 	ArticleID                   int64
 	NoteToEdit                  int64
