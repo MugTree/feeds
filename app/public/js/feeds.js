@@ -1,59 +1,73 @@
-// window.addEventListener("DOMContentLoaded", (e) => {
-//   feedsBalanceArticleLayout();
-// });
+const textarea = document.querySelector("#editor");
+const paragraphs = document.querySelectorAll("#article p");
 
-// ensure the the layout looks good by setting the heights of the righthand column items to the
-// heights of the left
-// function feedsBalanceArticleLayout() {
-//   console.log("feedsBalanceArticleLayout()");
-//   document.querySelectorAll("[data-paragraph-id]").forEach((d, i) => {
-//     const paragraphID = d.getAttribute("data-paragraph-id");
-//     const paragraphHeight = d.offsetHeight;
+const GROUP_SIZE = 3;
 
-//     const relatedNote = document.querySelector(
-//       "[data-comment-id='" + paragraphID + "']",
-//     );
+textarea.addEventListener("focus", updateHighlights);
+textarea.addEventListener("input", updateHighlights);
 
-//     //  check here to see if right hand content is already taller than the left
-//     if (relatedNote.offsetHeight < paragraphHeight) {
-//       relatedNote.style.height = paragraphHeight + "px";
-//     }
-//   });
-// }
+function updateHighlights() {
+  const text = textarea.value;
 
-// function equaliseHeights() {
-//   const nodes = document.querySelectorAll(".paragraphs p");
-//   const paragraphs = [...nodes].map((n) => n);
-//   const heights = paragraphs.map((p) => p.getBoundingClientRect().height);
+  // Split paragraphs using double newlines
+  const parts = text.split(/\n\s*\n/);
 
-//   const noteNodes = document.querySelectorAll("#notes p");
-//   const notes = [...noteNodes].map((n) => n);
+  // Find the last paragraph containing actual text
+  const activeIndex = parts.findLastIndex(
+    (paragraph) => paragraph.trim().length > 0,
+  );
 
-//   console.log("notes :>> ", notes);
+  // Number of paragraphs actually written
+  const writtenCount = parts.filter(
+    (paragraph) => paragraph.trim().length > 0,
+  ).length;
 
-//   for (let i = 0; i < notes.length; i++) {
-//     notes[i].setAttribute("style", "height: " + heights[i] + "px");
-//   }
-// }
+  paragraphs.forEach((paragraph, index) => {
+    // Remove only our custom classes
+    paragraph.classList.remove("active", "completed", "summary");
 
-// function twoConsecutiveNewlines(evt) {
-//   const userInput = evt.target;
-//   const position = userInput.selectionStart;
-//   const text = userInput.value;
-//   if (text[position - 1] === "\n" && text[position - 2] === "\n") {
-//     console.log("New paragraph created!");
-//     return true;
-//   }
-//   return false;
-// }
+    // Find the group this paragraph belongs to
+    const groupStart = Math.floor(index / GROUP_SIZE) * GROUP_SIZE;
 
-function textAreaComplete(evt) {
-  const notes = evt.target.value.split("\n\n");
-  console.log("notes :>> ", notes);
-  if (notes.length > 3 && /^\S/.test(notes[3])) {
-    console.log("valid :>> ", true);
-    return true;
-  }
+    const groupEnd = Math.min(
+      groupStart + GROUP_SIZE - 1,
+      paragraphs.length - 1,
+    );
 
-  return false;
+    // How many paragraphs are required to complete
+    // this group? For example, 3, 2, or 1.
+    const groupSize = groupEnd - groupStart + 1;
+
+    // Number of written paragraphs in this group
+    const writtenInGroup = Math.max(
+      0,
+      Math.min(writtenCount - groupStart, groupSize),
+    );
+
+    // Group is complete only when every paragraph
+    // in that group has been written
+    const groupComplete = writtenInGroup === groupSize && groupSize > 0;
+
+    // Is this group before the current group?
+    const activeGroup =
+      activeIndex === -1 ? 0 : Math.floor(activeIndex / GROUP_SIZE);
+
+    const groupIndex = Math.floor(index / GROUP_SIZE);
+
+    if (groupComplete && groupIndex <= activeGroup) {
+      // Completed group becomes summary
+      paragraph.classList.add("summary");
+    } else if (groupIndex === activeGroup) {
+      // Current group: highlight completed paragraphs
+      // and the paragraph currently being written
+      if (index < activeIndex) {
+        paragraph.classList.add("completed");
+      } else if (index === activeIndex) {
+        paragraph.classList.add("active");
+      }
+    } else if (groupIndex < activeGroup) {
+      // Earlier groups remain completed
+      paragraph.classList.add("summary");
+    }
+  });
 }

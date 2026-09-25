@@ -122,21 +122,21 @@ func TemplateHomePage(summaries []FeedSummary) Node {
 
 }
 
-func TemplateTextAreaInput(notes []string) Node {
+// func TemplateTextAreaInput(notes []string) Node {
 
-	textAreaVal := ""
-	if len(notes) > 0 {
-		fmt.Println("adding notes")
-		textAreaVal = strings.Join(notes, "\n\n")
-	}
+// 	textAreaVal := ""
+// 	if len(notes) > 0 {
+// 		fmt.Println("adding notes")
+// 		textAreaVal = strings.Join(notes, "\n\n")
+// 	}
 
-	return Textarea(
-		ds.Bind("notesText"),
-		ds.On("input", "$complete = textAreaComplete(evt)"),
-		ID("user_input"),
-		Text(textAreaVal),
-	)
-}
+// 	return Textarea(
+// 		ds.Bind("notesText"),
+// 		ds.On("input", "$complete = textAreaComplete(evt)"),
+// 		ID("user_input"),
+// 		Text(textAreaVal),
+// 	)
+// }
 
 func TemplateArticlePage(apd ArticlePageData) Node {
 	return Div(ID("article"), ds.Signals(map[string]any{"hideTitle": false}),
@@ -154,12 +154,13 @@ func TemplateArticlePage(apd ArticlePageData) Node {
 			),
 		),
 
-		Section(
+		Section(Class("grid-parent"),
 			Div(ID("article"),
 				Raw(apd.PageContent),
+				//Raw("<p>Para 1</p><p>Para 2</p><p>Para 3</p><p>Para 4</p><p>Para 5</p><p>Para 6</p><p>Para 7</p>"),
 			),
 			Div(
-				Textarea(ID("editor"),
+				Textarea(ID("editor"), Style("width: 90%; height: 100vh"),
 					Value("Some value"),
 				),
 			),
@@ -180,8 +181,6 @@ func TemplateArticlePage(apd ArticlePageData) Node {
 				A(Text("Back to top"), Href("#homepage")),
 			),
 		),
-
-		Script(Src("/public/js/feeds.js")),
 	)
 }
 

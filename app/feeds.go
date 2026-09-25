@@ -7,7 +7,6 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -21,7 +20,11 @@ import (
 	"golang.org/x/net/html"
 )
 
-func getArticlePageData(queries *db.Queries, ctx context.Context, articleID int64) (ArticlePageData, error) {
+type AppDomain struct {
+	SqlQueries *db.Queries
+}
+
+func (fd *AppDomain) getArticlePageData(queries *db.Queries, ctx context.Context, articleID int64) (ArticlePageData, error) {
 
 	td := ArticlePageData{}
 
@@ -41,7 +44,7 @@ func getArticlePageData(queries *db.Queries, ctx context.Context, articleID int6
 	td.StarValue = fa.ArticleStars
 	td.ArticlePublished = fa.ArticlePublished.Format(layoutISO)
 
-	alreadyRead, toRead, err := getArticlesByFeedID(queries, fa.FeedID, ctx)
+	alreadyRead, toRead, err := fd.getArticlesByFeedID(queries, fa.FeedID, ctx)
 	if err != nil {
 		return td, err
 	}
@@ -67,93 +70,7 @@ func getArticlePageData(queries *db.Queries, ctx context.Context, articleID int6
 
 }
 
-// func updateComments(queries *db.Queries, ctx context.Context, noteText string, articleID int64, paragraphID int64) (mpdCommentsData, error) {
-
-// 	mns := mpdCommentsData{}
-
-// 	fmt.Printf("Does a note already exist - comment id: %v - note:%s\n", paragraphID, noteText)
-
-// 	_, err := queries.SelectCommentsByArticleIDAndRelatedParagraphID(
-// 		ctx, db.SelectCommentsByArticleIDAndRelatedParagraphIDParams{
-// 			ArticleID:          articleID,
-// 			RelatedParagraphID: paragraphID,
-// 		},
-// 	)
-
-// 	//  If a note doesn't exist to update we INSERT a new one
-// 	if err == sql.ErrNoRows {
-// 		fmt.Println("No!")
-// 		fmt.Printf("Creating a new note - paragraphID: %v - note:%s and returning all the notes\n", paragraphID, noteText)
-
-// 		_, err := queries.InsertAndReturnComment(
-// 			ctx,
-// 			db.InsertAndReturnCommentParams{
-// 				CommentText:        noteText,
-// 				ArticleID:          articleID,
-// 				RelatedParagraphID: paragraphID,
-// 			},
-// 		)
-// 		if err != nil {
-// 			return mns, err
-// 		}
-
-// 		return getComments(queries, ctx, articleID, paragraphID)
-// 	}
-
-// 	if err != nil {
-// 		return mns, err
-// 	}
-
-// 	fmt.Println("Yes!")
-// 	fmt.Printf("Updating an existing note - paragraph id: %v - note:%s and returning all the notes\n", paragraphID, noteText)
-
-// 	err = queries.UpdateCommentByArticleIDAndRelatedParagraphID(
-// 		ctx,
-// 		db.UpdateCommentByArticleIDAndRelatedParagraphIDParams{
-// 			CommentText:        noteText,
-// 			ArticleID:          articleID,
-// 			RelatedParagraphID: paragraphID,
-// 		},
-// 	)
-// 	if err != nil {
-// 		return mns, err
-// 	}
-
-// 	return getComments(queries, ctx, articleID, paragraphID)
-
-// }
-
-// func getComments(queries *db.Queries, ctx context.Context, articleID int64, paragraphID int64) (mpdCommentsData, error) {
-
-// 	mns := mpdCommentsData{}
-
-// 	// CLARIFY!!!! if this is -1 then its the page render call
-// 	fmt.Printf("Selecting note state: %v\n", paragraphID)
-// 	mns.NoteToEdit = paragraphID
-
-// 	article, err := queries.SelectArticleByID(ctx, articleID)
-// 	if err != nil {
-// 		return mns, err
-// 	}
-// 	mns.TotalPotentialCommentsCount = article.ClickableParagraphCount
-// 	mns.ArticleID = article.ID
-
-// 	notes, err := queries.SelectCommentsByArticleID(ctx, articleID)
-// 	if err != nil {
-// 		return mns, err
-// 	}
-
-// 	getParagraphID := func(n db.Comment) int64 {
-// 		return n.RelatedParagraphID
-// 	}
-
-// 	notesMap := lib.SliceToMap(notes, getParagraphID)
-// 	mns.Comments = notesMap
-
-// 	return mns, nil
-// }
-
-func setArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
+func (fd *AppDomain) setArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
 
 	updatedValue := func(currentValue int64) int64 {
 		if currentValue == 3 {
@@ -174,7 +91,7 @@ func setArticleLike(queries *db.Queries, starredValue int64, articleID int64, ct
 	return nil
 }
 
-func getArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []mpdFeedsArticle, toRead []mpdFeedsArticle, err error) {
+func (fd *AppDomain) getArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []mpdFeedsArticle, toRead []mpdFeedsArticle, err error) {
 
 	allArticles, err := queries.SelectArticlesByFeedID(ctx, feedID)
 	if err != nil {
@@ -207,7 +124,7 @@ func getArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context)
 	return alreadyRead, toRead, nil
 }
 
-func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
+func (fd *AppDomain) getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
 	feeds, err := queries.SelectAllFeeds(ctx)
 	if err != nil {
@@ -231,7 +148,7 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 		}
 
 		for _, feedItem := range goFeed.Items {
-			HTMLProcessingPipeline(queries, ctx, feedItem, feed)
+			fd.HTMLProcessingPipeline(queries, ctx, feedItem, feed)
 			articlesInserted++
 		}
 	}
@@ -253,7 +170,7 @@ func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 This is called on generate or from the app when the user calls update
 *
 */
-func HTMLProcessingPipeline(queries *db.Queries, ctx context.Context, feedItem *gofeed.Item, feed db.Feed) (int64, error) {
+func (fd *AppDomain) HTMLProcessingPipeline(queries *db.Queries, ctx context.Context, feedItem *gofeed.Item, feed db.Feed) (int64, error) {
 
 	description, err := html.Parse(strings.NewReader(feedItem.Description))
 	if err != nil {
@@ -280,6 +197,8 @@ func HTMLProcessingPipeline(queries *db.Queries, ctx context.Context, feedItem *
 		return 0, err
 	}
 
+	// not sure we need this now
+	// -------------------------------------------------
 	processedHtml, paragraphCount, err := _processScrapedHTML(rawHtml)
 	if err != nil {
 		log.Fatalf("error getting site html: %v", err)
@@ -383,62 +302,143 @@ func _extractHTMLRange(container *goquery.Selection, startSelector, stopSelector
 
 func _processScrapedHTML(input string) (string, int64, error) {
 
-	enrichHTML := func(doc *html.Node) int64 {
+	// enrichHTML := func(doc *html.Node) int64 {
 
-		isBlockElement := func(tag string) bool {
-			switch tag {
-			case "p",
-				// "h1",
-				// "h2",
-				// "h3",
-				// "h4",
-				// "div",
-				"figure",
-				"blockquote",
-				"ul",
-				"ol",
-				"table":
-				return true
-			default:
-				return false
+	// 	isBlockElement := func(tag string) bool {
+	// 		switch tag {
+	// 		case "p",
+	// 			// "h1",
+	// 			// "h2",
+	// 			// "h3",
+	// 			// "h4",
+	// 			// "div",
+	// 			"figure",
+	// 			"blockquote",
+	// 			"ul",
+	// 			"ol",
+	// 			"table":
+	// 			return true
+	// 		default:
+	// 			return false
+	// 		}
+	// 	}
+
+	// 	id := 0
+
+	// 	var walk func(*html.Node, bool)
+
+	// 	walk = func(n *html.Node, ancestorIsBlock bool) {
+
+	// 		for c := n.FirstChild; c != nil; c = c.NextSibling {
+
+	// 			childAncestorIsBlock := ancestorIsBlock
+
+	// 			if c.Type == html.ElementNode {
+
+	// 				tag := strings.ToLower(c.Data)
+
+	// 				if isBlockElement(tag) && !ancestorIsBlock {
+
+	// 					c.Attr = append(c.Attr, html.Attribute{
+	// 						Key: "data-paragraph-id",
+	// 						Val: strconv.Itoa(id),
+	// 					})
+
+	// 					id++
+	// 					childAncestorIsBlock = true
+	// 				}
+	// 			}
+
+	// 			if c.FirstChild != nil {
+	// 				walk(c, childAncestorIsBlock)
+	// 			}
+	// 		}
+	// 	}
+
+	// 	walk(doc, false)
+
+	// 	return int64(id)
+	// }
+
+	enrichBlockquotes := func(doc *html.Node) int64 {
+		var count int64
+
+		addClass := func(n *html.Node, className string) {
+			for i := range n.Attr {
+				if n.Attr[i].Key == "class" {
+					// Avoid adding the class if it already exists.
+					classes := strings.FieldsSeq(n.Attr[i].Val)
+					for class := range classes {
+						if class == className {
+							return
+						}
+					}
+
+					n.Attr[i].Val += " " + className
+					return
+				}
 			}
+
+			n.Attr = append(n.Attr, html.Attribute{
+				Key: "class",
+				Val: className,
+			})
 		}
 
-		id := 0
+		var walk func(*html.Node)
 
-		var walk func(*html.Node, bool)
+		walk = func(n *html.Node) {
+			for c := n.FirstChild; c != nil; {
+				next := c.NextSibling
 
-		walk = func(n *html.Node, ancestorIsBlock bool) {
+				if c.Type == html.ElementNode &&
+					strings.EqualFold(c.Data, "blockquote") {
 
-			for c := n.FirstChild; c != nil; c = c.NextSibling {
+					// Add the class to each direct element child.
+					for child := c.FirstChild; child != nil; {
+						childNext := child.NextSibling
 
-				childAncestorIsBlock := ancestorIsBlock
+						if child.Type == html.ElementNode {
+							addClass(child, "blockquote")
+						}
 
-				if c.Type == html.ElementNode {
-
-					tag := strings.ToLower(c.Data)
-
-					if isBlockElement(tag) && !ancestorIsBlock {
-
-						c.Attr = append(c.Attr, html.Attribute{
-							Key: "data-paragraph-id",
-							Val: strconv.Itoa(id),
-						})
-
-						id++
-						childAncestorIsBlock = true
+						child = childNext
 					}
+
+					// Unwrap the blockquote, preserving its contents.
+					for child := c.FirstChild; child != nil; {
+						childNext := child.NextSibling
+
+						// Detach the child from the blockquote first.
+						c.RemoveChild(child)
+
+						// Now attach it to the blockquote's parent.
+						n.InsertBefore(child, c)
+
+						child = childNext
+					}
+
+					n.RemoveChild(c)
+
+					count++
+
+					// The blockquote's children have been moved
+					// into the parent, so continue with the next sibling.
+					c = next
+					continue
 				}
 
 				if c.FirstChild != nil {
-					walk(c, childAncestorIsBlock)
+					walk(c)
 				}
+
+				c = next
 			}
 		}
 
-		walk(doc, false)
+		walk(doc)
 
-		return int64(id)
+		return count
 	}
 
 	doc, err := html.Parse(strings.NewReader(input))
@@ -448,7 +448,7 @@ func _processScrapedHTML(input string) (string, int64, error) {
 
 	_sanitizeHTMLInput(doc)
 
-	paragraphCount := enrichHTML(doc)
+	paragraphCount := enrichBlockquotes(doc) //enrichHTML(doc)
 
 	stringifiedHTML, err := _stringifyHTML(doc)
 	if err != nil {
