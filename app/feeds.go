@@ -20,11 +20,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-type AppDomain struct {
-	SqlQueries *db.Queries
-}
-
-func (fd *AppDomain) getArticlePageData(queries *db.Queries, ctx context.Context, articleID int64) (ArticlePageData, error) {
+func getArticlePageData(queries *db.Queries, ctx context.Context, articleID int64) (ArticlePageData, error) {
 
 	td := ArticlePageData{}
 
@@ -44,7 +40,7 @@ func (fd *AppDomain) getArticlePageData(queries *db.Queries, ctx context.Context
 	td.StarValue = fa.ArticleStars
 	td.ArticlePublished = fa.ArticlePublished.Format(layoutISO)
 
-	alreadyRead, toRead, err := fd.getArticlesByFeedID(queries, fa.FeedID, ctx)
+	alreadyRead, toRead, err := getArticlesByFeedID(queries, fa.FeedID, ctx)
 	if err != nil {
 		return td, err
 	}
@@ -70,7 +66,7 @@ func (fd *AppDomain) getArticlePageData(queries *db.Queries, ctx context.Context
 
 }
 
-func (fd *AppDomain) setArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
+func setArticleLike(queries *db.Queries, starredValue int64, articleID int64, ctx context.Context) error {
 
 	updatedValue := func(currentValue int64) int64 {
 		if currentValue == 3 {
@@ -91,7 +87,7 @@ func (fd *AppDomain) setArticleLike(queries *db.Queries, starredValue int64, art
 	return nil
 }
 
-func (fd *AppDomain) getArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []mpdFeedsArticle, toRead []mpdFeedsArticle, err error) {
+func getArticlesByFeedID(queries *db.Queries, feedID int64, ctx context.Context) (alreadyRead []mpdFeedsArticle, toRead []mpdFeedsArticle, err error) {
 
 	allArticles, err := queries.SelectArticlesByFeedID(ctx, feedID)
 	if err != nil {
@@ -124,7 +120,7 @@ func (fd *AppDomain) getArticlesByFeedID(queries *db.Queries, feedID int64, ctx 
 	return alreadyRead, toRead, nil
 }
 
-func (fd *AppDomain) getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
+func getFeedUpdates(queries *db.Queries, ctx context.Context) (int64, error) {
 
 	feeds, err := queries.SelectAllFeeds(ctx)
 	if err != nil {
@@ -148,7 +144,7 @@ func (fd *AppDomain) getFeedUpdates(queries *db.Queries, ctx context.Context) (i
 		}
 
 		for _, feedItem := range goFeed.Items {
-			fd.HTMLProcessingPipeline(queries, ctx, feedItem, feed)
+			HTMLProcessingPipeline(queries, ctx, feedItem, feed)
 			articlesInserted++
 		}
 	}
@@ -170,7 +166,7 @@ func (fd *AppDomain) getFeedUpdates(queries *db.Queries, ctx context.Context) (i
 This is called on generate or from the app when the user calls update
 *
 */
-func (fd *AppDomain) HTMLProcessingPipeline(queries *db.Queries, ctx context.Context, feedItem *gofeed.Item, feed db.Feed) (int64, error) {
+func HTMLProcessingPipeline(queries *db.Queries, ctx context.Context, feedItem *gofeed.Item, feed db.Feed) (int64, error) {
 
 	description, err := html.Parse(strings.NewReader(feedItem.Description))
 	if err != nil {
