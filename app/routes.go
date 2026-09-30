@@ -14,7 +14,15 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-func setupRoutes(r chi.Router, queries *db.Queries) chi.Router {
+// type appHandlers struct {
+// 	queries *db.Queries
+// }
+
+func getRouter(queries *db.Queries) chi.Router {
+
+	r := chi.NewRouter()
+
+	//h := appHandlers{queries: queries}
 
 	r.Use(httpDebugRequest)
 	r.Handle("/public/*", httpNeuterDirectory(http.FileServer(http.FS(staticFS))))
@@ -22,6 +30,8 @@ func setupRoutes(r chi.Router, queries *db.Queries) chi.Router {
 	/*
 		--------------------------------------------
 		Front end functionality
+
+		Closures for the time baing to keep things simeple
 		--------------------------------------------
 	*/
 	homePageHandler := func(w http.ResponseWriter, r *http.Request) {
@@ -212,13 +222,6 @@ func setupRoutes(r chi.Router, queries *db.Queries) chi.Router {
 
 	}
 
-	r.Get("/", homePageHandler)
-	r.Get("/feed/{feedID}/page/{pageID}", feedPageHandler)
-	r.Get("/article/{articleID}/view", articlePageHandler)
-	r.Get("/article/{articleID}/write-comment", writeCommentHandler)
-	r.Put("/article/{articleID}/like/{value}", likeArticleHander)
-	r.Get("/update-reader", updateReaderHandler)
-
 	/*
 		----------------------------------------------
 		Admin functionality
@@ -270,7 +273,7 @@ func setupRoutes(r chi.Router, queries *db.Queries) chi.Router {
 			return
 		}
 
-		sigs := mpdCreateFeedSignals{}
+		sigs := CreateFeedSignals{}
 		err := datastar.ReadSignals(r, &sigs)
 		if err != nil {
 			httpLogAndError(w, r, err.Error())
@@ -300,6 +303,12 @@ func setupRoutes(r chi.Router, queries *db.Queries) chi.Router {
 
 	}
 
+	r.Get("/", homePageHandler)
+	r.Get("/feed/{feedID}/page/{pageID}", feedPageHandler)
+	r.Get("/article/{articleID}/view", articlePageHandler)
+	r.Get("/article/{articleID}/write-comment", writeCommentHandler)
+	r.Put("/article/{articleID}/like/{value}", likeArticleHander)
+	r.Get("/update-reader", updateReaderHandler)
 	r.Get("/admin/feeds", listFeedsAdminHandler)
 	r.Get("/admin/feed/{feedID}/view", viewFeedAdminHandler)
 	r.Put("/admin/feed/{feedID}/update", updateFeedAdminHandler)

@@ -21,8 +21,8 @@ var staticFS embed.FS
 
 func SetupHTTPServer(queries *db.Queries, user string, password string) chi.Router {
 
-	return setupRoutes(chi.NewRouter(), queries)
-
+	//potentially more stuff to add here...
+	return getRouter(queries)
 }
 
 func httpNeuterDirectory(next http.Handler) http.Handler {

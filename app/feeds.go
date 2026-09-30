@@ -652,7 +652,7 @@ type pageScrapeParams struct {
 	Strategy       string
 }
 
-type mpdCreateFeedSignals struct {
+type CreateFeedSignals struct {
 	Title                  string `json:"feed-name"`
 	FeedUrl                string `json:"feed-url"`
 	CSSSelectorContainer   string `json:"css-sel-container"`
